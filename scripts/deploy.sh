@@ -1,18 +1,32 @@
 #!/usr/bin/env bash
-# 一键更新部署到阿里云 ECS
-# 用法: bash scripts/deploy.sh
-# 依赖: 本机 ~/.ssh/food_soul_deploy 私钥（已加入服务器 authorized_keys）
+# 一键更新部署（默认按 PM2 + Nginx 的单机部署）
+# 用法:
+#   cp .deploy.env.example .deploy.env   # 填入自己的服务器信息（该文件已被 git 忽略）
+#   bash scripts/deploy.sh
+# 也可直接用环境变量: DEPLOY_HOST=1.2.3.4 DEPLOY_USER=root bash scripts/deploy.sh
 set -euo pipefail
-
-HOST="${DEPLOY_HOST:-39.106.251.146}"
-USER="${DEPLOY_USER:-root}"
-KEY="${DEPLOY_KEY:-$HOME/.ssh/food_soul_deploy}"
-APP="${DEPLOY_APP:-/opt/food-soul}"
 
 cd "$(dirname "$0")/.."
 
+# 本地部署配置（不入库）
+if [ -f .deploy.env ]; then
+  # shellcheck disable=SC1091
+  . ./.deploy.env
+fi
+
+HOST="${DEPLOY_HOST:-}"
+USER="${DEPLOY_USER:-root}"
+KEY="${DEPLOY_KEY:-$HOME/.ssh/id_ed25519}"
+APP="${DEPLOY_APP:-/opt/food-soul}"
+PORT="${DEPLOY_PORT:-22}"
+
+if [ -z "$HOST" ]; then
+  echo "未配置服务器地址。请创建 .deploy.env（参考 .deploy.env.example）或设置 DEPLOY_HOST 环境变量。" >&2
+  exit 1
+fi
+
 if [ ! -f "$KEY" ]; then
-  echo "缺少私钥: $KEY" >&2
+  echo "缺少私钥: $KEY（可用 DEPLOY_KEY 指定）" >&2
   exit 1
 fi
 
@@ -29,10 +43,10 @@ tar -czf "$TAR" \
   src server public index.html package.json package-lock.json vite.config.js .env.example
 
 echo "==> 上传到 $HOST"
-scp -q -i "$KEY" -P 22 "$(cygpath -w "$TAR")" "$USER@$HOST:/tmp/food-soul-update.tar.gz"
+scp -q -i "$KEY" -P "$PORT" "$(cygpath -w "$TAR")" "$USER@$HOST:/tmp/food-soul-update.tar.gz"
 
 echo "==> 服务器端解包 / 安装 / 构建 / 重启"
-ssh -i "$KEY" "$USER@$HOST" "
+ssh -p "$PORT" -i "$KEY" "$USER@$HOST" "
   set -e
   cd $APP
   tar -xzf /tmp/food-soul-update.tar.gz

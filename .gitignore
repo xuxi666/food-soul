@@ -13,6 +13,7 @@ public/dishes/generated
 shots
 .tmp
 .workbuddy-ai
+.deploy.env
 *.log
 *.bak
 .DS_Store
