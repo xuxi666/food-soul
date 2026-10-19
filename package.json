@@ -1,0 +1,24 @@
+{
+  "name": "food-soul",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "食有灵 · FOOD SOUL — 中国美食 × 用户自接入 AI 大模型",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server/index.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "zod": "^4.6.7"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

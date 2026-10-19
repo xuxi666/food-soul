@@ -1,0 +1,20 @@
+import { chromium } from 'playwright-core';
+const B='http://127.0.0.1:5180';
+const b = await chromium.launch({ executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe', headless:true, args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const c = await b.newContext({ viewport:{width:1440,height:900} });
+const p = await c.newPage();
+const errs=[]; p.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); p.on('pageerror',e=>errs.push(e.message));
+await p.goto(B+'/',{waitUntil:'load'});
+await p.waitForTimeout(3200);
+await p.screenshot({path:'shots/f2-hero.png'});
+// 点 CTA 进入聊天
+const box = await p.locator('.cp.is-full .cp__cta').first().boundingBox();
+await p.mouse.click(box.x+box.width/2, box.y+box.height/2);
+await p.waitForTimeout(1500);
+await p.screenshot({path:'shots/f2-chat.png'});
+console.log('route:', new (globalThis.URL)(p.url()).pathname);
+console.log('greeting:', (await p.locator('.chat-empty__hi').innerText()).slice(0,40));
+console.log('tags:', (await p.locator('.chat-aside__tags').innerText()).replace(/\n/g,' | '));
+console.log('persona:', await p.locator('.chat-aside__persona b').innerText());
+console.log('errors:', errs.length?errs:'none');
+await b.close();

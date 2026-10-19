@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'] });
+const ctx = await b.newContext({ viewport:{width:1440,height:900} });
+const p = await ctx.newPage();
+await p.goto('http://127.0.0.1:5180/', { waitUntil:'load' });
+await p.waitForFunction(()=>window.__exhibition?.gallery?.ready===true,null,{timeout:20000});
+await p.waitForTimeout(1500);
+console.log('renderer:', await p.evaluate(()=>{const c=document.createElement('canvas');const gl=c.getContext('webgl2')||c.getContext('webgl');const d=gl.getExtension('WEBGL_debug_renderer_info');return d?gl.getParameter(d.UNMASKED_RENDERER_WEBGL):'n/a';}));
+const fps = await p.evaluate(()=>new Promise(r=>{let n=0;const t0=performance.now();const tick=()=>{n++;if(performance.now()-t0<2000)requestAnimationFrame(tick);else r(Math.round(n/((performance.now()-t0)/1000)));};requestAnimationFrame(tick);}));
+console.log('fps:', fps);
+await b.close();

@@ -1,0 +1,138 @@
+// 八大菜系 —— 地域与烹饪体系分类
+export const CUISINES = [
+  {
+    id: 'chuan',
+    name: '川菜',
+    en: 'Sichuan',
+    region: '四川 · 重庆',
+    tagline: '一菜一格，百菜百味',
+    desc: '善用花椒与辣椒，麻辣之外还有鱼香、怪味、糊辣等二十余种复合味型。',
+    accent: '#c2452d',
+  },
+  {
+    id: 'yue',
+    name: '粤菜',
+    en: 'Cantonese',
+    region: '广东 · 香港',
+    tagline: '清中求鲜，淡中求美',
+    desc: '重食材本味与火候，蒸、浸、炖见功夫，调味克制而精准。',
+    accent: '#b98a4a',
+  },
+  {
+    id: 'lu',
+    name: '鲁菜',
+    en: 'Shandong',
+    region: '山东',
+    tagline: '咸鲜为骨，火候为魂',
+    desc: '北方菜系的源头，讲究高汤、葱油与扒烧技法，味厚而不腻。',
+    accent: '#9a7b3f',
+  },
+  {
+    id: 'su',
+    name: '苏菜',
+    en: 'Jiangsu',
+    region: '江苏',
+    tagline: '刀工精细，浓油赤酱',
+    desc: '淮扬与金陵并称，讲究刀法、火工与汤菜，甜咸之间拿捏精准。',
+    accent: '#8f6f52',
+  },
+  {
+    id: 'zhe',
+    name: '浙菜',
+    en: 'Zhejiang',
+    region: '浙江',
+    tagline: '清鲜雅致，时令为先',
+    desc: '杭帮、宁波、绍兴三路并流，善用河鲜、笋、茶与黄酒。',
+    accent: '#5f7f6a',
+  },
+  {
+    id: 'min',
+    name: '闽菜',
+    en: 'Fujian',
+    region: '福建',
+    tagline: '汤菜见长，鲜醇为宗',
+    desc: '善制汤与坛煨，红糟、虾油、沙茶入馔，味层叠而圆润。',
+    accent: '#a2583f',
+  },
+  {
+    id: 'xiang',
+    name: '湘菜',
+    en: 'Hunan',
+    region: '湖南',
+    tagline: '香辣浓烈，烟火气足',
+    desc: '辣得直接，香得扎实，腊味、剁椒、豆豉是灵魂三件。',
+    accent: '#b03a2e',
+  },
+  {
+    id: 'hui',
+    name: '徽菜',
+    en: 'Anhui',
+    region: '安徽',
+    tagline: '重火功，善烧炖',
+    desc: '山野食材与腌制发酵见长，一锅炭火慢炖出醇厚底味。',
+    accent: '#7a6448',
+  },
+];
+
+// 八种味型 —— 决定 AI 人格的唯一依据（与菜系无关）
+export const TASTES = [
+  {
+    id: 'mala',
+    name: '麻辣鲜香',
+    en: 'Numbing & Fiery',
+    desc: '花椒的麻与辣椒的辣同时抵达，热油激出的香气托底。',
+    color: '#d1462f',
+  },
+  {
+    id: 'xiangla',
+    name: '香辣浓烈',
+    en: 'Aromatic Heat',
+    desc: '辣得有香气、有层次，辣椒与油脂、发酵调味互相成全。',
+    color: '#c0392b',
+  },
+  {
+    id: 'suanla',
+    name: '酸辣开胃',
+    en: 'Sour & Hot',
+    desc: '酸先行、辣随后，一口把胃口打开，收口干净。',
+    color: '#d98324',
+  },
+  {
+    id: 'qingxian',
+    name: '清鲜本味',
+    en: 'Pure & Fresh',
+    desc: '几乎不用重调味，靠食材鲜度、火候与一口清汤说话。',
+    color: '#6f9a86',
+  },
+  {
+    id: 'xianxian',
+    name: '咸鲜醇厚',
+    en: 'Savory Depth',
+    desc: '盐与鲜的骨架，高汤、酱油、葱油把味道垫得厚实。',
+    color: '#a8813f',
+  },
+  {
+    id: 'xiantian',
+    name: '鲜甜柔和',
+    en: 'Sweet & Mellow',
+    desc: '甜不压鲜，酸不抢戏，糖醋之间是温柔的回甘。',
+    color: '#c98a6b',
+  },
+  {
+    id: 'jiangxiang',
+    name: '酱香浓郁',
+    en: 'Deep Soy Aroma',
+    desc: '豆瓣、黄豆酱、甜面酱在锅里炒出酱香，颜色与味道一起沉下去。',
+    color: '#7d4f34',
+  },
+  {
+    id: 'chunhou',
+    name: '醇厚浓香',
+    en: 'Rich & Lingering',
+    desc: '长时间煨炖出的胶质与脂香，入口厚，回味长。',
+    color: '#8a5a3b',
+  },
+];
+
+export const CUISINE_BY_ID = Object.fromEntries(CUISINES.map((c) => [c.id, c]));
+export const TASTE_BY_ID = Object.fromEntries(TASTES.map((t) => [t.id, t]));

@@ -1,0 +1,15 @@
+import { chromium } from 'playwright-core';
+const B = process.argv[2] || 'http://10.122.63.83:5180';
+const b = await chromium.launch({ executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe', headless:true, args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const c = await b.newContext({ viewport:{width:390,height:844}, deviceScaleFactor:2, isMobile:true, hasTouch:true });
+const p = await c.newPage();
+const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+await p.goto(B+'/', { waitUntil:'load' });
+await p.waitForTimeout(3200);
+console.log('url:', B);
+console.log('hero:', await p.locator('h1.hero__title').innerText());
+console.log('panels:', await p.locator('.cp').count(), 'full:', await p.locator('.cp.is-full').count());
+console.log('health:', (await (await fetch(B+'/api/health')).json()).dishes);
+await p.screenshot({ path:'shots/lan-mobile.png' });
+console.log('errors:', errs.length?errs.slice(0,4):'none');
+await b.close();

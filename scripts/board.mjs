@@ -1,0 +1,13 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe', headless:true, args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const c = await b.newContext({ viewport:{width:1440,height:900} });
+const p = await c.newPage();
+await p.goto('http://127.0.0.1:5180/',{waitUntil:'load'});
+await p.waitForTimeout(2500);
+await p.locator('.seg__btn[data-mode="taste"]').click();
+await p.waitForTimeout(400);
+await p.evaluate(()=>document.querySelector('#board').scrollIntoView());
+await p.waitForTimeout(900);
+await p.screenshot({path:'shots/h2-board-taste.png'});
+console.log('chip heights:', await p.evaluate(()=>[...document.querySelectorAll('.chip-tab')].map(e=>e.getBoundingClientRect().height)));
+await b.close();

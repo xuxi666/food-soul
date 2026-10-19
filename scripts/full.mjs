@@ -1,0 +1,24 @@
+import { chromium } from 'playwright-core';
+const BASE='http://127.0.0.1:5180';
+const b = await chromium.launch({ executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe', headless:true, args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const ctx = await b.newContext({ viewport:{width:1440,height:900} });
+const p = await ctx.newPage();
+const errs=[]; p.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); p.on('pageerror',e=>errs.push(e.message));
+await p.goto(BASE+'/',{waitUntil:'load'});
+await p.waitForTimeout(3000);
+await p.screenshot({path:'shots/v2-hero.png'});
+await p.evaluate(()=>document.querySelector('#personas').scrollIntoView());
+await p.waitForTimeout(1600);
+await p.screenshot({path:'shots/v2-personas.png'});
+await p.evaluate(()=>document.querySelector('#recipe-entry').scrollIntoView());
+await p.waitForTimeout(700);
+await p.screenshot({path:'shots/v2-cta.png'});
+await p.evaluate(()=>document.querySelector('#community').scrollIntoView());
+await p.waitForTimeout(900);
+await p.screenshot({path:'shots/v2-community.png'});
+// 全页
+await p.evaluate(()=>window.scrollTo(0,0));
+await p.waitForTimeout(500);
+await p.screenshot({path:'shots/v2-home-full.png', fullPage:true});
+console.log('errors:', errs.length?errs.slice(0,5):'none');
+await b.close();

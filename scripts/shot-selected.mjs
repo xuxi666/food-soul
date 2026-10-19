@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist'] });
+const ctx = await b.newContext({ viewport:{width:1440,height:900} });
+const p = await ctx.newPage();
+await p.goto('http://127.0.0.1:5180/', { waitUntil:'load' });
+await p.waitForFunction(()=>window.__exhibition?.gallery?.ready===true,null,{timeout:20000});
+await p.waitForTimeout(2600);
+await p.mouse.click(720, 470);
+await p.waitForTimeout(700);
+await p.screenshot({ path: 'shots/final-selected.png' });
+await b.close();
