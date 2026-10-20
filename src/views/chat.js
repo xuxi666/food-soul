@@ -223,11 +223,15 @@ export default {
 
     const composer = h('form', { class: 'composer' }, input, stopBtn, sendBtn);
 
-    const aiNotice = h('div', {
-      class: 'chat-ai-notice',
-      hidden: true,
+    const aiNoticeText = h('span', {
       text: '当前未接入 AI 大模型，请点击右上角「接入 AI」配置后再开始对话。',
     });
+    const aiNotice = h('div', { class: 'chat-ai-notice', hidden: true }, aiNoticeText);
+
+    function showAINotice(text) {
+      if (text) aiNoticeText.textContent = text;
+      aiNotice.hidden = !text;
+    }
     const chatMain = h(
       'section',
       { class: 'chat-main' },
@@ -266,12 +270,17 @@ export default {
 
     function setMode(meta) {
       if (!meta) return;
+      const fromSite = meta.aiSource === 'site';
       state.aiConfigured = meta.aiConfigured !== false;
       if (state.aiConfigured) {
-        modeBadge.textContent = meta.model || '已接入';
-        modeBadge.title = `已接入：${meta.model || '模型'}`;
+        modeBadge.textContent = fromSite
+          ? `内置 AI · ${meta.model || '模型'}`
+          : meta.model || '已接入';
+        modeBadge.title = fromSite
+          ? `全站内置模型：${meta.model || ''}`
+          : `已接入：${meta.model || '模型'}`;
         modeBadge.classList.remove('is-demo');
-        aiNotice.hidden = true;
+        showAINotice('');
         input.disabled = false;
         sendBtn.disabled = false;
         input.placeholder = isCategory
@@ -281,7 +290,7 @@ export default {
         modeBadge.textContent = '未接入 AI';
         modeBadge.title = '请先在右上角「接入 AI」配置你自己的模型';
         modeBadge.classList.add('is-demo');
-        aiNotice.hidden = false;
+        showAINotice(meta.aiMessage || '当前未接入 AI 大模型，请点击右上角「接入 AI」配置后再开始对话。');
         input.disabled = true;
         sendBtn.disabled = true;
         input.placeholder = '请先在右上角「接入 AI」配置模型';
@@ -514,6 +523,10 @@ export default {
         },
         onError: (err) => {
           failed = true;
+          if (err?.code === 'ai_not_configured' || err?.code === 'site_ai_error' || err?.code === 'ai_config_error') {
+            state.aiConfigured = false;
+            setMode({ aiConfigured: false, aiMessage: err.message });
+          }
           node.textEl.textContent = '';
           node.node.classList.add('msg--error');
           node.textEl.append(
@@ -608,7 +621,7 @@ export default {
         ? await api.greeting({ kind: category.kind, categoryId: category.id, contextDishId: topicDish?.id })
         : await api.greeting(dish.id);
       state.greeting = g.greeting;
-      setMode({ aiConfigured: g.aiConfigured, model: g.model });
+      setMode({ aiConfigured: g.aiConfigured, model: g.model, aiSource: g.aiSource, aiMessage: g.aiMessage });
       empty.append(h('p', { class: 'chat-empty__hi', text: g.greeting }), quickRow);
       messagesEl.append(empty);
       state.messages.push({ role: 'assistant', content: g.greeting });

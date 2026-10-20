@@ -319,7 +319,10 @@ export function chatStream(
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `连接失败 (${res.status})`);
+        const err = new Error(data.error || `连接失败 (${res.status})`);
+        err.code = data.code || '';
+        err.status = res.status;
+        throw err;
       }
 
       const reader = res.body.getReader();
@@ -346,7 +349,11 @@ export function chatStream(
           if (event.type === 'meta') handlers.onMeta?.(event);
           else if (event.type === 'delta') handlers.onDelta?.(event.text || '');
           else if (event.type === 'done') handlers.onDone?.();
-          else if (event.type === 'error') handlers.onError?.(new Error(event.message || '生成失败'));
+          else if (event.type === 'error') {
+            const err = new Error(event.message || '生成失败');
+            err.code = event.code || '';
+            handlers.onError?.(err);
+          }
         }
       }
       handlers.onDone?.();

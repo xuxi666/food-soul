@@ -1149,7 +1149,12 @@ export async function handleApi(req, res) {
     if (req.method === 'GET' && path === '/api/greeting') {
       const user = getCurrentUser(req);
       const aiStatus = getAIStatus(user?.id);
-      const aiConfigured = Boolean(aiStatus.configured && aiStatus.verified);
+      // 与聊天接口使用同一套路由：内置 AI 开启时无需个人配置
+      const resolved = user ? resolveAIConfig(user) : { ok: false, code: 'auth_required' };
+      const aiConfigured = Boolean(resolved.ok);
+      const aiSource = resolved.ok ? resolved.source : '';
+      const aiModel = resolved.ok ? resolved.config?.model : aiStatus.model || null;
+      const aiMessage = resolved.ok ? '' : resolved.message || '请点击右上角「接入 AI」配置自己的模型。';
       const kindParam = url.searchParams.get('kind');
       // 分类 AI 欢迎语：菜系 / 口味由 kind + categoryId 决定，菜品只是可选话题
       if (kindParam === 'cuisine' || kindParam === 'taste') {
@@ -1167,7 +1172,9 @@ export async function handleApi(req, res) {
             dishes: dishesForCategory(kindParam, meta.id),
           }),
           aiConfigured,
-          model: aiStatus.model || null,
+          aiSource,
+          aiMessage,
+          model: aiModel,
           provider: aiStatus.provider || null,
           kind: kindParam,
           categoryId: meta.id,
@@ -1181,7 +1188,9 @@ export async function handleApi(req, res) {
       return send(res, 200, {
         greeting: demoGreeting(dish, persona),
         aiConfigured,
-        model: aiStatus.model || null,
+        aiSource,
+        aiMessage,
+        model: aiModel,
         provider: aiStatus.provider || null,
       });
     }
