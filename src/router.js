@@ -10,6 +10,7 @@ import dishDetail from './views/dish-detail.js';
 import community from './views/community.js';
 import videos from './views/videos.js';
 import notFound from './views/notfound.js';
+import admin from './views/admin.js';
 import {
   abortTransition,
   fluidTransition,
@@ -33,6 +34,7 @@ const ROUTES = [
   { name: 'recipe', re: /^\/recipe$/, mod: recipe },
   { name: 'recommend', re: /^\/recommend$/, mod: recommend },
   { name: 'videos', re: /^\/videos$/, mod: videos },
+  { name: 'admin', re: /^\/admin$/, mod: admin },
 ];
 
 export function normalize(pathname) {

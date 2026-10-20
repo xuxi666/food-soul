@@ -14,11 +14,12 @@ import { lookupDish, lookupLibrary, rememberLookup, takeLookup, attachSourceSupp
 import { personaForCategory, dishesForCategory } from '../src/data/categories.js';
 import { extractJSON } from './json-utils.mjs';
 import { chatStream, complete } from './ai-adapter.mjs';
-import { getCurrentUser, setSessionCookie, clearSessionCookie, requireUser, sameOrigin } from './auth.mjs';
+import { getCurrentUser, setSessionCookie, clearSessionCookie, requireUser, requireAdmin, sameOrigin, syncRole } from './auth.mjs';
 import { createUser, findUserByEmail } from './db.mjs';
 import { hashPassword, verifyPassword } from './security.mjs';
 import { getAIStatus, getAIConfig, getConfigForRequest, testUserConfig, saveUserConfig, deleteUserConfig, listUserModels, markAIConfigStatus } from './ai-config.mjs';
 import { rateLimit } from './rate-limit.mjs';
+import { handleAdmin, getAssetOverrides, submitReport } from './admin-routes.mjs';
 
 /* ------------------------------------------------------------------ *
  * 小工具
@@ -96,7 +97,7 @@ function personaFor(dish) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function publicUser(user) {
-  return user ? { id: user.id, email: user.email, name: user.name } : null;
+  return user ? { id: user.id, email: user.email, name: user.name, role: user.role || 'user' } : null;
 }
 
 function authPayload(user) {
@@ -126,7 +127,8 @@ async function handleRegister(req, res) {
     passwordSalt: salt,
   });
   setSessionCookie(req, res, user.id);
-  return send(res, 200, authPayload(user));
+  // 白名单邮箱注册即为管理员（角色由服务端环境变量决定）
+  return send(res, 200, authPayload(syncRole(user)));
 }
 
 async function handleLogin(req, res) {
@@ -142,7 +144,7 @@ async function handleLogin(req, res) {
     return send(res, 401, { error: '邮箱或密码错误' });
   }
   setSessionCookie(req, res, row.id);
-  return send(res, 200, authPayload({ id: row.id, email: row.email, name: row.name }));
+  return send(res, 200, authPayload(syncRole({ id: row.id, email: row.email, name: row.name, role: row.role })));
 }
 
 async function handleLogout(req, res) {
@@ -992,9 +994,28 @@ async function handlePosts(req, res, url) {
   }
 
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'report') {
-    const result = reportPost(parts[0]);
-    if (!result) return send(res, 404, { error: '帖子不存在' });
-    return send(res, 200, { ...result, message: '已收到举报，演示环境不会自动处理。' });
+    // 举报需登录，写入 reports 表并去重（同一用户对同一内容只保留一条待处理）
+    if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+    const user = requireUser(req, res, send, '请先登录后再举报');
+    if (!user) return;
+    const body = await readJson(req).catch(() => ({}));
+    const post = findPost(parts[0]);
+    if (!post || post.deletedAt) return send(res, 404, { error: '帖子不存在' });
+    const out = submitReport({
+      post,
+      user,
+      reason: body.reason,
+      note: body.note,
+      source: 'web',
+    });
+    if (!out.ok) return send(res, 429, { error: out.message, code: out.code });
+    const counter = reportPost(parts[0]);
+    return send(res, 201, {
+      ok: true,
+      reportId: out.report.id,
+      reports: counter?.reports ?? 0,
+      message: '已提交举报，管理员会尽快处理',
+    });
   }
 
   if (req.method === 'DELETE' && parts.length === 1) {
@@ -1068,6 +1089,13 @@ export async function handleApi(req, res) {
   const path = url.pathname;
 
   try {
+    if (path.startsWith('/api/admin')) return await handleAdmin(req, res, url);
+
+    // 前端启动时拉取卡片/菜品图片覆盖（公开只读）
+    if (req.method === 'GET' && path === '/api/assets/overrides') {
+      return send(res, 200, getAssetOverrides());
+    }
+
     if (req.method === 'GET' && path === '/api/health') {
       return send(res, 200, {
         ok: true,

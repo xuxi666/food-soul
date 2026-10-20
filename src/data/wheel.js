@@ -2,6 +2,16 @@
 import { DISHES } from './dishes.js';
 import { CUISINES, TASTES, CUISINE_BY_ID, TASTE_BY_ID } from './cuisines.js';
 
+// 管理员在后台配置的卡片图片覆盖（按 kind + id 精确匹配，互不影响）
+let CARD_OVERRIDES = { cuisine: {}, taste: {} };
+
+export function setCardOverrides(next) {
+  CARD_OVERRIDES = {
+    cuisine: { ...(next?.cuisine || {}) },
+    taste: { ...(next?.taste || {}) },
+  };
+}
+
 function dishBrief(d) {
   return { id: d.id, name: d.name, image: d.image, tastes: d.tastes };
 }
@@ -26,7 +36,7 @@ export function buildCuisineNodes() {
       desc: c.desc,
       tags,
       dishes: dishes.map(dishBrief),
-      image: lead?.image,
+      image: CARD_OVERRIDES.cuisine[c.id] || lead?.image,
       alt: lead?.alt || `${c.name}代表菜`,
       href: `/cuisines/${c.id}`,
       accent: c.accent,
@@ -59,7 +69,7 @@ export function buildTasteNodes() {
       desc: t.desc,
       tags: cuisines.slice(0, 3),
       dishes: dishes.map(dishBrief),
-      image: lead?.image,
+      image: CARD_OVERRIDES.taste[t.id] || lead?.image,
       alt: lead?.alt || `${t.name}代表菜`,
       href: `/tastes/${t.id}`,
       accent: t.color,

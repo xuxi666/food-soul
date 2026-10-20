@@ -365,6 +365,54 @@ export default {
       comments.forEach((c) => commentBox.append(commentNode(post, c)));
       commentBox.append(commentForm);
 
+      /* ---------------- 举报表单 ---------------- */
+      const REPORT_REASONS = ['垃圾广告', '辱骂或骚扰', '不实或违规内容', '其他'];
+      const reportReason = h(
+        'select',
+        { class: 'field__select', 'aria-label': '举报原因' },
+        ...REPORT_REASONS.map((r) => h('option', { value: r, text: r }))
+      );
+      const reportNote = h('input', {
+        type: 'text',
+        class: 'field__input',
+        maxlength: '200',
+        placeholder: '补充说明（可选）',
+        'aria-label': '补充说明',
+      });
+      const reportSubmit = h('button', { class: 'btn btn--sm btn--danger', type: 'submit' }, '提交举报');
+      const reportForm = h('form', { class: 'post-report__form' }, reportReason, reportNote, reportSubmit);
+      const reportBox = h(
+        'div',
+        { class: 'post-report', hidden: true },
+        h('p', { class: 'post-report__title', text: '举报这条内容' }),
+        reportForm
+      );
+
+      reportForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUser) {
+          toast('请先登录后再举报', 'err');
+          openAuthModal('login');
+          return;
+        }
+        reportSubmit.disabled = true;
+        reportSubmit.textContent = '提交中…';
+        try {
+          const res = await api.posts.report(post.id, {
+            reason: reportReason.value,
+            note: reportNote.value.trim(),
+          });
+          toast(res.message || '已提交举报');
+          reportBox.hidden = true;
+          reportNote.value = '';
+        } catch (err) {
+          toast(err.message || '举报失败', 'err');
+        } finally {
+          reportSubmit.disabled = false;
+          reportSubmit.textContent = '提交举报';
+        }
+      });
+
       const actions = h(
         'div',
         { class: 'post-actions' },
@@ -402,14 +450,14 @@ export default {
         h('button', {
           class: 'post-act',
           type: 'button',
-          onclick: async () => {
-            if (!confirm('确认举报这条内容？')) return;
-            try {
-              const res = await api.posts.report(post.id);
-              toast(res.message || '已收到举报');
-            } catch {
-              toast('举报失败', 'err');
+          onclick: () => {
+            if (!currentUser) {
+              toast('请先登录后再举报', 'err');
+              openAuthModal('login');
+              return;
             }
+            reportBox.hidden = !reportBox.hidden;
+            if (!reportBox.hidden) reportBox.querySelector('select')?.focus();
           },
         }, '举报'),
         currentUser && post.author.id === currentUser.id
@@ -454,6 +502,7 @@ export default {
             )
           : null,
         actions,
+        reportBox,
         commentBox
       );
     }

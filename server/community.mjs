@@ -95,7 +95,7 @@ export const KINDS = ['讨论', '菜谱分享', '提问', '角色话题'];
 
 export function listPosts({ sort = 'latest', dishId = '', page = 1, pageSize = 6 } = {}) {
   const { posts } = read();
-  let list = posts.slice();
+  let list = posts.filter((p) => !p.deletedAt);
   if (dishId) list = list.filter((p) => p.dishId === dishId);
   const heat = (p) => (p.likes || 0) + (p.comments?.length || 0) * 2;
   if (sort === 'hot') list.sort((a, b) => heat(b) - heat(a) || b.createdAt - a.createdAt);
@@ -194,20 +194,71 @@ export function aiReplyStats(post) {
 export function reportPost(id) {
   const state = read();
   const p = state.posts.find((x) => x.id === id);
-  if (!p) return null;
-  p.reports += 1;
+  if (!p || p.deletedAt) return null;
+  p.reports = (p.reports || 0) + 1;
   write(state);
   return { reports: p.reports };
 }
 
-export function removePost(id, guestId) {
+/**
+ * 软删除：保留原始数据与管理记录，列表不再展示。
+ * by: 操作人 id；reason: 删除原因
+ */
+export function softDeletePost(id, { by = '', reason = '' } = {}) {
   const state = read();
-  const idx = state.posts.findIndex((x) => x.id === id);
-  if (idx < 0) return { ok: false, reason: 'not-found' };
-  if (state.posts[idx].author.id !== guestId) return { ok: false, reason: 'forbidden' };
-  state.posts.splice(idx, 1);
+  const p = state.posts.find((x) => x.id === id);
+  if (!p) return { ok: false, reason: 'not-found' };
+  if (p.deletedAt) return { ok: true, already: true, post: p };
+  p.deletedAt = Date.now();
+  p.deletedBy = by;
+  p.deleteReason = String(reason || '').slice(0, 200);
   write(state);
-  return { ok: true };
+  return { ok: true, post: p };
+}
+
+/** 管理端列表：支持关键词搜索与分页，包含举报数与删除状态 */
+export function adminListPosts({ q = '', page = 1, pageSize = 10, includeDeleted = false } = {}) {
+  const { posts } = read();
+  const kw = String(q || '').trim().toLowerCase();
+  let list = posts.slice();
+  if (!includeDeleted) list = list.filter((p) => !p.deletedAt);
+  if (kw) {
+    list = list.filter((p) =>
+      [p.content, p.author?.name, p.kind, p.dishId].filter(Boolean).join(' ').toLowerCase().includes(kw)
+    );
+  }
+  list.sort((a, b) => b.createdAt - a.createdAt);
+  const total = list.length;
+  const start = (page - 1) * pageSize;
+  return {
+    items: list.slice(start, start + pageSize).map((p) => ({
+      id: p.id,
+      content: p.content,
+      author: p.author,
+      kind: p.kind,
+      dishId: p.dishId || '',
+      image: p.image || '',
+      images: p.images || [],
+      createdAt: p.createdAt,
+      likes: p.likes || 0,
+      comments: p.comments?.length || 0,
+      reports: p.reports || 0,
+      deletedAt: p.deletedAt || null,
+    })),
+    total,
+    page,
+    pageSize,
+    hasMore: start + pageSize < total,
+  };
+}
+
+export function removePost(id, userId) {
+  const state = read();
+  const p = state.posts.find((x) => x.id === id);
+  if (!p || p.deletedAt) return { ok: false, reason: 'not-found' };
+  if (p.author.id !== userId) return { ok: false, reason: 'forbidden' };
+  const res = softDeletePost(id, { by: userId, reason: '作者本人删除' });
+  return res.ok ? { ok: true } : { ok: false, reason: res.reason };
 }
 
 const ALLOWED = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };

@@ -992,3 +992,39 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* 举报表单 */
+.post-report {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(194, 69, 45, 0.35);
+  border-radius: 10px;
+  background: rgba(194, 69, 45, 0.06);
+}
+
+.post-report[hidden] {
+  display: none;
+}
+
+.post-report__title {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: #e8836f;
+  margin-bottom: 8px;
+}
+
+.post-report__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.post-report__form .field__select {
+  flex: 0 0 auto;
+}
+
+.post-report__form .field__input {
+  flex: 1 1 180px;
+  min-width: 0;
+}

@@ -369,3 +369,14 @@ select.account-input {
     align-items: stretch;
   }
 }
+
+/* 管理后台入口（仅管理员可见） */
+.account-btn--admin {
+  border-color: rgba(216, 178, 106, 0.55);
+  color: var(--gold);
+}
+
+.account-btn--admin:hover {
+  background: rgba(216, 178, 106, 0.12);
+  color: var(--gold);
+}

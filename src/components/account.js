@@ -142,6 +142,12 @@ export function mountAccount(root) {
     );
 
     if (user) {
+      // 管理后台入口：仅服务端返回 role=admin 时渲染，普通用户/未登录看不到
+      if (user.role === 'admin') {
+        bar.append(
+          h('a', { class: 'account-btn account-btn--admin', href: '/admin', 'data-link': '', title: '进入管理后台' }, '管理后台')
+        );
+      }
       bar.append(
         h('span', { class: 'account-user', text: user.name || user.email, title: user.email }),
         h('button', { class: 'account-btn account-btn--ghost', type: 'button', onclick: logout }, '退出')

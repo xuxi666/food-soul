@@ -139,6 +139,39 @@ export const api = {
       signal: typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(110_000) : undefined,
     }),
 
+  admin: {
+    overview: () => jsonFetch('/api/admin/overview'),
+    posts: ({ q = '', page = 1, pageSize = 10 } = {}) =>
+      jsonFetch(`/api/admin/posts?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}`),
+    post: (id) => jsonFetch(`/api/admin/posts/${id}`),
+    deletePost: (id, reason = '') =>
+      jsonFetch(`/api/admin/posts/${id}`, {
+        method: 'DELETE',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ reason }),
+      }),
+    cards: () => jsonFetch('/api/admin/cards'),
+    saveCard: (payload) =>
+      jsonFetch('/api/admin/cards', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    resetCard: (kind, id) => jsonFetch(`/api/admin/cards/${kind}/${id}`, { method: 'DELETE' }),
+    dishes: ({ q = '', page = 1, pageSize = 12 } = {}) =>
+      jsonFetch(`/api/admin/dishes?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}`),
+    saveDish: (payload) =>
+      jsonFetch('/api/admin/dishes', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    resetDish: (id) => jsonFetch(`/api/admin/dishes/${id}`, { method: 'DELETE' }),
+    reports: ({ status = '', page = 1, pageSize = 10 } = {}) =>
+      jsonFetch(`/api/admin/reports?status=${status}&page=${page}&pageSize=${pageSize}`),
+    handleReport: (id, payload) =>
+      jsonFetch(`/api/admin/reports/${id}/handle`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(payload),
+      }),
+    upload: (dataUrl) =>
+      jsonFetch('/api/admin/upload', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ image: dataUrl }) }),
+    audit: () => jsonFetch('/api/admin/audit'),
+  },
+
   posts: {
     list: ({ sort = 'latest', page = 1, dishId = '' } = {}) =>
       jsonFetch(`/api/posts?sort=${sort}&page=${page}${dishId ? `&dishId=${encodeURIComponent(dishId)}` : ''}`),
@@ -155,7 +188,12 @@ export const api = {
         headers: { ...JSON_HEADERS, ...guestHeaders() },
         body: JSON.stringify(payload),
       }),
-    report: (id) => jsonFetch(`/api/posts/${id}/report`, { method: 'POST' }),
+    report: (id, payload) =>
+      jsonFetch(`/api/posts/${id}/report`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(payload || {}),
+      }),
     remove: (id) => jsonFetch(`/api/posts/${id}`, { method: 'DELETE', headers: guestHeaders() }),
     aiReply: (id, payload) =>
       jsonFetch(`/api/posts/${id}/ai-reply`, {

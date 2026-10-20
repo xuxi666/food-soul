@@ -51,7 +51,65 @@ db.exec(`
     updated_at INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  -- 首页卡片图片覆盖（菜系 / 口味分开存，按 id 精确匹配）
+  CREATE TABLE IF NOT EXISTS card_images (
+    kind TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    url TEXT NOT NULL,
+    updated_by TEXT,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (kind, card_id)
+  );
+
+  -- 美食图鉴菜品默认图片覆盖（按 dish_id 关联，不依赖顺序）
+  CREATE TABLE IF NOT EXISTS dish_images (
+    dish_id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    updated_by TEXT,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- 社区举报
+  CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    note TEXT,
+    reporter_id TEXT,
+    reporter_name TEXT,
+    source TEXT NOT NULL DEFAULT 'web',
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    handled_by TEXT,
+    handled_at INTEGER,
+    handle_action TEXT,
+    handle_note TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
+  CREATE INDEX IF NOT EXISTS idx_reports_post ON reports(post_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_once ON reports(post_id, reporter_id, status)
+    WHERE status = 'pending';
+
+  -- 管理操作审计
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT,
+    actor_name TEXT,
+    action TEXT NOT NULL,
+    target_type TEXT,
+    target_id TEXT,
+    detail TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 `);
+
+/* ---------------- 迁移：users.role ---------------- */
+const userCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+if (!userCols.includes('role')) {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+}
 
 /* ---------------- users ---------------- */
 
@@ -84,7 +142,7 @@ export function createSession({ tokenHash, userId, expiresAt }) {
 export function findSessionUser(tokenHash) {
   const row = db
     .prepare(
-      `SELECT s.user_id, s.expires_at, u.email, u.name
+      `SELECT s.user_id, s.expires_at, u.email, u.name, u.role
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ?`
     )
@@ -94,7 +152,7 @@ export function findSessionUser(tokenHash) {
     db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
     return null;
   }
-  return { id: row.user_id, email: row.email, name: row.name };
+  return { id: row.user_id, email: row.email, name: row.name, role: row.role || 'user' };
 }
 
 export function deleteSession(tokenHash) {
@@ -156,6 +214,127 @@ export function updateAIConfigStatus(userId, { status, error, verifiedAt }) {
 
 export function deleteAIConfigRow(userId) {
   db.prepare('DELETE FROM ai_configs WHERE user_id = ?').run(String(userId || ''));
+}
+
+/* ---------------- 角色 ---------------- */
+
+export function getUserRole(userId) {
+  const row = db.prepare('SELECT role FROM users WHERE id = ?').get(String(userId || ''));
+  return row?.role || 'user';
+}
+
+export function setUserRole(userId, role) {
+  db.prepare('UPDATE users SET role = ? WHERE id = ?').run(String(role), String(userId));
+}
+
+/* ---------------- 图片覆盖 ---------------- */
+
+export function listCardImages(kind) {
+  const rows = kind
+    ? db.prepare('SELECT * FROM card_images WHERE kind = ?').all(String(kind))
+    : db.prepare('SELECT * FROM card_images').all();
+  return rows;
+}
+
+export function upsertCardImage({ kind, cardId, url, updatedBy }) {
+  db.prepare(
+    `INSERT INTO card_images (kind, card_id, url, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(kind, card_id) DO UPDATE SET
+       url = excluded.url, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
+  ).run(String(kind), String(cardId), String(url), updatedBy || null, Date.now());
+}
+
+export function deleteCardImage(kind, cardId) {
+  db.prepare('DELETE FROM card_images WHERE kind = ? AND card_id = ?').run(String(kind), String(cardId));
+}
+
+export function listDishImages() {
+  return db.prepare('SELECT * FROM dish_images').all();
+}
+
+export function upsertDishImage({ dishId, url, updatedBy }) {
+  db.prepare(
+    `INSERT INTO dish_images (dish_id, url, updated_by, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(dish_id) DO UPDATE SET
+       url = excluded.url, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
+  ).run(String(dishId), String(url), updatedBy || null, Date.now());
+}
+
+export function deleteDishImage(dishId) {
+  db.prepare('DELETE FROM dish_images WHERE dish_id = ?').run(String(dishId));
+}
+
+/* ---------------- 举报 ---------------- */
+
+export function createReport({ id, postId, reason, note, reporterId, reporterName, source }) {
+  db.prepare(
+    `INSERT INTO reports (id, post_id, reason, note, reporter_id, reporter_name, source, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+  ).run(id, String(postId), String(reason), note || null, reporterId || null, reporterName || null, source || 'web', Date.now());
+  return getReport(id);
+}
+
+export function getReport(id) {
+  return db.prepare('SELECT * FROM reports WHERE id = ?').get(String(id || '')) || null;
+}
+
+export function listReports({ status = '', page = 1, pageSize = 20 } = {}) {
+  const where = status ? 'WHERE status = ?' : '';
+  const args = status ? [status] : [];
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM reports ${where}`).get(...args).c;
+  const rows = db
+    .prepare(`SELECT * FROM reports ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+    .all(...args, pageSize, (page - 1) * pageSize);
+  return { items: rows, total, page, pageSize, hasMore: (page - 1) * pageSize + rows.length < total };
+}
+
+export function reportsForPost(postId) {
+  return db.prepare('SELECT * FROM reports WHERE post_id = ? ORDER BY created_at DESC').all(String(postId));
+}
+
+export function countPendingReports(postId) {
+  return db.prepare("SELECT COUNT(*) AS c FROM reports WHERE post_id = ? AND status = 'pending'").get(String(postId)).c;
+}
+
+export function findPendingReportBy(postId, reporterId) {
+  return (
+    db
+      .prepare("SELECT * FROM reports WHERE post_id = ? AND reporter_id = ? AND status = 'pending'")
+      .get(String(postId), String(reporterId)) || null
+  );
+}
+
+export function updateReportStatus({ id, status, handledBy, action, note }) {
+  db.prepare(
+    `UPDATE reports SET status = ?, handled_by = ?, handled_at = ?, handle_action = ?, handle_note = ?
+     WHERE id = ?`
+  ).run(String(status), handledBy || null, Date.now(), action || null, note || null, String(id));
+  return getReport(id);
+}
+
+export function reportStats() {
+  const rows = db.prepare('SELECT status, COUNT(*) AS c FROM reports GROUP BY status').all();
+  const out = { pending: 0, processing: 0, resolved: 0, rejected: 0, total: 0 };
+  for (const r of rows) {
+    out[r.status] = r.c;
+    out.total += r.c;
+  }
+  return out;
+}
+
+/* ---------------- 审计 ---------------- */
+
+export function addAudit({ id, actorId, actorName, action, targetType, targetId, detail }) {
+  db.prepare(
+    `INSERT INTO audit_log (id, actor_id, actor_name, action, target_type, target_id, detail, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, actorId || null, actorName || null, String(action), targetType || null, targetId || null, detail || null, Date.now());
+}
+
+export function listAudit(limit = 20) {
+  return db.prepare('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ?').all(limit);
 }
 
 export { db, DB_PATH };
