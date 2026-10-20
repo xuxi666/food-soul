@@ -45,11 +45,18 @@ function readJson(req, limit = 6 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
+    let over = false;
     req.on('data', (c) => {
+      if (over) return;
       size += c.length;
       if (size > limit) {
-        reject(new Error('payload-too-large'));
-        req.destroy();
+        over = true;
+        chunks.length = 0;
+        req.resume(); // 不 destroy，保证还能写回 413 而不是让 Nginx 报 502
+        const err = new Error('请求体过大');
+        err.status = 413;
+        err.code = 'payload_too_large';
+        reject(err);
         return;
       }
       chunks.push(c);

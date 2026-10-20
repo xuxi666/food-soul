@@ -57,8 +57,21 @@ function guestHeaders() {
 
 async function jsonFetch(url, options = {}) {
   const res = await fetch(url, options);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || data.note || `请求失败 (${res.status})`);
+  const type = res.headers.get('content-type') || '';
+  let data = {};
+  if (type.includes('application/json')) {
+    data = await res.json().catch(() => ({}));
+  } else {
+    // 网关错误页（502/504）不是 JSON，先读掉响应体避免泄漏到控制台
+    await res.text().catch(() => '');
+  }
+  if (!res.ok) {
+    if (data.error) throw new Error(data.error);
+    if (res.status === 413) throw new Error('内容太大（图片过多或过大），请压缩后再试');
+    if (res.status === 502 || res.status === 504) throw new Error('服务暂时不可用，请稍后重试');
+    if (res.status === 401) throw new Error('登录已失效，请重新登录');
+    throw new Error(`请求失败 (${res.status})`);
+  }
   return data;
 }
 
@@ -234,7 +247,7 @@ export const api = {
  * 把用户照片压到长边 1600px 的 JPEG dataURL，减少上传体积。
  * 失败时抛出可读的中文错误。
  */
-export async function compressImage(file, maxSize = 1600, quality = 0.82) {
+export async function compressImage(file, maxSize = 1600, quality = 0.82, maxChars = 900_000) {
   if (!file?.type?.startsWith('image/')) throw new Error('请选择图片文件');
   let bitmap;
   try {
@@ -242,17 +255,29 @@ export async function compressImage(file, maxSize = 1600, quality = 0.82) {
   } catch {
     throw new Error('这张图读不出来（HEIC 等格式请先转成 JPG）');
   }
-  const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('浏览器不支持图片处理');
-  ctx.drawImage(bitmap, 0, 0, width, height);
+
+  // 逐步降质/降分辨率，保证输出不会撑爆请求体
+  let side = maxSize;
+  let q = quality;
+  let out = '';
+  for (let i = 0; i < 5; i += 1) {
+    const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.width = width;
+    canvas.height = height;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    out = canvas.toDataURL('image/jpeg', q);
+    if (out.length <= maxChars) break;
+    q = Math.max(0.5, q - 0.12);
+    side = Math.round(side * 0.8);
+  }
   bitmap.close?.();
-  return canvas.toDataURL('image/jpeg', quality);
+  return out;
 }
 
 /**

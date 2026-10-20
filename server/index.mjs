@@ -23,11 +23,22 @@ const MIME = {
   '.mp4': 'video/mp4',
 };
 
-const server = http.createServer(async (req, res) => {
+/**
+ * 静态资源处理。
+ * 注意：decodeURIComponent 遇到畸形百分号编码会抛 URIError，
+ * 之前未捕获会直接杀掉进程（表现为整站 502），这里改为 400。
+ */
+function handleStatic(req, res) {
   if (req.url.startsWith('/api/')) return handleApi(req, res);
 
-  const url = new URL(req.url, 'http://localhost');
-  const decoded = decodeURIComponent(url.pathname);
+  let decoded;
+  try {
+    decoded = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch {
+    res.statusCode = 400;
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.end('Bad Request');
+  }
 
   // 用户上传图片：生产环境也要能访问（dist 不包含 uploads）
   if (decoded.startsWith('/uploads/')) {
@@ -66,6 +77,26 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Type', MIME[path.extname(filePath)] || 'application/octet-stream');
   res.setHeader('Cache-Control', path.extname(filePath) === '.html' ? 'no-store' : 'public, max-age=31536000, immutable');
   fs.createReadStream(filePath).pipe(res);
+}
+
+// 任何未捕获异常都不允许打挂进程：回 500 并记录，Nginx 不会因此变成 502
+const server = http.createServer((req, res) => {
+  const fail = (err) => {
+    console.error('[server] %s %s -> 500 | %s', req.method, req.url, String(err?.stack || err).split('\n')[0]);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.end('Internal Server Error');
+    } else {
+      try { res.end(); } catch { /* noop */ }
+    }
+  };
+  try {
+    const out = handleStatic(req, res);
+    if (out && typeof out.catch === 'function') out.catch(fail);
+  } catch (err) {
+    fail(err);
+  }
 });
 
 server.listen(port, '127.0.0.1', () => {

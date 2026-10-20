@@ -33,25 +33,42 @@ function send(res, status, payload) {
   res.end(body);
 }
 
+function httpError(status, message, code = '') {
+  const err = new Error(message);
+  err.status = status;
+  err.code = code;
+  return err;
+}
+
+/**
+ * 读取 JSON 请求体。
+ * 超过上限时不再 req.destroy()（那会让 Nginx 看到上游断连并返回 502），
+ * 而是丢弃剩余数据并抛出带 413 的异常，由入口统一回明确状态码。
+ */
 function readJson(req, limit = 200_000) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let over = false;
     const chunks = [];
     req.on('data', (c) => {
+      if (over) return;
       size += c.length;
       if (size > limit) {
-        reject(new Error('payload-too-large'));
-        req.destroy();
+        over = true;
+        chunks.length = 0;
+        req.resume(); // 继续消费但丢弃，保证还能正常写回响应
+        reject(httpError(413, `请求体过大（上限 ${Math.round(limit / 1024 / 1024)}MB）`, 'payload_too_large'));
         return;
       }
       chunks.push(c);
     });
     req.on('end', () => {
+      if (over) return;
       if (!chunks.length) return resolve({});
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
       } catch {
-        reject(new Error('invalid-json'));
+        reject(httpError(400, '请求体不是合法 JSON', 'invalid_json'));
       }
     });
     req.on('error', reject);
@@ -915,7 +932,8 @@ async function handlePosts(req, res, url) {
     const user = requireUser(req, res, send, '请先登录后再发布内容');
     if (!user) return;
 
-    const body = await readJson(req);
+    // 允许最多 3 张 3MB 图片的 dataURL（base64 膨胀约 1.34 倍）
+    const body = await readJson(req, 14 * 1024 * 1024);
     const who = { id: user.id, name: user.name || user.email.split('@')[0] };
     const content = String(body.content || '').trim();
     if (content.length < 2) return send(res, 400, { error: '说点什么吧，至少 2 个字' });
@@ -1179,7 +1197,7 @@ export async function handleApi(req, res) {
       if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
       const user = requireUser(req, res, send, '请先登录后再上传图片');
       if (!user) return;
-      const body = await readJson(req);
+      const body = await readJson(req, 4 * 1024 * 1024);
       const saved = saveImage(body.image, user.id);
       return send(res, saved.ok ? 200 : 400, saved);
     }
@@ -1228,7 +1246,21 @@ export async function handleApi(req, res) {
       }
       return;
     }
-    return send(res, 500, { error: String(err.message || err).slice(0, 300) });
+    // 已知的业务错误按其状态码返回；未知异常记脱敏日志后回 500
+    const status = Number(err?.status) || 500;
+    if (status >= 500) {
+      console.error(
+        '[api] %s %s -> %s | %s',
+        req.method,
+        path,
+        status,
+        String(err?.stack || err).split('\n').slice(0, 4).join(' | ')
+      );
+    }
+    return send(res, status, {
+      error: status >= 500 ? '服务器处理失败，请稍后重试' : String(err.message || '请求失败'),
+      code: err?.code || undefined,
+    });
   }
 }
 

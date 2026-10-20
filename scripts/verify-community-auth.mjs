@@ -93,6 +93,20 @@ check('登录后评论成功', cmtA.status === 201, `HTTP ${cmtA.status}`);
 const withImg = await req('/api/posts', { method: 'POST', body: { content: `带图帖子 ${stamp}`, images: [upA.data?.url] } });
 check('登录后可发布带图帖子', withImg.status === 201 && (withImg.data?.post?.images?.length || 0) > 0, `HTTP ${withImg.status}`);
 
+// 回归：大体积图片帖（曾因服务端 200KB 上限直接断连，Nginx 返回 502）
+// 300KB 请求体：应被正常读取并返回业务校验错误（400），而不是断连成 502
+const bigBody = await req('/api/posts', { method: 'POST', body: { content: 'x'.repeat(300 * 1024) } });
+check('普通用户提交 300KB 请求体不再 502', bigBody.status === 400, `HTTP ${bigBody.status} ${bigBody.data?.error || ''}`);
+
+// 超过上限应返回 413，而不是 502
+const huge = 'data:image/jpeg;base64,' + Buffer.alloc(15 * 1024 * 1024).toString('base64');
+const tooBig = await req('/api/posts', { method: 'POST', body: { content: '超大请求体', images: [huge] } });
+check('超过体积上限返回 413 而非 502', tooBig.status === 413, `HTTP ${tooBig.status} ${tooBig.data?.error || ''}`);
+
+// 服务仍存活（不是崩溃后重启）
+const alive = await req('/api/health');
+check('大请求后服务仍健康', alive.status === 200 && alive.data?.ok === true, `HTTP ${alive.status}`);
+
 /* ---------- 用户 B 越权 ---------- */
 const cookieA = cookie;
 const regB = await req('/api/auth/register', { method: 'POST', body: { email: emailB, password: PASS, name: '社区B' } });
