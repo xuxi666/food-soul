@@ -276,23 +276,82 @@ p {
   min-height: 560px;
   overflow: hidden;
   isolation: isolate;
+
+  /* 首页全屏插画背景。默认 none（不请求任何文件）；
+     执行 node scripts/set-home-bg.mjs <图片路径> 后会自动写成 url('/bg/home-illustration.<ext>') */
+  --hero-bg-image: none;
+  /* 桌面端保留原图整体构图；移动端单独调整焦点 */
+  --hero-bg-position: center 44%;
+  /* 遮罩强度：改这三个值即可整体微调亮度 */
+  --hero-scrim: 0.45;        /* 全屏基础遮罩 */
+  --hero-top-fade: 0.88;     /* 顶部渐暗 */
+  --hero-center-dim: 0.58;   /* 中央文字区局部压暗 */
 }
 
+/* 底层：插画铺满，cover 不拉伸；图片缺失时退回原有深色渐变 */
 .hero__bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
+  pointer-events: none;
+  background-color: #05060b;
+  background-image:
+    var(--hero-bg-image, none),
     radial-gradient(56% 40% at 50% 48%, rgba(78, 90, 118, 0.3) 0%, rgba(34, 40, 56, 0.18) 46%, rgba(5, 6, 10, 0) 78%),
     radial-gradient(95% 65% at 50% 112%, rgba(96, 78, 58, 0.11) 0%, rgba(5, 6, 10, 0) 62%),
     linear-gradient(180deg, #070810 0%, #05060b 46%, #04050a 100%);
+  background-size: cover, auto, auto, auto;
+  background-position: var(--hero-bg-position), center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
+/* 第二层：全屏基础遮罩 + 顶部渐暗 + 中央径向压暗（全部无硬边界） */
+.hero__bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(4, 5, 9, var(--hero-top-fade)) 0%,
+      rgba(4, 5, 9, calc(var(--hero-top-fade) * 0.52)) 20%,
+      rgba(4, 5, 9, 0) 46%
+    ),
+    radial-gradient(
+      58% 34% at 50% 27%,
+      rgba(4, 5, 9, var(--hero-center-dim)) 0%,
+      rgba(4, 5, 9, calc(var(--hero-center-dim) * 0.55)) 44%,
+      rgba(4, 5, 9, 0) 78%
+    ),
+    linear-gradient(
+      rgba(5, 6, 10, var(--hero-scrim)),
+      rgba(5, 6, 10, var(--hero-scrim))
+    );
+}
+
+/* 第三层：轻量四周压暗，保留祥云/人物/祥龙的边缘细节 */
 .hero__bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(118% 96% at 50% 46%, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.42) 82%, rgba(0, 0, 0, 0.66) 100%);
+  pointer-events: none;
+  background: radial-gradient(
+    125% 105% at 50% 48%,
+    rgba(0, 0, 0, 0) 46%,
+    rgba(0, 0, 0, 0.24) 84%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
+}
+
+/* 移动端：竖屏裁切更狠，把焦点上移保住人物与祥龙主体，遮罩略加强保证文字可读 */
+@media (max-width: 720px) {
+  .hero {
+    --hero-bg-position: 56% 32%;
+    --hero-scrim: 0.52;
+    --hero-top-fade: 0.9;
+    --hero-center-dim: 0.5;
+  }
 }
 
 .stage {
@@ -339,14 +398,15 @@ body.is-ready .stage canvas,
   pointer-events: none;
 }
 
+/* 左右边缘压暗：有插画背景时降低强度，避免把两侧祥云/人物压成纯黑 */
 .edge--l {
   left: 0;
-  background: linear-gradient(90deg, #05060a 0%, rgba(5, 6, 10, 0.86) 26%, rgba(5, 6, 10, 0.4) 62%, rgba(5, 6, 10, 0) 100%);
+  background: linear-gradient(90deg, rgba(5, 6, 10, 0.62) 0%, rgba(5, 6, 10, 0.5) 26%, rgba(5, 6, 10, 0.22) 62%, rgba(5, 6, 10, 0) 100%);
 }
 
 .edge--r {
   right: 0;
-  background: linear-gradient(270deg, #05060a 0%, rgba(5, 6, 10, 0.86) 26%, rgba(5, 6, 10, 0.4) 62%, rgba(5, 6, 10, 0) 100%);
+  background: linear-gradient(270deg, rgba(5, 6, 10, 0.62) 0%, rgba(5, 6, 10, 0.5) 26%, rgba(5, 6, 10, 0.22) 62%, rgba(5, 6, 10, 0) 100%);
 }
 
 .grain {
