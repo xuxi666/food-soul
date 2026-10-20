@@ -8,6 +8,14 @@ let rememberedMode = 'cuisine';
 let rememberedSelect = 0;
 
 /**
+ * 首页挂载序号。
+ * 同路由重新挂载时（如在首页再次点击「首页」），新实例会先挂载、旧实例后销毁；
+ * 旧实例销毁时不能把新实例刚加上的 is-ready 状态清掉，否则 canvas 会停在
+ * opacity:0 / scale(1.02) 的初始态，表现为轮播卡片整块消失。
+ */
+let homeMountSeq = 0;
+
+/**
  * 画廊卡片数据：图片 + 上方信息区（名称 / 菜系·味型标签 / 简介 / 聊天入口）
  * 主按钮＝与该分类的菜系 AI / 口味 AI 聊天（菜品只作为当前话题）；
  * 次按钮＝进入菜系或口味页。
@@ -33,6 +41,7 @@ const toItem = (n, mode) => {
 
 export default {
   async mount(root) {
+    const mountSeq = ++homeMountSeq;
     let mode = rememberedMode;
     let nodes = nodesFor(mode);
     let activeIndex = 0;
@@ -174,6 +183,7 @@ export default {
           revealTo(href, kind === 'alt' ? 'card' : 'chat', el);
         },
         onReady: () => {
+          hero.classList.add('is-ready');
           document.body.classList.add('is-ready');
           loader?.classList.add('is-hidden');
           window.setTimeout(() => loader?.remove(), 1100);
@@ -314,8 +324,10 @@ export default {
         window.removeEventListener('pointercancel', onUp);
         window.removeEventListener('resize', onResize);
         gallery?.destroy();
-        delete window.__exhibition;
-        document.body.classList.remove('is-ready');
+        if (window.__exhibition?.gallery === gallery) delete window.__exhibition;
+        hero.classList.remove('is-ready');
+        // 只有当前仍是最新实例时才移除全局就绪标记，避免误伤新挂载的首页
+        if (mountSeq === homeMountSeq) document.body.classList.remove('is-ready');
       },
     };
   },
