@@ -18,8 +18,8 @@ const CORNER = 26;
 const INFO_GAP = 20;
 // 卡片朝向阻尼：0=完全侧转，1=始终面向镜头；0.72 让相邻卡片半转身、更可读
 const YAW_DAMP = 0.72;
-/** 空闲自转：无操作 IDLE_AFTER 秒后开始，单位 rad/s（0.024 -> 0.036，提速 50%） */
-const IDLE_SPIN_SPEED = 0.036;
+/** 空闲自转：无操作 IDLE_AFTER 秒后开始，单位 rad/s（0.024 -> 0.036 -> 0.054，共提速 125%） */
+const IDLE_SPIN_SPEED = 0.054;
 const IDLE_AFTER = 2.4;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

@@ -33,7 +33,7 @@ async function speed(ms = 6000) {
 
 /* ---------- 1. 空闲速度 ---------- */
 const s1 = await speed(6000);
-check('空闲自转速度 ≈0.036 rad/s（原 0.024，+50%）', s1 >= 0.033 && s1 <= 0.039, `${s1.toFixed(4)} rad/s`);
+check('空闲自转速度 ≈0.054 rad/s（原 0.024，+125%）', s1 >= 0.051 && s1 <= 0.057, `${s1.toFixed(4)} rad/s`);
 
 /* ---------- 2. 30 秒稳定性 ---------- */
 const s2 = await speed(6000); // 累计 ~12s
@@ -52,7 +52,7 @@ await p.mouse.up();
 // 惯性衰减（约 3.3s）+ 空闲阈值 2.4s ≈ 5.7s，等待后再测
 await p.waitForTimeout(8000);
 const s4 = await speed(5000);
-check('拖动后自转恢复到同一速度', s4 >= 0.032 && s4 <= 0.040, `${s4.toFixed(4)} rad/s`);
+check('拖动后自转恢复到同一速度', s4 >= 0.050 && s4 <= 0.058, `${s4.toFixed(4)} rad/s`);
 
 /* ---------- 4. 拖动灵敏度/切换时长未被改动 ---------- */
 const r0 = await rot();
@@ -88,7 +88,7 @@ await p.goto(BASE + '/', { waitUntil: 'networkidle' });
 await p.waitForTimeout(5000);
 const s5 = await speed(6000);
 // 若旧循环未清理，速度会成倍增加
-check('返回首页后自转速度不变（无循环叠加）', s5 >= 0.033 && s5 <= 0.039, `${s5.toFixed(4)} rad/s`);
+check('返回首页后自转速度不变（无循环叠加）', s5 >= 0.051 && s5 <= 0.057, `${s5.toFixed(4)} rad/s`);
 const galleries = await p.evaluate(() => document.querySelectorAll('.stage canvas').length);
 check('页面上只有一份画廊画布', galleries === 1, `${galleries} 个 canvas`);
 
@@ -107,7 +107,7 @@ await ctx.close();
 await p.locator('.wheel-modes__btn').nth(1).click({ force: true });
 await p.waitForTimeout(5000);
 const s6 = await speed(5000);
-check('切换口味模式后自转正常', s6 >= 0.032 && s6 <= 0.040, `${s6.toFixed(4)} rad/s`);
+check('切换口味模式后自转正常', s6 >= 0.050 && s6 <= 0.058, `${s6.toFixed(4)} rad/s`);
 
 check('无脚本异常', errs.length === 0, errs.slice(0, 2).join(' | '));
 
