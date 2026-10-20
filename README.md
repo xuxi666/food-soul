@@ -126,6 +126,27 @@ ADMIN_EMAILS=you@example.com,another@example.com
 - 接口：`GET/POST /api/admin/site-ai`、`/site-ai/test`、`/site-ai/config`、`/site-ai/toggle`
 
 
+## 首页背景
+
+首页全屏插画放在 `public/bg/home-illustration.jpg`，通过 `src/styles/base.css` 的 CSS 变量引用：
+
+```css
+--hero-bg-image: url('/bg/home-illustration.jpg');  /* 置为 none 即不加载 */
+--hero-bg-position: center 44%;   /* 竖屏另由 media query 覆盖 */
+--hero-scrim: 0.45;               /* 全屏基础遮罩 */
+--hero-top-fade: 0.88;            /* 顶部渐暗 */
+--hero-center-dim: 0.58;          /* 中央文字区径向压暗 */
+```
+
+替换插画只需一条命令（会校验文件头与体积，并自动改写 CSS 变量）：
+
+```bash
+node scripts/set-home-bg.mjs <图片路径>
+```
+
+遮罩分三层：`::before` 承载全屏遮罩 + 顶部渐暗 + 中央径向压暗，`::after` 做轻量四周压暗。
+两者与背景层都是 `pointer-events: none`，且不参与 3D 卡片的 `transform`。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |
