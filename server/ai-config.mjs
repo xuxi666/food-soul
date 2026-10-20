@@ -112,7 +112,7 @@ export function getConfigForRequest(userId) {
     return {
       ok: false,
       code: 'ai_not_configured',
-      message: '当前未接入 AI 大模型，请先在右上角「接入 AI」配置。',
+      message: '当前未接入 AI 大模型，请点击右上角「接入 AI」配置自己的模型。',
     };
   }
   if (!config.apiKey) {

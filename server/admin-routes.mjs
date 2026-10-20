@@ -11,6 +11,7 @@ import { CUISINE_BY_ID, TASTE_BY_ID } from '../src/data/cuisines.js';
 import { adminListPosts, findPost, softDeletePost, postStats, saveImage } from './community.mjs';
 import { generatedDishes } from './dish-search.mjs';
 import { requireAdmin, sameOrigin } from './auth.mjs';
+import { getSiteAIStatus, testSiteAIConfig, saveSiteAIConfig, toggleSiteAI } from './site-ai.mjs';
 import {
   listCardImages,
   upsertCardImage,
@@ -365,6 +366,44 @@ export async function handleAdmin(req, res, url) {
       });
       audit(actor, `report.${target.action}`, 'report', report.id, { note });
       return send(res, 200, { ok: true, report: updated });
+    }
+  }
+
+  /* 全站内置 AI 配置 */
+  if (parts[0] === 'site-ai') {
+    if (method === 'GET' && parts.length === 1) {
+      return send(res, 200, { ok: true, status: getSiteAIStatus() });
+    }
+    if (method === 'POST' && parts[1] === 'test') {
+      const body = await readJson(req).catch(() => ({}));
+      const result = await testSiteAIConfig(body);
+      audit(actor, 'site-ai.test', 'site_ai', '1', { ok: result.ok, model: body.model || '' });
+      return send(res, result.ok ? 200 : 400, result);
+    }
+    if (method === 'POST' && parts[1] === 'config') {
+      const body = await readJson(req).catch(() => ({}));
+      const result = await saveSiteAIConfig(body, actor);
+      if (!result.ok) return send(res, 400, { error: result.error });
+      audit(actor, 'site-ai.save', 'site_ai', '1', {
+        provider: body.provider || '',
+        model: body.model || '',
+        verified: result.verified,
+        keyRotated: Boolean(String(body.apiKey || '').trim()),
+      });
+      return send(res, 200, {
+        ok: true,
+        verified: result.verified,
+        testError: result.testError,
+        status: result.status,
+      });
+    }
+    if (method === 'POST' && parts[1] === 'toggle') {
+      const body = await readJson(req).catch(() => ({}));
+      const want = Boolean(body.enabled);
+      const result = await toggleSiteAI(want, actor);
+      if (!result.ok) return send(res, 400, { error: result.error });
+      audit(actor, want ? 'site-ai.enable' : 'site-ai.disable', 'site_ai', '1', { enabled: want });
+      return send(res, 200, { ok: true, status: result.status });
     }
   }
 

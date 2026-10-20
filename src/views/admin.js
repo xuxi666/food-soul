@@ -7,12 +7,14 @@
 import { h, clear, toast, fmtTime } from '../lib/dom.js';
 import { api, compressImage } from '../lib/api.js';
 import { applyOverrideLocally } from '../lib/overrides.js';
+import { PRESETS, presetOf } from '../data/aiPresets.js';
 
 const TABS = [
   { id: 'overview', label: '后台概览', en: 'OVERVIEW' },
   { id: 'posts', label: '社区内容', en: 'POSTS' },
   { id: 'cards', label: '首页图片', en: 'CARDS' },
   { id: 'dishes', label: '美食图鉴', en: 'DISHES' },
+  { id: 'siteai', label: '内置 AI', en: 'BUILT-IN AI' },
   { id: 'reports', label: '举报处理', en: 'REPORTS' },
 ];
 
@@ -110,6 +112,7 @@ export default {
       if (tab === 'posts') return renderPosts();
       if (tab === 'cards') return renderCards();
       if (tab === 'dishes') return renderDishes();
+      if (tab === 'siteai') return renderSiteAI();
       if (tab === 'reports') return renderReports();
     }
 
@@ -505,6 +508,173 @@ export default {
           stateEl
         ),
         file
+      );
+    }
+
+    /* ---------------- 内置 AI ---------------- */
+
+    async function renderSiteAI() {
+      content.append(loading());
+      let data;
+      try {
+        data = await api.admin.siteAi();
+      } catch (err) {
+        clear(content);
+        content.append(failed(err.message, renderSiteAI));
+        return;
+      }
+      clear(content);
+      const st = data.status;
+      const preset = presetOf(st.provider || 'custom');
+
+      const provider = h(
+        'select',
+        { class: 'admin-input', 'aria-label': '模型服务商' },
+        ...PRESETS.map((p) => h('option', { value: p.id, text: p.label, selected: (st.provider || 'custom') === p.id }))
+      );
+      const baseUrl = h('input', {
+        class: 'admin-input',
+        type: 'url',
+        value: st.baseUrl || preset.baseUrl,
+        placeholder: 'https://api.example.com/v1',
+        'aria-label': 'API Base URL',
+      });
+      const model = h('input', {
+        class: 'admin-input',
+        type: 'text',
+        value: st.model || '',
+        placeholder: preset.hint,
+        'aria-label': '模型 ID',
+      });
+      const apiKey = h('input', {
+        class: 'admin-input',
+        type: 'password',
+        autocomplete: 'new-password',
+        placeholder: st.configured ? '已保存（留空则不修改）' : 'sk-...',
+        'aria-label': 'API Key',
+      });
+      const resultEl = h('p', { class: 'admin-ai__result', text: st.lastError ? `最近一次失败：${st.lastError}` : '' });
+
+      provider.addEventListener('change', () => {
+        const p = presetOf(provider.value);
+        if (!st.configured) {
+          baseUrl.value = p.baseUrl;
+          model.placeholder = p.hint;
+        }
+      });
+
+      const testBtn = h('button', {
+        class: 'btn btn--sm',
+        type: 'button',
+        onclick: async () => {
+          testBtn.disabled = true;
+          testBtn.textContent = '测试中…';
+          resultEl.textContent = '';
+          try {
+            const r = await api.admin.testSiteAi({
+              provider: provider.value,
+              baseUrl: baseUrl.value.trim(),
+              model: model.value.trim(),
+              apiKey: apiKey.value.trim(),
+            });
+            resultEl.textContent = `连接成功（${r.latency ?? '-'} ms）：${r.reply || '模型已响应'}`;
+            resultEl.className = 'admin-ai__result is-ok';
+            toast('连接测试通过');
+          } catch (err) {
+            resultEl.textContent = `连接失败：${err.message}`;
+            resultEl.className = 'admin-ai__result is-err';
+            toast('连接测试失败', 'err');
+          } finally {
+            testBtn.disabled = false;
+            testBtn.textContent = '测试连接';
+          }
+        },
+      }, '测试连接');
+
+      const saveBtn = h('button', {
+        class: 'btn btn--sm btn--gold',
+        type: 'button',
+        onclick: async () => {
+          if (!confirm('保存内置 AI 配置？保存时会真实调用一次模型验证。')) return;
+          saveBtn.disabled = true;
+          saveBtn.textContent = '保存中…';
+          try {
+            const r = await api.admin.saveSiteAi({
+              provider: provider.value,
+              baseUrl: baseUrl.value.trim(),
+              model: model.value.trim(),
+              apiKey: apiKey.value.trim(),
+            });
+            toast(r.verified ? '已保存并验证通过' : `已保存，但验证失败：${r.testError || ''}`, r.verified ? undefined : 'err');
+            clear(content);
+            renderSiteAI();
+          } catch (err) {
+            toast(err.message || '保存失败', 'err');
+            saveBtn.disabled = false;
+            saveBtn.textContent = '保存配置';
+          }
+        },
+      }, '保存配置');
+
+      const toggleBtn = h('button', {
+        class: `btn btn--sm ${st.enabled ? 'btn--danger' : 'btn--gold'}`,
+        type: 'button',
+        disabled: !st.enabled && !st.canEnable,
+        onclick: async () => {
+          const want = !st.enabled;
+          const tip = want
+            ? '开启后全站用户将使用管理员配置的内置模型（会先做一次真实连接测试）。确认开启？'
+            : '关闭后所有用户需要各自配置模型才能使用 AI。已保存的内置配置会保留。确认关闭？';
+          if (!confirm(tip)) return;
+          toggleBtn.disabled = true;
+          toggleBtn.textContent = '处理中…';
+          try {
+            await api.admin.toggleSiteAi(want);
+            toast(want ? '内置 AI 已开启' : '内置 AI 已关闭');
+            window.dispatchEvent(new CustomEvent('foodsoul:auth-changed'));
+            clear(content);
+            renderSiteAI();
+          } catch (err) {
+            toast(err.message || '操作失败', 'err');
+            toggleBtn.disabled = false;
+            toggleBtn.textContent = st.enabled ? '关闭内置 AI' : '启用内置 AI';
+          }
+        },
+      }, st.enabled ? '关闭内置 AI' : '启用内置 AI');
+
+      const badge = (text, tone) => h('span', { class: `admin-badge admin-badge--${tone}`, text });
+
+      content.append(
+        h('section', { class: 'admin-card admin-ai' },
+          h('div', { class: 'admin-card__head' },
+            h('h2', { class: 'admin-card__title', text: '全站内置 AI' }),
+            h('div', { class: 'admin-ai__badges' },
+              st.enabled ? badge('已启用', 'resolved') : badge('已关闭', 'rejected'),
+              st.configured ? (st.verified ? badge('已验证', 'resolved') : badge('未验证', 'pending')) : badge('未配置', 'rejected'),
+              st.encryptionReady ? null : badge('缺少加密密钥', 'warn')
+            )
+          ),
+          h('p', { class: 'admin-card__hint', text: st.enabled
+            ? `当前全站使用内置模型「${st.model}」，所有用户无需配置个人 Key。`
+            : '关闭状态下，用户需各自在右上角「接入 AI」配置模型；未配置的用户会收到明确提示。' }),
+          h('div', { class: 'admin-ai__grid' },
+            h('label', { class: 'admin-field' }, h('span', { text: '模型服务商' }), provider),
+            h('label', { class: 'admin-field' }, h('span', { text: 'API Base URL' }), baseUrl),
+            h('label', { class: 'admin-field' }, h('span', { text: '模型 ID' }), model),
+            h('label', { class: 'admin-field' }, h('span', { text: 'API Key' }), apiKey)
+          ),
+          h('div', { class: 'admin-ai__actions' }, testBtn, saveBtn, toggleBtn),
+          resultEl,
+          h('div', { class: 'admin-ai__meta' },
+            h('span', { text: `模型：${st.model || '—'}` }),
+            h('span', { text: `最近更新：${st.updatedAt ? fmtTime(st.updatedAt) : '—'}` }),
+            h('span', { text: `开启时间：${st.enabledAt ? fmtTime(st.enabledAt) : '—'}` }),
+            st.configured ? h('span', { text: 'API Key 已加密保存，不会回显' }) : null
+          ),
+          st.canEnable || st.enabled
+            ? null
+            : h('p', { class: 'admin-ai__warn', text: '启用条件：配置已保存且最近一次连接测试通过。请先点「测试连接」并保存。' })
+        )
       );
     }
 

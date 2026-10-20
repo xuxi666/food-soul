@@ -1,29 +1,23 @@
 import { h, clear, toast } from '../lib/dom.js';
 import { api } from '../lib/api.js';
+import { PRESETS, presetOf } from '../data/aiPresets.js';
 
 /**
  * 右上角账号与「接入 AI」入口。
  * 密钥只在服务端加密保存；前端只读取状态、服务商与模型展示名。
  */
 
-const PRESETS = [
-  { id: 'openai', label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', hint: '例如 gpt-4o-mini' },
-  { id: 'deepseek', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', hint: '例如 deepseek-chat' },
-  { id: 'moonshot', label: 'Moonshot', baseUrl: 'https://api.moonshot.cn/v1', hint: '例如 moonshot-v1-8k' },
-  {
-    id: 'zhipu',
-    label: '智谱（OpenAI 兼容）',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    hint: '例如 glm-4-flash',
-  },
-  { id: 'custom', label: '自定义（OpenAI 兼容）', baseUrl: '', hint: '填写服务商文档中的模型 ID' },
-];
 
-function presetOf(id) {
-  return PRESETS.find((p) => p.id === id) || PRESETS[PRESETS.length - 1];
-}
-
-function statusInfo(ai) {
+function statusInfo(ai, siteAi) {
+  // 全站内置 AI 优先：开启时所有人看到的都是内置模型状态
+  if (siteAi?.enabled) {
+    return {
+      full: `内置 AI 已启用 · ${siteAi.model || '模型'}`,
+      short: '内置 AI',
+      tone: 'ok',
+      title: `全站使用管理员配置的内置模型：${siteAi.model || ''}`,
+    };
+  }
   if (!ai || !ai.configured) {
     return {
       full: '当前未接入 AI 大模型',
@@ -109,7 +103,7 @@ export function mountAccount(root) {
       return;
     }
     const user = state.me?.user;
-    const info = statusInfo(state.me?.ai);
+    const info = statusInfo(state.me?.ai, state.me?.siteAi);
 
     bar.append(
       h(
@@ -508,7 +502,14 @@ export function mountAccount(root) {
         }`
       : '当前账号还没有接入 AI 大模型。';
 
+    const siteAi = state.me?.siteAi;
     const body = [
+      siteAi?.enabled
+        ? h('p', { class: 'account-site-notice' },
+            h('b', { text: '当前全站使用内置模型' }),
+            h('span', { text: `：${siteAi.model || '模型'}。你的个人配置会被保存，但内置 AI 开启期间不会生效；管理员关闭后才会切回个人模型。` })
+          )
+        : null,
       h('p', { class: 'account-current', text: currentText }),
       field('模型服务商', provider),
       field('API Base URL', baseUrl, '填服务商的 OpenAI 兼容接口地址；以 /chat/completions 结尾也可以。'),
@@ -539,6 +540,12 @@ export function mountAccount(root) {
 
   // 暴露给其他页面（社区发布前未登录时唤起登录框）
   openAuthRef = openAuth;
+
+  // 管理员切换内置 AI 开关后，右上角状态立即刷新
+  window.addEventListener('foodsoul:auth-changed', () => {
+    if (!bar.isConnected) return;
+    refresh();
+  });
 
   refresh();
 }

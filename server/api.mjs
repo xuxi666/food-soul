@@ -17,7 +17,8 @@ import { chatStream, complete } from './ai-adapter.mjs';
 import { getCurrentUser, setSessionCookie, clearSessionCookie, requireUser, requireAdmin, sameOrigin, syncRole } from './auth.mjs';
 import { createUser, findUserByEmail } from './db.mjs';
 import { hashPassword, verifyPassword } from './security.mjs';
-import { getAIStatus, getAIConfig, getConfigForRequest, testUserConfig, saveUserConfig, deleteUserConfig, listUserModels, markAIConfigStatus } from './ai-config.mjs';
+import { getAIStatus, getAIConfig, testUserConfig, saveUserConfig, deleteUserConfig, listUserModels, markAIConfigStatus } from './ai-config.mjs';
+import { resolveAIConfig, getSiteMode, getSiteAIStatus } from './site-ai.mjs';
 import { rateLimit } from './rate-limit.mjs';
 import { handleAdmin, getAssetOverrides, submitReport } from './admin-routes.mjs';
 
@@ -118,7 +119,12 @@ function publicUser(user) {
 }
 
 function authPayload(user) {
-  return { user: publicUser(user), ai: getAIStatus(user?.id) };
+  return {
+    user: publicUser(user),
+    ai: getAIStatus(user?.id),
+    // 全站内置 AI 模式（只含开关与模型名，不含任何密钥）
+    siteAi: getSiteMode(),
+  };
 }
 
 async function handleRegister(req, res) {
@@ -236,7 +242,7 @@ async function handleChat(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
   const user = requireUser(req, res, send);
   if (!user) return;
-  const ai = getConfigForRequest(user.id);
+  const ai = resolveAIConfig(user);
   if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
 
   const body = await readJson(req);
@@ -407,7 +413,7 @@ async function handleSuggest(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
   const user = requireUser(req, res, send);
   if (!user) return;
-  const ai = getConfigForRequest(user.id);
+  const ai = resolveAIConfig(user);
   if (!ai.ok) return send(res, 200, { suggestions: [], code: ai.code, error: ai.message });
   const body = await readJson(req);
   const askedKind = body.kind || body.mode;
@@ -551,7 +557,7 @@ async function handleRecipe(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
   const user = requireUser(req, res, send);
   if (!user) return;
-  const ai = getConfigForRequest(user.id);
+  const ai = resolveAIConfig(user);
   if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
 
   const body = await readJson(req);
@@ -741,7 +747,7 @@ async function handleRecommend(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
   const user = requireUser(req, res, send);
   if (!user) return;
-  const ai = getConfigForRequest(user.id);
+  const ai = resolveAIConfig(user);
   if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
 
   const body = await readJson(req);
@@ -870,7 +876,7 @@ async function handleComments(req, res, url) {
     if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
     const user = requireUser(req, res, send);
     if (!user) return;
-    const ai = getConfigForRequest(user.id);
+    const ai = resolveAIConfig(user);
     if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
 
     const body = await readJson(req);
@@ -1055,7 +1061,7 @@ async function handlePosts(req, res, url) {
     if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
     const user = requireUser(req, res, send);
     if (!user) return;
-    const ai = getConfigForRequest(user.id);
+    const ai = resolveAIConfig(user);
     if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
 
     const body = await readJson(req);
@@ -1204,7 +1210,7 @@ export async function handleApi(req, res) {
     if (req.method === 'POST' && path === '/api/dishes/search') {
       const user = requireUser(req, res, send);
       if (!user) return;
-      const ai = getConfigForRequest(user.id);
+      const ai = resolveAIConfig(user);
       if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
       const body = await readJson(req);
       const result = await searchDishes({

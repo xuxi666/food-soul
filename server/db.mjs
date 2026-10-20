@@ -91,6 +91,25 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_once ON reports(post_id, reporter_id, status)
     WHERE status = 'pending';
 
+  -- 全站内置 AI 配置（单行，id=1）
+  CREATE TABLE IF NOT EXISTS site_ai (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    provider TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    model TEXT NOT NULL,
+    key_cipher TEXT NOT NULL,
+    key_iv TEXT NOT NULL,
+    key_tag TEXT NOT NULL,
+    key_version INTEGER NOT NULL DEFAULT 1,
+    verified_at INTEGER,
+    last_status TEXT NOT NULL DEFAULT 'unverified',
+    last_error TEXT,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    enabled_at INTEGER,
+    updated_by TEXT,
+    updated_at INTEGER NOT NULL
+  );
+
   -- 管理操作审计
   CREATE TABLE IF NOT EXISTS audit_log (
     id TEXT PRIMARY KEY,
@@ -335,6 +354,68 @@ export function addAudit({ id, actorId, actorName, action, targetType, targetId,
 
 export function listAudit(limit = 20) {
   return db.prepare('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ?').all(limit);
+}
+
+/* ---------------- 全站内置 AI ---------------- */
+
+export function getSiteAIRow() {
+  return db.prepare('SELECT * FROM site_ai WHERE id = 1').get() || null;
+}
+
+export function upsertSiteAIConfig(row) {
+  db.prepare(
+    `INSERT INTO site_ai
+      (id, provider, base_url, model, key_cipher, key_iv, key_tag, key_version,
+       verified_at, last_status, last_error, enabled, enabled_at, updated_by, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       provider = excluded.provider,
+       base_url = excluded.base_url,
+       model = excluded.model,
+       key_cipher = excluded.key_cipher,
+       key_iv = excluded.key_iv,
+       key_tag = excluded.key_tag,
+       key_version = excluded.key_version,
+       verified_at = excluded.verified_at,
+       last_status = excluded.last_status,
+       last_error = excluded.last_error,
+       updated_by = excluded.updated_by,
+       updated_at = excluded.updated_at`
+  ).run(
+    row.provider,
+    row.baseUrl,
+    row.model,
+    row.keyCipher,
+    row.keyIv,
+    row.keyTag,
+    row.keyVersion,
+    row.verifiedAt ?? null,
+    row.lastStatus || 'unverified',
+    row.lastError || null,
+    row.updatedBy || null,
+    Date.now()
+  );
+  return getSiteAIRow();
+}
+
+export function updateSiteAIStatus({ status, error, verifiedAt }) {
+  db.prepare('UPDATE site_ai SET last_status = ?, last_error = ?, verified_at = ?, updated_at = ? WHERE id = 1').run(
+    String(status || 'unknown'),
+    error ? String(error).slice(0, 300) : null,
+    verifiedAt ?? null,
+    Date.now()
+  );
+}
+
+/** 关闭时保留配置，只改开关；开启要求已验证 */
+export function setSiteAIEnabled(enabled, by = '') {
+  db.prepare('UPDATE site_ai SET enabled = ?, enabled_at = ?, updated_at = ? WHERE id = 1').run(
+    enabled ? 1 : 0,
+    enabled ? Date.now() : null,
+    Date.now()
+  );
+  if (by) db.prepare('UPDATE site_ai SET updated_by = ? WHERE id = 1').run(String(by));
+  return getSiteAIRow();
 }
 
 export { db, DB_PATH };

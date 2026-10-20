@@ -183,6 +183,13 @@ export const api = {
     upload: (dataUrl) =>
       jsonFetch('/api/admin/upload', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ image: dataUrl }) }),
     audit: () => jsonFetch('/api/admin/audit'),
+    siteAi: () => jsonFetch('/api/admin/site-ai'),
+    testSiteAi: (payload) =>
+      jsonFetch('/api/admin/site-ai/test', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    saveSiteAi: (payload) =>
+      jsonFetch('/api/admin/site-ai/config', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    toggleSiteAi: (enabled) =>
+      jsonFetch('/api/admin/site-ai/toggle', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ enabled }) }),
   },
 
   posts: {
