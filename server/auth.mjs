@@ -72,10 +72,10 @@ export function sameOrigin(req) {
   }
 }
 
-export function requireUser(req, res, send) {
+export function requireUser(req, res, send, message = '请先登录后再使用 AI 功能') {
   const user = getCurrentUser(req);
   if (!user) {
-    send(res, 401, { error: '请先登录后再使用 AI 功能', code: 'auth_required' });
+    send(res, 401, { error: message, code: 'auth_required' });
     return null;
   }
   return user;

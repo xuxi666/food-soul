@@ -50,6 +50,15 @@ function statusInfo(ai) {
   return { full: '已保存配置，尚未验证', short: '待验证', tone: 'warn', title: '已保存配置，尚未验证' };
 }
 
+/**
+ * 供其他页面唤起登录弹窗（如社区发布前未登录）。
+ * mountAccount 时绑定真实实现，未挂载时调用是空操作。
+ */
+let openAuthRef = null;
+export function openAuthModal(tab = 'login') {
+  openAuthRef?.(tab);
+}
+
 export function mountAccount(root) {
   if (!root) return;
 
@@ -81,6 +90,13 @@ export function mountAccount(root) {
         sessionStorage.removeItem('openAiAfterLogin');
         setTimeout(() => openAiModal(), 180);
       }
+    } catch {
+      /* noop */
+    }
+
+    // 通知页面（如社区）登录态变化
+    try {
+      window.dispatchEvent(new CustomEvent('foodsoul:auth', { detail: state.me }));
     } catch {
       /* noop */
     }
@@ -220,6 +236,7 @@ export function mountAccount(root) {
   /* ---------------- 登录 / 注册 ---------------- */
 
   function openAuth(initialTab = 'login', thenAi = false) {
+    openAuthRef = openAuth;
     let tab = initialTab;
     const error = h('p', { class: 'account-error', hidden: true });
     const email = h('input', {
@@ -513,6 +530,9 @@ export function mountAccount(root) {
     });
     setStatus(config.lastError ? `最近一次失败：${config.lastError}` : '', config.lastError ? 'error' : '');
   }
+
+  // 暴露给其他页面（社区发布前未登录时唤起登录框）
+  openAuthRef = openAuth;
 
   refresh();
 }

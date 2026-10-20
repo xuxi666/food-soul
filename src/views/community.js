@@ -1,5 +1,6 @@
 import { h, clear, fmtTime, toast } from '../lib/dom.js';
-import { api, guest, setNickname, compressImage } from '../lib/api.js';
+import { api, guest, compressImage } from '../lib/api.js';
+import { openAuthModal } from '../components/account.js';
 import { DISHES, DISH_BY_ID } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 
@@ -16,6 +17,8 @@ const MAX_IMAGE = 3 * 1024 * 1024;
 export default {
   async mount(root) {
     const me = guest();
+    // 真实登录用户：发布、评论、上传都必须以它为准（服务端同样校验）
+    let currentUser = null;
     let sort = 'latest';
     let kind = KINDS[0];
     let page = 1;
@@ -35,21 +38,6 @@ export default {
       h('div', { class: 'page-head__spacer' }),
       h('a', { class: 'btn btn--sm', href: '/dishes', 'data-link': '' }, '美食图鉴')
     );
-
-    /* ---------------- 昵称 ---------------- */
-    const nickInput = h('input', {
-      type: 'text',
-      class: 'composer-box__nick',
-      value: me.name,
-      maxlength: '16',
-      'aria-label': '自定义昵称（仅存本机浏览器）',
-      placeholder: '匿名食客',
-    });
-    nickInput.addEventListener('change', () => {
-      const v = setNickname(nickInput.value);
-      nickInput.value = v || guest().name;
-      toast(v ? `已改用昵称「${v}」` : '已恢复默认昵称');
-    });
 
     /* ---------------- 发帖 ---------------- */
     const textarea = h('textarea', {
@@ -91,7 +79,7 @@ export default {
           )
         );
       });
-      pickBtn.disabled = imageDataList.length >= MAX_IMAGES;
+      pickBtn.disabled = !currentUser || imageDataList.length >= MAX_IMAGES;
       pickBtn.textContent = imageDataList.length >= MAX_IMAGES ? `最多 ${MAX_IMAGES} 张` : '添加图片';
     }
 
@@ -141,11 +129,27 @@ export default {
       );
     });
 
+    // 未登录时覆盖在发布框上的登录引导（不是隐藏按钮，而是阻止进入可提交状态）
+    const lockBar = h(
+      'div',
+      { class: 'composer-lock', hidden: true },
+      h('p', { class: 'composer-lock__text', text: '请先登录后再发布内容' }),
+      h(
+        'button',
+        {
+          class: 'btn btn--sm btn--gold',
+          type: 'button',
+          onclick: () => openAuthModal('login'),
+        },
+        '登录 / 注册'
+      )
+    );
+
     const composer = h(
       'form',
       { class: 'composer-box' },
       h('div', { class: 'composer-box__meta' },
-        h('span', { class: 'composer-box__who' }, '以「', nickInput, '」发布 · 访客身份仅存本机'),
+        h('span', { class: 'composer-box__who', text: '发布身份：读取中…' }),
       ),
       kindBar,
       textarea,
@@ -155,11 +159,48 @@ export default {
         { class: 'composer-box__bar' },
         h('div', { class: 'composer-box__actions' }, dishSelect, pickBtn, publishBtn)
       ),
-      fileInput
+      fileInput,
+      lockBar
     );
+
+    const whoEl = composer.querySelector('.composer-box__who');
+
+    /** 登录态变化时同步发布区可用状态 */
+    function applyAuthState(user) {
+      currentUser = user || null;
+      const loggedIn = Boolean(currentUser);
+      composer.classList.toggle('is-locked', !loggedIn);
+      lockBar.hidden = loggedIn;
+      textarea.disabled = !loggedIn;
+      dishSelect.disabled = !loggedIn;
+      pickBtn.disabled = !loggedIn || imageDataList.length >= MAX_IMAGES;
+      publishBtn.disabled = !loggedIn;
+      if (loggedIn) {
+        whoEl.textContent = `以「${currentUser.name || currentUser.email}」发布 · 已登录`;
+      } else {
+        whoEl.textContent = '未登录 · 登录后即可发布';
+      }
+    }
+
+    applyAuthState(null);
+
+    api.auth
+      .me()
+      .then((res) => applyAuthState(res?.user))
+      .catch(() => applyAuthState(null));
+
+    window.addEventListener('foodsoul:auth', (e) => {
+      if (!composer.isConnected) return;
+      applyAuthState(e.detail?.user);
+    });
 
     composer.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!currentUser) {
+        toast('请先登录后再发布内容', 'err');
+        openAuthModal('login');
+        return;
+      }
       const content = textarea.value.trim();
       if (content.length < 2) {
         toast('至少写两个字', 'err');
@@ -303,6 +344,11 @@ export default {
       );
       commentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!currentUser) {
+          toast('请先登录后再评论', 'err');
+          openAuthModal('login');
+          return;
+        }
         const v = commentInput.value.trim();
         if (!v) return;
         try {
@@ -366,7 +412,7 @@ export default {
             }
           },
         }, '举报'),
-        post.author.id === me.id
+        currentUser && post.author.id === currentUser.id
           ? h('button', {
               class: 'post-act post-act--danger',
               type: 'button',
@@ -460,7 +506,7 @@ export default {
             composer,
             h('div', { class: 'community-note' },
               h('b', { text: '关于这里' }),
-              h('p', { text: '帖子与评论保存在服务端 JSON，刷新后仍在。当前是访客身份（仅存于本机浏览器），不等同于真实账号体系。' }),
+              h('p', { text: '帖子与评论保存在服务端，刷新后仍在。浏览无需登录；发帖、评论与上传图片需要先登录，内容会记在当前账号名下。' }),
               h('p', { text: 'AI 回复需要你手动点「让菜回应」，且会明确标注；未接入 AI 时不会伪造 AI 发言，请先在右上角「接入 AI」配置。' })
             )
           )

@@ -67,6 +67,7 @@
 
 /* ---------- 发帖编辑器 ---------- */
 .composer-box {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
@@ -74,6 +75,40 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* 未登录：发布区不可提交，用覆盖层提示登录（控件本身也被 disabled） */
+.composer-box.is-locked .composer-box__area,
+.composer-box.is-locked .composer-box__kinds,
+.composer-box.is-locked .composer-box__bar {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.composer-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  text-align: center;
+  border-radius: inherit;
+  background: rgba(5, 6, 10, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.composer-lock[hidden] {
+  display: none;
+}
+
+.composer-lock__text {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
 }
 .composer-box__area {
   width: 100%;

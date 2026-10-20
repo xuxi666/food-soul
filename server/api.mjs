@@ -908,8 +908,13 @@ async function handlePosts(req, res, url) {
   }
 
   if (req.method === 'POST' && !parts.length) {
+    // 发帖必须登录：作者身份只从服务端会话读取，忽略请求体里的任何用户标识
+    if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+    const user = requireUser(req, res, send, '请先登录后再发布内容');
+    if (!user) return;
+
     const body = await readJson(req);
-    const who = guest(req);
+    const who = { id: user.id, name: user.name || user.email.split('@')[0] };
     const content = String(body.content || '').trim();
     if (content.length < 2) return send(res, 400, { error: '说点什么吧，至少 2 个字' });
     if (content.length > 800) return send(res, 400, { error: '帖子最多 800 字' });
@@ -964,8 +969,13 @@ async function handlePosts(req, res, url) {
   }
 
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'comments') {
+    // 评论同样是社区内容，必须登录
+    if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+    const user = requireUser(req, res, send, '请先登录后再评论');
+    if (!user) return;
+
     const body = await readJson(req);
-    const who = guest(req);
+    const who = { id: user.id, name: user.name || user.email.split('@')[0] };
     const content = String(body.content || '').trim();
     if (content.length < 1) return send(res, 400, { error: '评论不能为空' });
     const result = addPostComment(parts[0], {
@@ -988,8 +998,11 @@ async function handlePosts(req, res, url) {
   }
 
   if (req.method === 'DELETE' && parts.length === 1) {
-    const who = guest(req);
-    const result = removePost(parts[0], who.id);
+    // 只能删自己发的帖：归属按会话用户判定
+    if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+    const user = requireUser(req, res, send, '请先登录后再操作');
+    if (!user) return;
+    const result = removePost(parts[0], user.id);
     if (!result.ok) {
       return send(res, result.reason === 'forbidden' ? 403 : 404, {
         error: result.reason === 'forbidden' ? '只能删除自己发布的帖子' : '帖子不存在',
@@ -1134,8 +1147,12 @@ export async function handleApi(req, res) {
       return send(res, 200, bundle);
     }
     if (req.method === 'POST' && path === '/api/upload') {
+      // 上传只服务社区发图，必须登录；未授权请求不落盘
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+      const user = requireUser(req, res, send, '请先登录后再上传图片');
+      if (!user) return;
       const body = await readJson(req);
-      const saved = saveImage(body.image, guest(req).id);
+      const saved = saveImage(body.image, user.id);
       return send(res, saved.ok ? 200 : 400, saved);
     }
     if (req.method === 'POST' && path === '/api/dishes/search') {
