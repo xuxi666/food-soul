@@ -279,7 +279,7 @@ p {
 
   /* 首页全屏插画背景。默认 none（不请求任何文件）；
      执行 node scripts/set-home-bg.mjs <图片路径> 后会自动写成 url('/bg/home-illustration.<ext>') */
-  --hero-bg-image: none;
+  --hero-bg-image: url('/bg/home-illustration.jpg');
   /* 桌面端保留原图整体构图；移动端单独调整焦点 */
   --hero-bg-position: center 44%;
   /* 遮罩强度：改这三个值即可整体微调亮度 */
@@ -344,10 +344,11 @@ p {
   );
 }
 
-/* 移动端：竖屏裁切更狠，把焦点上移保住人物与祥龙主体，遮罩略加强保证文字可读 */
-@media (max-width: 720px) {
+/* 竖屏（手机 + 平板竖放）：16:9 原图会被横向裁掉大半，
+   把焦点左移到祥龙头部所在区域，并略加强遮罩保证文字可读 */
+@media (max-width: 720px), (max-aspect-ratio: 3/4) {
   .hero {
-    --hero-bg-position: 56% 32%;
+    --hero-bg-position: 47% 34%;
     --hero-scrim: 0.52;
     --hero-top-fade: 0.9;
     --hero-center-dim: 0.5;

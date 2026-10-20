@@ -137,7 +137,7 @@ await p.close();
 /* ---------------- 移动端 ---------------- */
 p = await openPage({ width: 390, height: 844 });
 const m = await p.evaluate(probe);
-check('移动端背景定位单独调整', m.bgPos.startsWith('56% 32%'), m.bgPos);
+check('竖屏背景定位单独调整', m.bgPos.startsWith('47% 34%'), m.bgPos);
 check('移动端仍为 cover', m.bgSize.startsWith('cover'), m.bgSize);
 check('移动端无横向溢出', m.scrollW <= m.clientW, `${m.scrollW}/${m.clientW}`);
 check('移动端卡片可见', m.canvasOpacity === '1' && m.items === 8, `opacity=${m.canvasOpacity} items=${m.items}`);
