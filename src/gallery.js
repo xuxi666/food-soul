@@ -18,6 +18,9 @@ const CORNER = 26;
 const INFO_GAP = 20;
 // 卡片朝向阻尼：0=完全侧转，1=始终面向镜头；0.72 让相邻卡片半转身、更可读
 const YAW_DAMP = 0.72;
+/** 空闲自转：无操作 IDLE_AFTER 秒后开始，单位 rad/s（0.024 -> 0.036，提速 50%） */
+const IDLE_SPIN_SPEED = 0.036;
+const IDLE_AFTER = 2.4;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -985,7 +988,8 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
       } else {
         vel = 0;
         idleFor += dt;
-        if (idleFor > 2.4 && !reducedMotion) rot += 0.024 * dt; // barely-there drift
+        // 只影响「完全空闲」时的自转；拖动/切换/惯性路径完全不变
+        if (idleFor > IDLE_AFTER && !reducedMotion) rot += IDLE_SPIN_SPEED * dt;
       }
     }
 
