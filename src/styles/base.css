@@ -93,6 +93,16 @@ p {
   outline-offset: 3px;
 }
 
+/*
+ * tabindex="-1" 是脚本设置的焦点锚点（路由切换后把焦点交给页面主标题，
+ * 供读屏与键盘定位），它本身不是可交互控件，不需要也不应该画焦点框。
+ * 真正的交互控件（a / button / input / [tabindex="0"]）仍保留上面的金色焦点环。
+ */
+[tabindex='-1']:focus,
+[tabindex='-1']:focus-visible {
+  outline: none;
+}
+
 /* ---------------- nav ---------------- */
 .nav {
   position: fixed;

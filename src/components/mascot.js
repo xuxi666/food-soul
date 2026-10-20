@@ -28,7 +28,6 @@ export function mountMascot(root) {
     bubbleQuick,
     h('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' },
       h('button', { class: 'btn btn--sm btn--gold', type: 'button', onclick: () => openPanel() }, '开始聊天'),
-      h('a', { class: 'btn btn--sm', href: '/#board', 'data-link': '', onclick: () => closeBubble() }, '逛菜系'),
       h('button', { class: 'btn btn--sm btn--ghost', type: 'button', onclick: () => closeBubble() }, '先逛逛')
     )
   );
