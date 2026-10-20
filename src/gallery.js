@@ -9,7 +9,7 @@ const BASE_RADIUS = 2.46;
 const FOV = 42;
 const LIFT = 0.3; // how far a selected card travels along its normal
 const SEL_SCALE = 1.06;
-const DRAG_GAIN = 1.5; // >1 means the ring tracks the pointer a touch faster than 1:1
+const DRAG_GAIN = 2.1; // 拖动灵敏度：>1 表示环跟随指针快于 1:1（本次由 1.5 提升约 40%）
 
 const TEX_W = 560;
 const TEX_H = Math.round((TEX_W * CARD_H) / CARD_W);
@@ -598,7 +598,8 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
     const frontDist = Math.max(0.8, camZ - radius * scale);
     const pxPerWorld = h / (2 * Math.tan((FOV * Math.PI) / 360) * frontDist);
     const pxPerRad = radius * scale * pxPerWorld;
-    view.sens = clamp(DRAG_GAIN / Math.max(1, pxPerRad), 0.0009, 0.008);
+    // 上限随 DRAG_GAIN 同步上调，避免小屏被旧的 0.008 上限吃掉提速
+    view.sens = clamp(DRAG_GAIN / Math.max(1, pxPerRad), 0.0012, 0.0112);
 
     // 信息块最大宽度跟随前景卡片像素宽度；字号用 em 体系随之下调
     const cardPx = CARD_W * scale * pxPerWorld;
@@ -730,7 +731,7 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
     }
 
     // natural, restrained inertia
-    vel = clamp(vel, -2.6, 2.6);
+    vel = clamp(vel, -3.4, 3.4);
     if (Math.abs(vel) < 0.06) vel = 0;
     idleFor = 0;
   }
@@ -970,14 +971,16 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
     if (!dragging) {
       if (spinTarget !== null) {
         const diff = spinTarget - rot;
-        rot += diff * (1 - Math.exp(-dt * 7));
+        // 7 -> 10.5：切换卡片的收敛速度提升约 50%（约 1.18s -> 0.75s）
+        rot += diff * (1 - Math.exp(-dt * 10.5));
         if (Math.abs(diff) < 0.0015) {
           rot = spinTarget;
           spinTarget = null;
         }
       } else if (Math.abs(vel) > 0.002) {
         rot += vel * dt;
-        vel *= Math.exp(-dt * 2.3);
+        // 惯性衰减 2.3 -> 1.9：甩动后滑行更远一点，但不至于失控
+        vel *= Math.exp(-dt * 1.9);
         idleFor = 0;
       } else {
         vel = 0;
