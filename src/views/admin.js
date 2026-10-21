@@ -7,7 +7,6 @@
 import { h, clear, toast, fmtTime } from '../lib/dom.js';
 import { api, compressImage } from '../lib/api.js';
 import { applyOverrideLocally } from '../lib/overrides.js';
-import { PRESETS, presetOf } from '../data/aiPresets.js';
 
 const TABS = [
   { id: 'overview', label: '后台概览', en: 'OVERVIEW' },
@@ -513,6 +512,244 @@ export default {
 
     /* ---------------- 内置 AI ---------------- */
 
+    /* ---------------- 内置 AI（多服务商） ---------------- */
+
+    const PROVIDER_FALLBACK = [
+      { id: 'deepseek', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', hint: '例如 deepseek-v4-flash' },
+      { id: 'zhipu', label: '智谱 AI', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', hint: '例如 glm-4-flash' },
+      { id: 'volcengine', label: '火山引擎（豆包）', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', hint: '方舟接入点 ID / 模型 ID' },
+      { id: 'custom', label: '自定义（OpenAI 兼容）', baseUrl: '', hint: '服务商文档中的模型 ID' },
+    ];
+
+    function providerMeta(list, id) {
+      return (list || PROVIDER_FALLBACK).find((p) => p.id === id) || PROVIDER_FALLBACK[PROVIDER_FALLBACK.length - 1];
+    }
+
+    /** 配置表单：新增与编辑共用 */
+    function profileForm({ providers, initial = {}, submitText, onSubmit }) {
+      const list = providers?.length ? providers : PROVIDER_FALLBACK;
+      const meta0 = providerMeta(list, initial.provider || 'deepseek');
+
+      const name = h('input', {
+        class: 'admin-input',
+        type: 'text',
+        maxlength: '40',
+        placeholder: '例如 DeepSeek 主模型',
+        value: initial.name || '',
+        'aria-label': '配置名称',
+      });
+      const provider = h(
+        'select',
+        { class: 'admin-input', 'aria-label': '服务商' },
+        ...list.map((p) => h('option', { value: p.id, text: p.label, selected: (initial.provider || 'deepseek') === p.id }))
+      );
+      const baseUrl = h('input', {
+        class: 'admin-input',
+        type: 'url',
+        placeholder: 'https://api.example.com/v1',
+        value: initial.baseUrl || meta0.baseUrl,
+        'aria-label': 'API Base URL',
+      });
+      const model = h('input', {
+        class: 'admin-input',
+        type: 'text',
+        maxlength: '120',
+        placeholder: meta0.hint,
+        value: initial.model || '',
+        'aria-label': '模型 ID',
+      });
+      const apiKey = h('input', {
+        class: 'admin-input',
+        type: 'password',
+        autocomplete: 'new-password',
+        placeholder: initial.hasKey ? '已保存（留空则保持不变）' : 'sk-...',
+        'aria-label': 'API Key',
+      });
+      const msg = h('p', { class: 'admin-ai__result' });
+
+      provider.addEventListener('change', () => {
+        const m = providerMeta(list, provider.value);
+        if (!initial.hasKey) baseUrl.value = m.baseUrl;
+        model.placeholder = m.hint;
+      });
+
+      const submit = h('button', { class: 'btn btn--sm btn--gold', type: 'submit' }, submitText);
+
+      const form = h(
+        'form',
+        { class: 'admin-ai-form' },
+        h('div', { class: 'admin-ai__grid' },
+          h('label', { class: 'admin-field' }, h('span', { text: '配置名称' }), name),
+          h('label', { class: 'admin-field' }, h('span', { text: '服务商' }), provider),
+          h('label', { class: 'admin-field' }, h('span', { text: 'API Base URL' }), baseUrl),
+          h('label', { class: 'admin-field' }, h('span', { text: '模型 ID' }), model),
+          h('label', { class: 'admin-field' }, h('span', { text: 'API Key' }), apiKey)
+        ),
+        msg,
+        h('div', { class: 'admin-ai__actions' }, submit)
+      );
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submit.disabled = true;
+        const label = submit.textContent;
+        submit.textContent = '保存中…';
+        msg.textContent = '';
+        msg.className = 'admin-ai__result';
+        try {
+          await onSubmit({
+            name: name.value.trim(),
+            provider: provider.value,
+            baseUrl: baseUrl.value.trim(),
+            model: model.value.trim(),
+            apiKey: apiKey.value.trim(),
+          });
+        } catch (err) {
+          msg.textContent = err.message || '保存失败';
+          msg.className = 'admin-ai__result is-err';
+          submit.disabled = false;
+          submit.textContent = label;
+        }
+      });
+
+      return form;
+    }
+
+    function profileCard(p, ctx) {
+      const { providers, master, rerender } = ctx;
+      const meta = providerMeta(providers, p.provider);
+      const badge = (text, tone) => h('span', { class: `admin-badge admin-badge--${tone}`, text });
+
+      const resultLine = h('p', {
+        class: `admin-ai__result${p.status === 'error' ? ' is-err' : p.verified ? ' is-ok' : ''}`,
+        text: p.lastError
+          ? `最近一次测试失败：${p.lastError}`
+          : p.verified
+            ? '最近一次连接测试通过'
+            : '尚未测试连接',
+      });
+
+      const testBtn = h('button', {
+        class: 'btn btn--sm',
+        type: 'button',
+        onclick: async () => {
+          testBtn.disabled = true;
+          testBtn.textContent = '测试中…';
+          resultLine.textContent = '正在连接…';
+          resultLine.className = 'admin-ai__result';
+          try {
+            const r = await api.admin.testSiteAiProfile(p.id);
+            toast(r.latency ? `连接成功（${r.latency} ms）` : '连接成功');
+          } catch (err) {
+            toast(err.message || '连接失败', 'err');
+          } finally {
+            rerender();
+          }
+        },
+      }, '测试连接');
+
+      const enableBtn = p.enabled
+        ? null
+        : h('button', {
+            class: 'btn btn--sm btn--gold',
+            type: 'button',
+            onclick: async () => {
+              if (!confirm(`启用「${p.name}」？同一时间只能有一套配置处于启用状态，切换后会立即影响全站 AI。`)) return;
+              enableBtn.disabled = true;
+              enableBtn.textContent = '切换中…';
+              try {
+                await api.admin.enableSiteAiProfile(p.id);
+                toast('已切换启用配置');
+                window.dispatchEvent(new CustomEvent('foodsoul:auth-changed'));
+              } catch (err) {
+                toast(err.message || '启用失败', 'err');
+              } finally {
+                rerender();
+              }
+            },
+          }, '启用');
+
+      const editBtn = h('button', { class: 'btn btn--sm', type: 'button' }, '编辑');
+      const delBtn = h('button', {
+        class: 'btn btn--sm btn--danger',
+        type: 'button',
+        onclick: async () => {
+          const tip = p.enabled
+            ? `「${p.name}」是当前启用配置。删除后会先停用，且不会自动启用其他配置。确认删除？`
+            : `删除配置「${p.name}」？此操作不可撤销。`;
+          if (!confirm(tip)) return;
+          delBtn.disabled = true;
+          delBtn.textContent = '删除中…';
+          try {
+            const r = await api.admin.deleteSiteAiProfile(p.id);
+            toast(r.wasEnabled ? '已删除并停用该配置' : '配置已删除');
+            if (r.wasEnabled) window.dispatchEvent(new CustomEvent('foodsoul:auth-changed'));
+          } catch (err) {
+            toast(err.message || '删除失败', 'err');
+          } finally {
+            rerender();
+          }
+        },
+      }, '删除');
+
+      const editBox = h('div', { class: 'admin-ai-edit', hidden: true });
+      editBtn.addEventListener('click', () => {
+        if (!editBox.hidden) {
+          editBox.hidden = true;
+          editBtn.textContent = '编辑';
+          return;
+        }
+        clear(editBox);
+        editBox.append(
+          profileForm({
+            providers,
+            initial: { name: p.name, provider: p.provider, baseUrl: p.baseUrl, model: p.model, hasKey: p.hasKey },
+            submitText: '保存修改',
+            onSubmit: async (payload) => {
+              const r = await api.admin.updateSiteAiProfile(p.id, payload);
+              if (r.revalidated && r.tested && !r.tested.ok) {
+                toast('已保存，但连接测试未通过，需要重新测试后才能启用', 'err');
+              } else {
+                toast(r.revalidated ? '已保存并重新验证' : '已保存');
+              }
+              window.dispatchEvent(new CustomEvent('foodsoul:auth-changed'));
+              rerender();
+            },
+          })
+        );
+        editBox.hidden = false;
+        editBtn.textContent = '收起';
+      });
+
+      return h(
+        'article',
+        { class: `admin-ai-profile${p.enabled ? ' is-active' : ''}` },
+        h('div', { class: 'admin-ai-profile__head' },
+          h('div', { class: 'admin-ai-profile__title' },
+            h('b', { text: p.name }),
+            h('span', { class: 'admin-ai-profile__provider', text: p.providerLabel || meta.label })
+          ),
+          h('div', { class: 'admin-ai__badges' },
+            p.enabled ? badge('当前使用中', 'resolved') : badge('未启用', 'rejected'),
+            p.verified ? badge('已验证', 'resolved') : badge(p.status === 'error' ? '测试失败' : '未验证', 'pending')
+          )
+        ),
+        h('dl', { class: 'admin-ai-profile__meta' },
+          h('div', {}, h('dt', { text: 'Base URL' }), h('dd', { text: p.baseUrl })),
+          h('div', {}, h('dt', { text: '模型 ID' }), h('dd', { text: p.model })),
+          h('div', {}, h('dt', { text: 'API Key' }), h('dd', { text: p.hasKey ? '已加密保存（不会回显）' : '未保存' })),
+          h('div', {}, h('dt', { text: '最近测试' }), h('dd', { text: p.lastTestedAt ? fmtTime(p.lastTestedAt) : '—' })),
+          h('div', {}, h('dt', { text: '更新时间' }), h('dd', { text: p.updatedAt ? fmtTime(p.updatedAt) : '—' }))
+        ),
+        resultLine,
+        h('div', { class: 'admin-ai__actions' }, testBtn, enableBtn, editBtn, delBtn),
+        editBox,
+        p.enabled && !master.enabled
+          ? h('p', { class: 'admin-ai__warn', text: '这套配置已选中，但全站内置 AI 总开关处于关闭状态，当前不会对外提供 AI 服务。' })
+          : null
+      );
+    }
+
     async function renderSiteAI() {
       content.append(loading());
       let data;
@@ -524,159 +761,119 @@ export default {
         return;
       }
       clear(content);
-      const st = data.status;
-      const preset = presetOf(st.provider || 'custom');
 
-      const provider = h(
-        'select',
-        { class: 'admin-input', 'aria-label': '模型服务商' },
-        ...PRESETS.map((p) => h('option', { value: p.id, text: p.label, selected: (st.provider || 'custom') === p.id }))
-      );
-      const baseUrl = h('input', {
-        class: 'admin-input',
-        type: 'url',
-        value: st.baseUrl || preset.baseUrl,
-        placeholder: 'https://api.example.com/v1',
-        'aria-label': 'API Base URL',
-      });
-      const model = h('input', {
-        class: 'admin-input',
-        type: 'text',
-        value: st.model || '',
-        placeholder: preset.hint,
-        'aria-label': '模型 ID',
-      });
-      const apiKey = h('input', {
-        class: 'admin-input',
-        type: 'password',
-        autocomplete: 'new-password',
-        placeholder: st.configured ? '已保存（留空则不修改）' : 'sk-...',
-        'aria-label': 'API Key',
-      });
-      const resultEl = h('p', { class: 'admin-ai__result', text: st.lastError ? `最近一次失败：${st.lastError}` : '' });
+      const { master, profiles, canCreate, max, count, providers } = data;
+      const rerender = () => {
+        clear(content);
+        renderSiteAI();
+      };
 
-      provider.addEventListener('change', () => {
-        const p = presetOf(provider.value);
-        if (!st.configured) {
-          baseUrl.value = p.baseUrl;
-          model.placeholder = p.hint;
-        }
-      });
-
-      const testBtn = h('button', {
-        class: 'btn btn--sm',
+      /* ---- 总开关 ---- */
+      const masterBtn = h('button', {
+        class: `btn btn--sm ${master.enabled ? 'btn--danger' : 'btn--gold'}`,
         type: 'button',
         onclick: async () => {
-          testBtn.disabled = true;
-          testBtn.textContent = '测试中…';
-          resultEl.textContent = '';
-          try {
-            const r = await api.admin.testSiteAi({
-              provider: provider.value,
-              baseUrl: baseUrl.value.trim(),
-              model: model.value.trim(),
-              apiKey: apiKey.value.trim(),
-            });
-            resultEl.textContent = `连接成功（${r.latency ?? '-'} ms）：${r.reply || '模型已响应'}`;
-            resultEl.className = 'admin-ai__result is-ok';
-            toast('连接测试通过');
-          } catch (err) {
-            resultEl.textContent = `连接失败：${err.message}`;
-            resultEl.className = 'admin-ai__result is-err';
-            toast('连接测试失败', 'err');
-          } finally {
-            testBtn.disabled = false;
-            testBtn.textContent = '测试连接';
-          }
-        },
-      }, '测试连接');
-
-      const saveBtn = h('button', {
-        class: 'btn btn--sm btn--gold',
-        type: 'button',
-        onclick: async () => {
-          if (!confirm('保存内置 AI 配置？保存时会真实调用一次模型验证。')) return;
-          saveBtn.disabled = true;
-          saveBtn.textContent = '保存中…';
-          try {
-            const r = await api.admin.saveSiteAi({
-              provider: provider.value,
-              baseUrl: baseUrl.value.trim(),
-              model: model.value.trim(),
-              apiKey: apiKey.value.trim(),
-            });
-            toast(r.verified ? '已保存并验证通过' : `已保存，但验证失败：${r.testError || ''}`, r.verified ? undefined : 'err');
-            clear(content);
-            renderSiteAI();
-          } catch (err) {
-            toast(err.message || '保存失败', 'err');
-            saveBtn.disabled = false;
-            saveBtn.textContent = '保存配置';
-          }
-        },
-      }, '保存配置');
-
-      const toggleBtn = h('button', {
-        class: `btn btn--sm ${st.enabled ? 'btn--danger' : 'btn--gold'}`,
-        type: 'button',
-        disabled: !st.enabled && !st.canEnable,
-        onclick: async () => {
-          const want = !st.enabled;
+          const want = !master.enabled;
           const tip = want
-            ? '开启后全站用户将使用管理员配置的内置模型（会先做一次真实连接测试）。确认开启？'
-            : '关闭后所有用户需要各自配置模型才能使用 AI。已保存的内置配置会保留。确认关闭？';
+            ? '开启后全站用户都会使用当前启用的内置 AI 配置（服务端会先真实连接测试一次）。确认开启？'
+            : '关闭后全站内置 AI 立即停止服务，用户需各自在右上角「接入 AI」配置模型。已保存的配置会保留。确认关闭？';
           if (!confirm(tip)) return;
-          toggleBtn.disabled = true;
-          toggleBtn.textContent = '处理中…';
+          masterBtn.disabled = true;
+          masterBtn.textContent = '保存中…';
           try {
-            await api.admin.toggleSiteAi(want);
-            toast(want ? '内置 AI 已开启' : '内置 AI 已关闭');
+            await api.admin.setSiteAiMaster(want);
+            toast(want ? '全站内置 AI 已开启' : '全站内置 AI 已关闭');
             window.dispatchEvent(new CustomEvent('foodsoul:auth-changed'));
-            clear(content);
-            renderSiteAI();
           } catch (err) {
             toast(err.message || '操作失败', 'err');
-            toggleBtn.disabled = false;
-            toggleBtn.textContent = st.enabled ? '关闭内置 AI' : '启用内置 AI';
+          } finally {
+            rerender();
           }
         },
-      }, st.enabled ? '关闭内置 AI' : '启用内置 AI');
+      }, master.enabled ? '关闭内置 AI' : '开启内置 AI');
 
-      const badge = (text, tone) => h('span', { class: `admin-badge admin-badge--${tone}`, text });
+      const active = profiles.find((p) => p.enabled) || null;
 
       content.append(
         h('section', { class: 'admin-card admin-ai' },
           h('div', { class: 'admin-card__head' },
             h('h2', { class: 'admin-card__title', text: '全站内置 AI' }),
             h('div', { class: 'admin-ai__badges' },
-              st.enabled ? badge('已启用', 'resolved') : badge('已关闭', 'rejected'),
-              st.configured ? (st.verified ? badge('已验证', 'resolved') : badge('未验证', 'pending')) : badge('未配置', 'rejected'),
-              st.encryptionReady ? null : badge('缺少加密密钥', 'warn')
+              master.enabled
+                ? h('span', { class: 'admin-badge admin-badge--resolved', text: '已开启' })
+                : h('span', { class: 'admin-badge admin-badge--rejected', text: '已关闭' }),
+              master.encryptionReady
+                ? null
+                : h('span', { class: 'admin-badge admin-badge--warn', text: '缺少加密密钥' })
             )
           ),
-          h('p', { class: 'admin-card__hint', text: st.enabled
-            ? `当前全站使用内置模型「${st.model}」，所有用户无需配置个人 Key。`
-            : '关闭状态下，用户需各自在右上角「接入 AI」配置模型；未配置的用户会收到明确提示。' }),
-          h('div', { class: 'admin-ai__grid' },
-            h('label', { class: 'admin-field' }, h('span', { text: '模型服务商' }), provider),
-            h('label', { class: 'admin-field' }, h('span', { text: 'API Base URL' }), baseUrl),
-            h('label', { class: 'admin-field' }, h('span', { text: '模型 ID' }), model),
-            h('label', { class: 'admin-field' }, h('span', { text: 'API Key' }), apiKey)
+          h('p', {
+            class: 'admin-card__hint',
+            text: master.enabled
+              ? `全站正在使用「${active?.name || '—'}」· ${active?.model || '—'}，所有用户无需自备 Key。`
+              : '关闭状态下，全站 AI 走用户各自「接入 AI」的模型；没有个人配置的用户会收到明确提示。',
+          }),
+          h('div', { class: 'admin-ai__master' },
+            h('div', { class: 'admin-ai__master-state' },
+              h('b', { text: master.enabled ? '已开启' : '已关闭' }),
+              h('span', {
+                text: master.enabled
+                  ? `当前配置：${active?.name || '未选择'} · 模型 ${active?.model || '—'}`
+                  : '开关状态已持久化，刷新或重新登录后仍然有效',
+              })
+            ),
+            masterBtn
           ),
-          h('div', { class: 'admin-ai__actions' }, testBtn, saveBtn, toggleBtn),
-          resultEl,
-          h('div', { class: 'admin-ai__meta' },
-            h('span', { text: `模型：${st.model || '—'}` }),
-            h('span', { text: `最近更新：${st.updatedAt ? fmtTime(st.updatedAt) : '—'}` }),
-            h('span', { text: `开启时间：${st.enabledAt ? fmtTime(st.enabledAt) : '—'}` }),
-            st.configured ? h('span', { text: 'API Key 已加密保存，不会回显' }) : null
+          master.enabled && !active
+            ? h('p', { class: 'admin-ai__warn', text: '异常：总开关已开启但没有启用的配置。请立刻选择一套配置启用，或关闭总开关。' })
+            : null,
+          !master.enabled && !profiles.some((p) => p.verified)
+            ? h('p', { class: 'admin-ai__warn', text: '开启条件：至少有一套配置通过连接测试并被启用。' })
+            : null
+        )
+      );
+
+      /* ---- 配置列表 ---- */
+      const addBtn = h('button', {
+        class: 'btn btn--sm',
+        type: 'button',
+        disabled: !canCreate,
+        onclick: () => {
+          addBox.hidden = !addBox.hidden;
+          addBtn.textContent = addBox.hidden ? '新增 AI 服务' : '收起';
+        },
+      }, '新增 AI 服务');
+
+      const addBox = h('div', { class: 'admin-ai-add', hidden: true });
+      addBox.append(
+        profileForm({
+          providers,
+          submitText: '保存配置',
+          onSubmit: async (payload) => {
+            const r = await api.admin.createSiteAiProfile(payload);
+            toast(r.tested?.ok ? '已保存并验证通过' : `已保存，但连接测试失败：${r.tested?.error || ''}`, r.tested?.ok ? undefined : 'err');
+            rerender();
+          },
+        })
+      );
+
+      content.append(
+        h('section', { class: 'admin-card' },
+          h('div', { class: 'admin-card__head' },
+            h('h2', { class: 'admin-card__title', text: `AI 服务配置（${count}/${max}）` }),
+            addBtn
           ),
-          st.canEnable || st.enabled
+          canCreate
             ? null
-            : h('p', { class: 'admin-ai__warn', text: '启用条件：配置已保存且最近一次连接测试通过。请先点「测试连接」并保存。' })
+            : h('p', { class: 'admin-ai__warn', text: `最多保存 ${max} 套 AI 服务配置，请先删除不再使用的配置。` }),
+          addBox,
+          profiles.length
+            ? h('div', { class: 'admin-ai-list' }, ...profiles.map((p) => profileCard(p, { providers, master, rerender })))
+            : h('p', { class: 'admin-card__hint', text: '还没有配置。点右上角「新增 AI 服务」添加第一套。' })
         )
       );
     }
+
 
     /* ---------------- 举报处理 ---------------- */
 

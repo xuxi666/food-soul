@@ -184,6 +184,30 @@ export const api = {
       jsonFetch('/api/admin/upload', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ image: dataUrl }) }),
     audit: () => jsonFetch('/api/admin/audit'),
     siteAi: () => jsonFetch('/api/admin/site-ai'),
+    setSiteAiMaster: (enabled) =>
+      jsonFetch('/api/admin/site-ai/master', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ enabled }) }),
+    createSiteAiProfile: (payload) =>
+      jsonFetch('/api/admin/site-ai/profiles', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    updateSiteAiProfile: (id, payload) =>
+      jsonFetch(`/api/admin/site-ai/profiles/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(payload),
+      }),
+    testSiteAiProfile: (id, payload = {}) =>
+      jsonFetch(`/api/admin/site-ai/profiles/${encodeURIComponent(id)}/test`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(payload),
+      }),
+    enableSiteAiProfile: (id) =>
+      jsonFetch(`/api/admin/site-ai/profiles/${encodeURIComponent(id)}/enable`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({}),
+      }),
+    deleteSiteAiProfile: (id) =>
+      jsonFetch(`/api/admin/site-ai/profiles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     testSiteAi: (payload) =>
       jsonFetch('/api/admin/site-ai/test', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
     saveSiteAi: (payload) =>

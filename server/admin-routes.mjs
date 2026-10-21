@@ -11,7 +11,19 @@ import { CUISINE_BY_ID, TASTE_BY_ID } from '../src/data/cuisines.js';
 import { adminListPosts, findPost, softDeletePost, postStats, saveImage } from './community.mjs';
 import { generatedDishes } from './dish-search.mjs';
 import { requireAdmin, sameOrigin } from './auth.mjs';
-import { getSiteAIStatus, testSiteAIConfig, saveSiteAIConfig, toggleSiteAI } from './site-ai.mjs';
+import {
+  getSiteAIStatus,
+  getSiteAIPanel,
+  createSiteProfile,
+  updateSiteProfileById,
+  testSiteProfileById,
+  enableSiteProfile,
+  removeSiteProfile,
+  setMasterSwitch,
+  testSiteAIConfig,
+  saveSiteAIConfig,
+  toggleSiteAI,
+} from './site-ai.mjs';
 import {
   listCardImages,
   upsertCardImage,
@@ -369,11 +381,81 @@ export async function handleAdmin(req, res, url) {
     }
   }
 
-  /* 全站内置 AI 配置 */
+  /* 全站内置 AI：总开关 + 多套配置 */
   if (parts[0] === 'site-ai') {
     if (method === 'GET' && parts.length === 1) {
-      return send(res, 200, { ok: true, status: getSiteAIStatus() });
+      return send(res, 200, { ok: true, ...getSiteAIPanel() });
     }
+
+    /* 总开关 */
+    if (method === 'POST' && parts[1] === 'master') {
+      const body = await readJson(req).catch(() => ({}));
+      const want = Boolean(body.enabled);
+      const result = await setMasterSwitch(want, actor);
+      if (!result.ok) return send(res, 400, { error: result.error });
+      audit(actor, want ? 'site-ai.master.on' : 'site-ai.master.off', 'site_ai', '1', { enabled: want });
+      return send(res, 200, { ok: true, ...getSiteAIPanel() });
+    }
+
+    /* 配置集合 */
+    if (parts[1] === 'profiles') {
+      if (method === 'POST' && parts.length === 2) {
+        const body = await readJson(req).catch(() => ({}));
+        const result = await createSiteProfile(body, actor);
+        if (!result.ok) return send(res, 400, { error: result.error });
+        audit(actor, 'site-ai.profile.create', 'site_ai_profile', result.profile?.id || '', {
+          name: result.profile?.name,
+          provider: result.profile?.provider,
+          model: result.profile?.model,
+          verified: Boolean(result.tested?.ok),
+        });
+        return send(res, 200, { ok: true, tested: result.tested, ...getSiteAIPanel() });
+      }
+
+      const id = parts[2] || '';
+      if (id && method === 'POST' && parts.length === 3) {
+        const body = await readJson(req).catch(() => ({}));
+        const result = await updateSiteProfileById(id, body, actor);
+        if (!result.ok) return send(res, result.code === 'not_found' ? 404 : 400, { error: result.error });
+        audit(actor, 'site-ai.profile.update', 'site_ai_profile', id, {
+          name: body.name || '',
+          provider: body.provider || '',
+          model: body.model || '',
+          keyRotated: Boolean(String(body.apiKey || '').trim()),
+          verified: Boolean(result.profile?.verified),
+        });
+        return send(res, 200, { ok: true, tested: result.tested, revalidated: result.revalidated, ...getSiteAIPanel() });
+      }
+      if (id && method === 'POST' && parts[3] === 'test') {
+        const body = await readJson(req).catch(() => ({}));
+        const result = await testSiteProfileById(id, body);
+        if (result.code === 'not_found') return send(res, 404, { error: result.error });
+        audit(actor, 'site-ai.profile.test', 'site_ai_profile', id, { ok: Boolean(result.ok) });
+        return send(res, result.ok ? 200 : 400, { ...result, ...getSiteAIPanel() });
+      }
+      if (id && method === 'POST' && parts[3] === 'enable') {
+        const result = await enableSiteProfile(id, actor);
+        if (!result.ok) return send(res, result.code === 'not_found' ? 404 : 400, { error: result.error });
+        audit(actor, 'site-ai.profile.enable', 'site_ai_profile', id, { name: result.profile?.name });
+        return send(res, 200, { ok: true, ...getSiteAIPanel() });
+      }
+      if (id && method === 'DELETE' && parts.length === 3) {
+        const result = removeSiteProfile(id);
+        if (!result.ok) return send(res, result.code === 'not_found' ? 404 : 400, { error: result.error });
+        audit(actor, 'site-ai.profile.delete', 'site_ai_profile', id, {
+          wasEnabled: result.wasEnabled,
+          masterDisabled: result.masterDisabled,
+        });
+        return send(res, 200, {
+          ok: true,
+          wasEnabled: result.wasEnabled,
+          masterDisabled: result.masterDisabled,
+          ...getSiteAIPanel(),
+        });
+      }
+    }
+
+    /* 兼容旧接口 */
     if (method === 'POST' && parts[1] === 'test') {
       const body = await readJson(req).catch(() => ({}));
       const result = await testSiteAIConfig(body);

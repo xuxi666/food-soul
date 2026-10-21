@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -91,7 +92,7 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_once ON reports(post_id, reporter_id, status)
     WHERE status = 'pending';
 
-  -- 全站内置 AI 配置（单行，id=1）
+  -- 全站内置 AI：总开关（单行，id=1）。配置本身在 site_ai_profiles。
   CREATE TABLE IF NOT EXISTS site_ai (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     provider TEXT NOT NULL,
@@ -110,6 +111,30 @@ db.exec(`
     updated_at INTEGER NOT NULL
   );
 
+  -- 全站内置 AI：最多 3 套服务配置
+  CREATE TABLE IF NOT EXISTS site_ai_profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    model TEXT NOT NULL,
+    key_cipher TEXT NOT NULL,
+    key_iv TEXT NOT NULL,
+    key_tag TEXT NOT NULL,
+    key_version INTEGER NOT NULL DEFAULT 1,
+    verified_at INTEGER,
+    last_status TEXT NOT NULL DEFAULT 'unverified',
+    last_error TEXT,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    updated_by TEXT
+  );
+
+  -- 同一时刻最多一套启用：部分唯一索引由 SQLite 保证原子性
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_site_ai_profile_single_enabled
+    ON site_ai_profiles(enabled) WHERE enabled = 1;
+
   -- 管理操作审计
   CREATE TABLE IF NOT EXISTS audit_log (
     id TEXT PRIMARY KEY,
@@ -124,11 +149,57 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 `);
 
+/* ---------------- 全站内置 AI 总开关：保证单行存在 ---------------- */
+db.prepare(
+  `INSERT OR IGNORE INTO site_ai
+     (id, provider, base_url, model, key_cipher, key_iv, key_tag, key_version, updated_at)
+   VALUES (1, '', '', '', '', '', '', 1, ?)`
+).run(Date.now());
+
 /* ---------------- 迁移：users.role ---------------- */
 const userCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
 if (!userCols.includes('role')) {
   db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
 }
+
+/* ---------------- 迁移：旧单套内置 AI → site_ai_profiles ---------------- */
+const PROVIDER_LABEL = { deepseek: 'DeepSeek', zhipu: '智谱 AI', volcengine: '火山引擎', custom: '自定义' };
+/**
+ * 老版本把内置 AI 存在 site_ai 单行里。这里把它搬成第一套配置，
+ * 保留原密文与验证状态；迁移后清空旧行密文，避免管理员删光配置后又被重建。
+ */
+(() => {
+  const count = db.prepare('SELECT COUNT(*) AS c FROM site_ai_profiles').get()?.c || 0;
+  if (count > 0) return;
+  const legacy = db.prepare('SELECT * FROM site_ai WHERE id = 1').get();
+  if (!legacy || !legacy.key_cipher) return;
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO site_ai_profiles
+      (id, name, provider, base_url, model, key_cipher, key_iv, key_tag, key_version,
+       verified_at, last_status, last_error, enabled, created_at, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    crypto.randomUUID(),
+    `${PROVIDER_LABEL[legacy.provider] || legacy.provider || '内置'} 默认配置`,
+    legacy.provider || 'custom',
+    legacy.base_url,
+    legacy.model,
+    legacy.key_cipher,
+    legacy.key_iv,
+    legacy.key_tag,
+    legacy.key_version || 1,
+    legacy.verified_at ?? null,
+    legacy.last_status || 'unverified',
+    legacy.last_error || null,
+    legacy.enabled ? 1 : 0,
+    legacy.updated_at || now,
+    legacy.updated_at || now,
+    legacy.updated_by || null
+  );
+  db.prepare("UPDATE site_ai SET key_cipher = '', key_iv = '', key_tag = '' WHERE id = 1").run();
+  console.log('[db] 已将旧版内置 AI 配置迁移为 site_ai_profiles 的第一套配置');
+})();
 
 /* ---------------- users ---------------- */
 
@@ -409,13 +480,144 @@ export function updateSiteAIStatus({ status, error, verifiedAt }) {
 
 /** 关闭时保留配置，只改开关；开启要求已验证 */
 export function setSiteAIEnabled(enabled, by = '') {
-  db.prepare('UPDATE site_ai SET enabled = ?, enabled_at = ?, updated_at = ? WHERE id = 1').run(
-    enabled ? 1 : 0,
-    enabled ? Date.now() : null,
-    Date.now()
-  );
-  if (by) db.prepare('UPDATE site_ai SET updated_by = ? WHERE id = 1').run(String(by));
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO site_ai (id, provider, base_url, model, key_cipher, key_iv, key_tag, key_version,
+       enabled, enabled_at, updated_by, updated_at)
+     VALUES (1, '', '', '', '', '', '', 1, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       enabled = excluded.enabled,
+       enabled_at = excluded.enabled_at,
+       updated_by = COALESCE(excluded.updated_by, site_ai.updated_by),
+       updated_at = excluded.updated_at`
+  ).run(enabled ? 1 : 0, enabled ? now : null, by || null, now);
   return getSiteAIRow();
+}
+
+/* ---------------- 内置 AI：多套配置（最多 3 套） ---------------- */
+
+export const SITE_AI_MAX_PROFILES = 3;
+
+export function listSiteProfiles() {
+  return db.prepare('SELECT * FROM site_ai_profiles ORDER BY created_at ASC').all();
+}
+
+export function getSiteProfile(id) {
+  return db.prepare('SELECT * FROM site_ai_profiles WHERE id = ?').get(String(id || '')) || null;
+}
+
+export function countSiteProfiles() {
+  return db.prepare('SELECT COUNT(*) AS c FROM site_ai_profiles').get()?.c || 0;
+}
+
+export function getEnabledSiteProfile() {
+  return db.prepare('SELECT * FROM site_ai_profiles WHERE enabled = 1').get() || null;
+}
+
+function tx(fn) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const out = fn();
+    db.exec('COMMIT');
+    return out;
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* noop */
+    }
+    throw err;
+  }
+}
+
+/** 新增配置：数量上限在事务内校验，避免并发插入超过 3 套 */
+export function insertSiteProfile(row) {
+  return tx(() => {
+    const c = countSiteProfiles();
+    if (c >= SITE_AI_MAX_PROFILES) {
+      const err = new Error(`最多保存 ${SITE_AI_MAX_PROFILES} 套 AI 服务配置`);
+      err.code = 'limit';
+      throw err;
+    }
+    const now = Date.now();
+    const id = row.id || crypto.randomUUID();
+    db.prepare(
+      `INSERT INTO site_ai_profiles
+        (id, name, provider, base_url, model, key_cipher, key_iv, key_tag, key_version,
+         verified_at, last_status, last_error, enabled, created_at, updated_at, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
+    ).run(
+      id,
+      row.name,
+      row.provider,
+      row.baseUrl,
+      row.model,
+      row.keyCipher,
+      row.keyIv,
+      row.keyTag,
+      row.keyVersion,
+      row.verifiedAt ?? null,
+      row.lastStatus || 'unverified',
+      row.lastError || null,
+      now,
+      now,
+      row.updatedBy || null
+    );
+    return getSiteProfile(id);
+  });
+}
+
+export function updateSiteProfile(id, patch) {
+  const cur = getSiteProfile(id);
+  if (!cur) return null;
+  db.prepare(
+    `UPDATE site_ai_profiles SET
+       name = ?, provider = ?, base_url = ?, model = ?,
+       key_cipher = ?, key_iv = ?, key_tag = ?, key_version = ?,
+       verified_at = ?, last_status = ?, last_error = ?, updated_at = ?, updated_by = ?
+     WHERE id = ?`
+  ).run(
+    patch.name ?? cur.name,
+    patch.provider ?? cur.provider,
+    patch.baseUrl ?? cur.base_url,
+    patch.model ?? cur.model,
+    patch.keyCipher ?? cur.key_cipher,
+    patch.keyIv ?? cur.key_iv,
+    patch.keyTag ?? cur.key_tag,
+    patch.keyVersion ?? cur.key_version,
+    patch.verifiedAt === undefined ? cur.verified_at : patch.verifiedAt,
+    patch.lastStatus ?? cur.last_status,
+    patch.lastError === undefined ? cur.last_error : patch.lastError,
+    Date.now(),
+    patch.updatedBy ?? cur.updated_by,
+    cur.id
+  );
+  return getSiteProfile(id);
+}
+
+export function deleteSiteProfile(id) {
+  const info = db.prepare('DELETE FROM site_ai_profiles WHERE id = ?').run(String(id || ''));
+  return info.changes > 0;
+}
+
+/** 切换启用：同一事务内先全量置 0 再置 1，杜绝两套同时启用 */
+export function setEnabledSiteProfile(id, by = '') {
+  const target = getSiteProfile(id);
+  if (!target) return { ok: false, reason: 'not-found' };
+  tx(() => {
+    db.prepare('UPDATE site_ai_profiles SET enabled = 0, updated_at = ? WHERE enabled = 1').run(Date.now());
+    db.prepare('UPDATE site_ai_profiles SET enabled = 1, updated_at = ?, updated_by = ? WHERE id = ?').run(
+      Date.now(),
+      by || null,
+      target.id
+    );
+  });
+  return { ok: true, profile: getSiteProfile(target.id) };
+}
+
+/** 停用指定配置（用于删除前的清理） */
+export function disableSiteProfile(id) {
+  db.prepare('UPDATE site_ai_profiles SET enabled = 0, updated_at = ? WHERE id = ?').run(Date.now(), String(id || ''));
 }
 
 export { db, DB_PATH };

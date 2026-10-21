@@ -111,35 +111,28 @@ ADMIN_EMAILS=you@example.com,another@example.com
 
 ### 内置 AI（全站统一模型）
 
-管理员在「后台 → 内置 AI」配置一份模型，可一键开启给全站使用：
+管理员可在「后台 → 内置 AI」管理**最多 3 套**服务配置（DeepSeek / 智谱 / 火山引擎 / 自定义 OpenAI 兼容），并一键控制全站开关。
 
 | 状态 | 行为 |
 |---|---|
-| 开启 | 所有用户（含未配置个人 Key 的）都用管理员的内置模型；个人配置保留但不生效 |
-| 关闭 | 用户各自使用「接入 AI」里配置的模型；未配置则提示去接入 |
+| 总开关开启 + 有启用且已验证的配置 | 所有用户都用这套内置模型，无需自备 Key |
+| 总开关关闭 | 用户各自使用「接入 AI」里的模型；没有个人配置则收到明确提示 |
 
-- 内置 Key 存在 `site_ai` 表，AES-256-GCM 加密，加密密钥来自环境变量 `AI_CONFIG_SECRET`（与密文分开存放）
-- 保存配置时会**真实调用一次模型**验证；开启前再验证一次，失败不允许开启
-- 每次 AI 请求都从数据库读开关，**不做跨请求缓存**，关闭后下一个请求立即生效
-- 关闭只改开关，不删除配置；重新开启无需重填 Key
-- 统一路由覆盖：AI 对话（含 SSE）、对话延伸建议、菜谱生成、AI 推荐、菜品检索、社区 AI 回帖
-- 接口：`GET/POST /api/admin/site-ai`、`/site-ai/test`、`/site-ai/config`、`/site-ai/toggle`
+**约束（全部由后端强制）**
 
+- 最多 3 套：新增接口在事务内校验数量，超出返回 400
+- 同一时刻最多 1 套启用：`site_ai_profiles` 上有部分唯一索引 + 切换走事务
+- 启用前必须通过连接测试；改动 provider / Base URL / 模型 / Key 会作废旧验证状态
+- Key 留空保存 = 保留原密钥；只有显式填写新 Key 才会替换
+- 删除当前启用项：先停用，若总开关开着则一并关闭，避免「已开启但无可用服务」
+- 全站开关与配置存 SQLite（`site_ai` 总开关 + `site_ai_profiles` 配置），刷新/重启后仍有效
+- 每次 AI 请求实时读库，不做跨请求缓存，切换后下一个请求立即生效
 
-### 菜谱工作台：图鉴 → 联网检索 → 模型知识
+**Key 安全**：AES-256-GCM 加密（密钥来自 `AI_CONFIG_SECRET`，与密文分开存放），列表接口只返回「已保存」状态，任何响应都不含密钥。
 
-查询顺序：站内图鉴（含 AI 补全库）→ 智谱 Web Search → 模型已有知识。
+**接口**：`GET /api/admin/site-ai`、`POST /site-ai/master`、`POST /site-ai/profiles`、`POST|DELETE /site-ai/profiles/:id`、`POST /site-ai/profiles/:id/test`、`POST /site-ai/profiles/:id/enable`
 
-| 情况 | 结果 |
-|---|---|
-| 图鉴命中 | `dataSource: library`，用图鉴档案生成 |
-| 图鉴未命中 + 检索成功 | `dataSource: ai-search`，附带可追溯来源 |
-| 图鉴未命中 + 检索失败（429/401/超时/无结果） | **仍生成**，`dataSource: ai-knowledge`，横幅标明「基于模型已有知识生成 · 未联网核实」 |
-| 检索与模型都不可用 | 明确失败，不返回菜谱 |
-
-检索错误会分类（`errorKind`）：`quota`（余额/资源包不足，不可重试）、`auth`（Key 或权限问题）、`not_found`、`rate_limit`（有限重试）、`server`、`timeout`。
-只有 `rate_limit` / `server` / `timeout` / `network` 会重试一次；配额与鉴权类直接返回，避免无谓请求。
-同一检索词 10 分钟内走缓存，失败结果缓存 20 秒，防止连点重复打到服务商。
+**迁移**：旧版单套配置（`site_ai` 单行）在启动时自动转成第一套配置，保留原密文与验证状态。
 
 ## 环境变量
 

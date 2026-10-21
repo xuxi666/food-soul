@@ -626,3 +626,136 @@
   font-size: 11px;
   color: var(--gold);
 }
+
+/* ---------- 内置 AI：总开关 ---------- */
+
+.admin-ai__master {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-ai__master-state {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-ai__master-state b {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.admin-ai__master-state span {
+  font-size: 11px;
+  color: var(--faint);
+  line-height: 1.6;
+}
+
+/* ---------- 内置 AI：配置卡片 ---------- */
+
+.admin-ai-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.admin-ai-profile {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.015);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-ai-profile.is-active {
+  border-color: rgba(216, 178, 106, 0.5);
+  background: rgba(216, 178, 106, 0.05);
+}
+
+.admin-ai-profile__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-ai-profile__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.admin-ai-profile__title b {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.03em;
+}
+
+.admin-ai-profile__provider {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  opacity: 0.85;
+}
+
+.admin-ai-profile__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.admin-ai-profile__meta dt {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  margin-bottom: 2px;
+}
+
+.admin-ai-profile__meta dd {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+/* ---------- 内置 AI：表单 ---------- */
+
+.admin-ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-ai-add,
+.admin-ai-edit {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.admin-ai-add[hidden],
+.admin-ai-edit[hidden] {
+  display: none;
+}

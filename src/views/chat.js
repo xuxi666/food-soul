@@ -523,7 +523,7 @@ export default {
         },
         onError: (err) => {
           failed = true;
-          if (err?.code === 'ai_not_configured' || err?.code === 'site_ai_error' || err?.code === 'ai_config_error') {
+          if (['ai_not_configured', 'ai_disabled', 'site_ai_error', 'ai_config_error', 'ai_config_unavailable'].includes(err?.code)) {
             state.aiConfigured = false;
             setMode({ aiConfigured: false, aiMessage: err.message });
           }
