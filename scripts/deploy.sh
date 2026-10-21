@@ -40,7 +40,7 @@ trap 'rm -f "$TAR"' EXIT
 echo "==> 打包源码（不含 node_modules / dist / data / .env）"
 tar -czf "$TAR" \
   --exclude='public/uploads' \
-  src server public index.html package.json package-lock.json vite.config.js .env.example
+  src server scripts public index.html package.json package-lock.json vite.config.js .env.example
 
 echo "==> 上传到 $HOST"
 scp -q -i "$KEY" -P "$PORT" "$(cygpath -w "$TAR")" "$USER@$HOST:/tmp/food-soul-update.tar.gz"

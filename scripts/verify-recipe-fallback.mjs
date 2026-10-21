@@ -63,6 +63,13 @@ stubFetch(() => jsonRes(401, { error: { code: '1001', message: '身份验证失�
 r = await webSearch('油条 做法');
 check('401 → errorKind=auth', r.errorKind === 'auth', r.errorKind);
 
+// 智谱真实返回：401 + code 1000「身份验证失败。」→ Key 本身失效
+stubFetch(() => jsonRes(401, { error: { code: '1000', message: '身份验证失败。' } }));
+r = await webSearch('年糕 做法');
+check('401 + code 1000 → auth（Key 失效）', r.errorKind === 'auth', `${r.errorKind}/${r.httpStatus}`);
+check('auth 提示含「认证失败」与服务商错误码', /认证失败/.test(r.message) && r.message.includes('1000'), r.message.slice(0, 50));
+check('auth 不重试', calls === 1, `calls=${calls}`);
+
 stubFetch(() => jsonRes(404, { error: { message: 'not found' } }));
 r = await webSearch('豆浆 做法');
 check('404 → errorKind=not_found', r.errorKind === 'not_found', r.errorKind);

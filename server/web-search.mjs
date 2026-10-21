@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import { SEARCH_CONFIG } from './config.mjs';
 
 /**
@@ -24,6 +26,30 @@ const CACHE_TTL = 10 * 60 * 1000;
 const FAIL_CACHE_TTL = 20 * 1000;
 const MAX_CACHE = 80;
 const MAX_ATTEMPTS = 2;
+
+/**
+ * 诊断日志（脱敏）：
+ * 只记录服务商、端点主机、HTTP 状态、服务商错误码、阶段、耗时和密钥指纹。
+ * 密钥本身永不落日志；指纹是 sha256 前 8 位，用于确认「加载的是哪一把 Key」。
+ */
+const KEY_FP = SEARCH_CONFIG.apiKey
+  ? crypto.createHash('sha256').update(SEARCH_CONFIG.apiKey).digest('hex').slice(0, 8)
+  : 'none';
+
+function endpointHost() {
+  try {
+    return new URL(SEARCH_CONFIG.baseUrl).host;
+  } catch {
+    return '(invalid)';
+  }
+}
+
+function logSearch(fields) {
+  const parts = [`provider=zhipu`, `endpoint=${endpointHost()}`, `keyFp=${KEY_FP}`, ...Object.entries(fields)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k}=${typeof v === 'string' && /\s/.test(v) ? JSON.stringify(v) : v}`)];
+  console.log('[web-search] ' + parts.join(' '));
+}
 
 function hostOf(url) {
   try {
@@ -118,8 +144,8 @@ function classify(status, body) {
 const RETRYABLE = new Set(['rate_limit', 'server', 'network', 'timeout']);
 
 const KIND_MESSAGE = {
-  quota: '检索服务额度不足（余额或资源包已用尽），需要充值或更换检索 Key',
-  auth: '检索服务认证失败（Key 无效、过期或未开通该接口权限）',
+  quota: '联网检索额度不足（余额或资源包已用尽），需要充值或更换检索 Key',
+  auth: '联网检索认证失败（Key 无效、已被撤销，或未开通 Web Search 权限）',
   not_found: '检索接口地址不正确（404），请检查 SEARCH_BASE_URL',
   rate_limit: '检索服务请求过于频繁，已被限流',
   server: '检索服务暂时不可用（服务商 5xx）',
@@ -140,8 +166,10 @@ function sleep(ms) {
 /* ---------------- 单次请求 ---------------- */
 
 async function requestOnce(url, payload, timeout) {
+  const started = Date.now();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
+  logSearch({ stage: 'request', engine: payload.search_engine, q: cleanText(payload.search_query, 40), count: payload.count });
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -156,9 +184,11 @@ async function requestOnce(url, payload, timeout) {
     if (res.ok) {
       const data = await res.json().catch(() => null);
       const raw = Array.isArray(data?.search_result) ? data.search_result : [];
+      const sources = dedupe(raw.map(normalizeSource).filter(Boolean));
+      logSearch({ stage: 'response', status: res.status, results: sources.length, duration: `${Date.now() - started}ms` });
       return {
         ok: true,
-        sources: dedupe(raw.map(normalizeSource).filter(Boolean)),
+        sources,
         intent: cleanText(data?.search_intent, 60),
       };
     }
@@ -167,6 +197,15 @@ async function requestOnce(url, payload, timeout) {
     const body = readErrorBody(text);
     const errorKind = classify(res.status, body);
     const retryAfter = Number(res.headers.get('retry-after'));
+    logSearch({
+      stage: 'response',
+      status: res.status,
+      code: body.code || '-',
+      kind: errorKind,
+      retryAfter: retryAfter || '-',
+      duration: `${Date.now() - started}ms`,
+      msg: body.message || '(非 JSON 响应体，未记录内容)',
+    });
     return {
       ok: false,
       errorKind,
@@ -179,6 +218,13 @@ async function requestOnce(url, payload, timeout) {
   } catch (err) {
     const aborted = err?.name === 'AbortError';
     const errorKind = aborted ? 'timeout' : 'network';
+    logSearch({
+      stage: 'transport',
+      kind: errorKind,
+      cause: err?.cause?.code || err?.code || '-',
+      duration: `${Date.now() - started}ms`,
+      msg: cleanText(err?.message || err, 80),
+    });
     return {
       ok: false,
       errorKind,
@@ -206,6 +252,7 @@ async function requestOnce(url, payload, timeout) {
 export async function webSearch(query, opts = {}) {
   const q = cleanText(query, 80);
   if (!SEARCH_CONFIG.apiKey) {
+    logSearch({ stage: 'config', kind: 'not_configured' });
     return {
       status: 'unavailable',
       errorKind: 'not_configured',
@@ -257,6 +304,7 @@ export async function webSearch(query, opts = {}) {
     // 配额/鉴权/地址错误重试没有意义，直接返回
     if (!r.retryable || attempt === MAX_ATTEMPTS - 1) break;
     const wait = r.retryAfterMs || 400 * (attempt + 1);
+    logSearch({ stage: 'retry', attempt: attempt + 1, kind: r.errorKind, waitMs: wait });
     await sleep(wait);
   }
 

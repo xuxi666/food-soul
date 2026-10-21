@@ -134,6 +134,33 @@ ADMIN_EMAILS=you@example.com,another@example.com
 
 **迁移**：旧版单套配置（`site_ai` 单行）在启动时自动转成第一套配置，保留原密文与验证状态。
 
+### 联网检索排障
+
+图鉴外的菜品会调用智谱 Web Search（`SEARCH_API_KEY` + `SEARCH_BASE_URL`，与「内置 AI」的服务商配置**完全独立**，切换 AI 服务商不会影响它）。
+
+一条命令定位问题（不会输出密钥，只给 sha256 前 8 位指纹）：
+
+```bash
+node scripts/diagnose-search.mjs
+```
+
+输出包含：端点、Key 指纹、HTTP 状态、服务商错误码、判定结论与建议。常见结论：
+
+| HTTP / 错误码 | 含义 | 处理 |
+|---|---|---|
+| 401 / 1000 身份验证失败 | **Key 本身失效**（不是缺权限） | 智谱开放平台重新生成 Key，替换 `.env` 的 `SEARCH_API_KEY` |
+| 429 / 1113 余额不足或无可用资源包 | 账户额度用尽 | 充值或购买 Web Search 资源包 |
+| 429 其它 | 频率限制 | 稍后重试，脚本与代码已做一次退避重试 |
+| 404 | 端点地址不对 | `SEARCH_BASE_URL=https://open.bigmodel.cn/api/paas/v4` |
+
+运行时也会打脱敏日志，可直接 `pm2 logs food-soul` 查看：
+
+```
+[web-search] provider=zhipu endpoint=open.bigmodel.cn keyFp=5e149a23 stage=response status=401 code=1000 kind=auth duration=244ms msg="身份验证失败。"
+```
+
+检索失败不影响菜谱生成：会降级为「基于模型已有知识」，并在页面上标注未联网核实。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |
