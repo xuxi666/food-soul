@@ -32,6 +32,16 @@ const MAX_ATTEMPTS = 2;
  * 只记录服务商、端点主机、HTTP 状态、服务商错误码、阶段、耗时和密钥指纹。
  * 密钥本身永不落日志；指纹是 sha256 前 8 位，用于确认「加载的是哪一把 Key」。
  */
+function providerId() {
+  return String(process.env.SEARCH_PROVIDER || SEARCH_CONFIG.provider || 'zhipu').toLowerCase();
+}
+
+function searxngBase() {
+  // 显式设为空字符串表示「关闭」，不要回落到 .env 里的旧值
+  const raw = process.env.SEARXNG_URL !== undefined ? process.env.SEARXNG_URL : SEARCH_CONFIG.searxngUrl;
+  return String(raw || '').replace(/\/$/, '');
+}
+
 function fingerprint(key) {
   return key ? crypto.createHash('sha256').update(key).digest('hex').slice(0, 8) : 'none';
 }
@@ -62,7 +72,7 @@ async function resolveKey() {
 
 function endpointHost() {
   try {
-    return new URL(SEARCH_CONFIG.baseUrl).host;
+    return new URL(providerId() === 'searxng' ? searxngBase() : SEARCH_CONFIG.baseUrl).host;
   } catch {
     return '(invalid)';
   }
@@ -70,7 +80,7 @@ function endpointHost() {
 
 function logSearch(fields) {
   const { keyFp = 'none', ...rest } = fields;
-  const parts = [`provider=zhipu`, `endpoint=${endpointHost()}`, `keyFp=${keyFp}`, ...Object.entries(rest)
+  const parts = [`provider=${providerId()}`, `endpoint=${endpointHost()}`, `keyFp=${keyFp}`, ...Object.entries(rest)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([k, v]) => `${k}=${typeof v === 'string' && /\s/.test(v) ? JSON.stringify(v) : v}`)];
   console.log('[web-search] ' + parts.join(' '));
@@ -188,6 +198,150 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/* ---------------- SearXNG（自建元搜索） ---------------- */
+
+const SEARXNG_ERROR = {
+  auth: '检索实例拒绝访问（可能开启了 limiter 或反爬）',
+  rate_limit: '检索实例限流',
+  server: '检索实例内部错误',
+  network: '无法连接自建检索实例',
+  timeout: '自建检索实例超时',
+  failed: '自建检索实例返回异常',
+};
+
+function normalizeSearxng(raw) {
+  const url = String(raw?.url || '').trim();
+  if (!/^https?:\/\//i.test(url)) return null;
+  return {
+    title: cleanText(raw?.title, 120) || url,
+    site: cleanText(raw?.engine, 40) || hostOf(url),
+    url,
+    snippet: cleanText(raw?.content, 600),
+    publishDate: cleanText(raw?.publishedDate, 24),
+    refer: cleanText(raw?.engine, 24),
+    host: hostOf(url),
+  };
+}
+
+/**
+ * 调 SearXNG 的 JSON 接口。
+ * 需要在实例 settings.yml 里开启 search.formats 包含 json。
+ */
+async function searxngSearch(q, { count, timeout }) {
+  const base = searxngBase();
+  if (!base) {
+    return {
+      ok: false,
+      errorKind: 'not_configured',
+      httpStatus: 0,
+      retryable: false,
+      message: '未配置自建检索实例地址（SEARXNG_URL）。',
+    };
+  }
+  const url = `${base}/search?q=${encodeURIComponent(q)}&format=json&language=zh-CN&safesearch=0&categories=general`;
+  const started = Date.now();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  logSearch({ keyFp: 'none', stage: 'request', engine: 'searxng', q: cleanText(q, 40) });
+  try {
+    const res = await fetch(url, {
+      headers: { accept: 'application/json', 'user-agent': 'food-soul/1.0 (+recipe-lookup)' },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const errorKind = res.status === 429 ? 'rate_limit' : res.status === 401 || res.status === 403 ? 'auth' : res.status >= 500 ? 'server' : 'failed';
+      logSearch({ keyFp: 'none', stage: 'response', status: res.status, kind: errorKind, duration: `${Date.now() - started}ms` });
+      return {
+        ok: false,
+        errorKind,
+        httpStatus: res.status,
+        retryable: errorKind === 'rate_limit' || errorKind === 'server',
+        message: `${SEARXNG_ERROR[errorKind]}（HTTP ${res.status}）`,
+      };
+    }
+    const data = await res.json().catch(() => null);
+    const raw = Array.isArray(data?.results) ? data.results : [];
+    const sources = dedupe(raw.map(normalizeSearxng).filter(Boolean)).slice(0, Math.max(count, 6));
+    const unresponsive = Array.isArray(data?.unresponsive_engines) ? data.unresponsive_engines : [];
+    logSearch({
+      keyFp: 'none',
+      stage: 'response',
+      status: res.status,
+      results: sources.length,
+      engines: [...new Set(raw.map((r) => r.engine).filter(Boolean))].join('/') || '-',
+      down: unresponsive.length,
+      duration: `${Date.now() - started}ms`,
+    });
+    return { ok: true, sources, intent: '' };
+  } catch (err) {
+    const aborted = err?.name === 'AbortError';
+    const errorKind = aborted ? 'timeout' : 'network';
+    logSearch({
+      keyFp: 'none',
+      stage: 'transport',
+      kind: errorKind,
+      cause: err?.cause?.code || err?.code || '-',
+      duration: `${Date.now() - started}ms`,
+      msg: cleanText(err?.message || err, 80),
+    });
+    return {
+      ok: false,
+      errorKind,
+      httpStatus: 0,
+      retryable: true,
+      message: `${SEARXNG_ERROR[errorKind]}：${cleanText(err?.message || err, 60)}`,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** SearXNG 的完整流程：缓存 + 有限重试 + 统一返回结构 */
+async function searxngWebSearch(q, { count, timeout }) {
+  const cacheKey = `searxng|${count}|${q}`;
+  const hit = CACHE.get(cacheKey);
+  if (hit) {
+    const ttl = hit.value.status === 'ok' || hit.value.status === 'empty' ? CACHE_TTL : FAIL_CACHE_TTL;
+    if (Date.now() - hit.at < ttl) return { ...hit.value, cached: true };
+    CACHE.delete(cacheKey);
+  }
+
+  let last = null;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const r = await searxngSearch(q, { count, timeout });
+    if (r.ok) {
+      const value = {
+        status: r.sources.length ? 'ok' : 'empty',
+        errorKind: '',
+        httpStatus: 200,
+        retryable: false,
+        sources: r.sources,
+        message: r.sources.length ? '' : '没有检索到相关资料。',
+        intent: '',
+      };
+      if (CACHE.size >= MAX_CACHE) CACHE.delete(CACHE.keys().next().value);
+      CACHE.set(cacheKey, { at: Date.now(), value });
+      return value;
+    }
+    last = r;
+    if (!r.retryable || attempt === MAX_ATTEMPTS - 1) break;
+    logSearch({ keyFp: 'none', stage: 'retry', attempt: attempt + 1, kind: r.errorKind });
+    await sleep(400 * (attempt + 1));
+  }
+
+  const value = {
+    status: last.errorKind === 'timeout' ? 'timeout' : 'failed',
+    errorKind: last.errorKind,
+    httpStatus: last.httpStatus || 0,
+    retryable: Boolean(last.retryable),
+    sources: [],
+    message: last.message,
+  };
+  if (CACHE.size >= MAX_CACHE) CACHE.delete(CACHE.keys().next().value);
+  CACHE.set(cacheKey, { at: Date.now(), value });
+  return value;
+}
+
 /* ---------------- 单次请求 ---------------- */
 
 async function requestOnce(url, payload, timeout, apiKey, keyFp) {
@@ -278,6 +432,16 @@ async function requestOnce(url, payload, timeout, apiKey, keyFp) {
  */
 export async function webSearch(query, opts = {}) {
   const q = cleanText(query, 80);
+  if (!q) {
+    return { status: 'empty', errorKind: '', httpStatus: 0, retryable: false, sources: [], message: '检索词为空。' };
+  }
+
+  const provider = providerId();
+  if (provider === 'searxng') {
+    const count = Math.max(1, Math.min(10, Number(opts.count) || 6));
+    const timeout = Math.max(3000, Math.min(30000, Number(opts.timeout) || 15000));
+    return searxngWebSearch(q, { count, timeout });
+  }
 
   const { apiKey, source } = await resolveKey();
   if (!apiKey) {

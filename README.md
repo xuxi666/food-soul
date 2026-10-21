@@ -134,31 +134,49 @@ ADMIN_EMAILS=you@example.com,another@example.com
 
 **迁移**：旧版单套配置（`site_ai` 单行）在启动时自动转成第一套配置，保留原密文与验证状态。
 
-### 联网检索排障
+### 联网检索（可自建，免费）
 
-图鉴外的菜品会调用智谱 Web Search（`SEARCH_API_KEY` + `SEARCH_BASE_URL`）。
+图鉴外的菜品会联网检索。两种 provider，用 `SEARCH_PROVIDER` 切换：
 
-**可以只用一把 Key**：`SEARCH_API_KEY` 留空时，若「内置 AI」当前启用的是**智谱**配置，检索会自动复用该配置的 Key（`keyFp` 相同，日志里 `stage=config source=site-profile`）。前提是内置 AI 总开关开着、启用项已验证；内置 AI 关闭或启用的是 DeepSeek/火山时不会复用，此时必须单独配 `SEARCH_API_KEY`。
+| provider | 依赖 | 费用 |
+|---|---|---|
+| `zhipu`（默认） | `SEARCH_API_KEY` + `SEARCH_BASE_URL` | 智谱 Web Search 按资源包计费 |
+| `searxng` | `SEARXNG_URL`（自建实例） | **免费**，只需一台服务器 |
 
-一条命令定位问题（不会输出密钥，只给 sha256 前 8 位指纹）：
+**SearXNG 自建（本项目线上正在用）**
+
+```bash
+docker run -d --name searxng --restart unless-stopped \
+  -p 127.0.0.1:8080:8080 \
+  -v /opt/searxng:/etc/searxng \
+  -e SEARXNG_BASE_URL=http://127.0.0.1:8080/ \
+  ghcr.io/searxng/searxng:latest
+```
+
+- 只监听 `127.0.0.1`，不对外暴露
+- `settings.yml` 必须开 `search.formats: [html, json]`，并把 `server.limiter` 设为 `false`
+- 国内服务器实测可用引擎：`360search`（稳定）、`quark`/`chinaso`（时好时坏）；`baidu` 会出 CAPTCHA、`sogou` 会崩、`google`/`duckduckgo` 不通，建议直接禁用，否则每次检索要多等十几秒
+- 单次检索约 1–3 秒，返回 3–9 条，够 `lookupDish` 的「≥2 条直接相关」判定
+
+配置：
+
+```bash
+SEARCH_PROVIDER=searxng
+SEARXNG_URL=http://127.0.0.1:8080
+```
+
+**诊断**
 
 ```bash
 node scripts/diagnose-search.mjs
 ```
 
-输出包含：端点、Key 指纹、HTTP 状态、服务商错误码、判定结论与建议。常见结论：
+输出 provider、端点、Key 指纹（zhipu）、HTTP 状态、结果数、命中/不可用引擎、判定与建议。密钥只以 sha256 前 8 位出现。
 
-| HTTP / 错误码 | 含义 | 处理 |
-|---|---|---|
-| 401 / 1000 身份验证失败 | **Key 本身失效**（不是缺权限） | 智谱开放平台重新生成 Key，替换 `.env` 的 `SEARCH_API_KEY` |
-| 429 / 1113 余额不足或无可用资源包 | 账户额度用尽 | 充值或购买 Web Search 资源包 |
-| 429 其它 | 频率限制 | 稍后重试，脚本与代码已做一次退避重试 |
-| 404 | 端点地址不对 | `SEARCH_BASE_URL=https://open.bigmodel.cn/api/paas/v4` |
-
-运行时也会打脱敏日志，可直接 `pm2 logs food-soul` 查看：
+运行时日志同样脱敏：
 
 ```
-[web-search] provider=zhipu endpoint=open.bigmodel.cn keyFp=5e149a23 stage=response status=401 code=1000 kind=auth duration=244ms msg="身份验证失败。"
+[web-search] provider=searxng endpoint=127.0.0.1:8080 stage=response status=200 results=4 engines=360search down=1 duration=1177ms
 ```
 
 检索失败不影响菜谱生成：会降级为「基于模型已有知识」，并在页面上标注未联网核实。

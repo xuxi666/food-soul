@@ -32,10 +32,13 @@ const { webSearch } = await import('../server/web-search.mjs');
 const realFetch = globalThis.fetch;
 let calls = 0;
 
+let mockLastUrl = '';
 function stubFetch(handler) {
   calls = 0;
+  mockLastUrl = '';
   globalThis.fetch = async (url, init) => {
     calls += 1;
+    mockLastUrl = String(url);
     return handler(url, init, calls);
   };
 }
@@ -123,6 +126,51 @@ await webSearch('配额缓存测试');
 const before2 = calls;
 await webSearch('配额缓存测试');
 check('quota 失败短缓存生效（不重复请求）', calls === before2, `calls=${calls}`);
+
+/* ---- SearXNG 适配（自建实例） ---- */
+process.env.SEARCH_PROVIDER = 'searxng';
+process.env.SEARXNG_URL = 'http://searxng.test';
+
+stubFetch(() =>
+  jsonRes(200, {
+    query: '馒头',
+    results: [
+      { title: '馒头做法大全', url: 'https://example.com/m1', content: '面粉 酵母 发酵 蒸制', engine: '360search' },
+      { title: '北方馒头做法', url: 'https://example.com/m2', content: '戗面 二发', engine: 'quark' },
+      { title: '无效链接', url: 'javascript:void(0)', content: 'x', engine: 'quark' },
+    ],
+    unresponsive_engines: [['baidu', 'Suspended: CAPTCHA']],
+  })
+);
+r = await webSearch('馒头 做法');
+check('SearXNG 200 → 解析结果并过滤非法 URL', r.status === 'ok' && r.sources.length === 2, `${r.status}/${r.sources.length}`);
+check('SearXNG 来源带引擎名与摘要', r.sources[0].site === '360search' && r.sources[0].snippet.includes('面粉'), r.sources[0].site);
+check('SearXNG 请求打到 /search?format=json', mockLastUrl.includes('/search?') && mockLastUrl.includes('format=json'), mockLastUrl.slice(0, 60));
+
+stubFetch(() => jsonRes(200, { results: [] }));
+r = await webSearch('不存在的菜名 abc');
+check('SearXNG 空结果 → empty', r.status === 'empty' && !r.errorKind, r.status);
+
+stubFetch(() => jsonRes(429, { error: 'too many' }));
+r = await webSearch('限流测试');
+check('SearXNG 429 → rate_limit 且重试一次', r.errorKind === 'rate_limit' && calls === 2, `${r.errorKind}/${calls}`);
+
+stubFetch(() => jsonRes(500, { error: 'boom' }));
+r = await webSearch('服务端错误测试');
+check('SearXNG 5xx → server', r.errorKind === 'server', r.errorKind);
+
+stubFetch(() => {
+  throw Object.assign(new Error('connect ECONNREFUSED'), { cause: { code: 'ECONNREFUSED' } });
+});
+r = await webSearch('连不上测试');
+check('SearXNG 连不上 → network', r.errorKind === 'network' && r.status === 'failed', `${r.errorKind}/${r.status}`);
+
+process.env.SEARXNG_URL = '';
+r = await webSearch('未配置测试');
+check('SearXNG 未配地址 → not_configured', r.errorKind === 'not_configured', r.errorKind);
+
+process.env.SEARCH_PROVIDER = 'zhipu';
+delete process.env.SEARXNG_URL;
 
 globalThis.fetch = realFetch;
 

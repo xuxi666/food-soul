@@ -32,11 +32,16 @@ loadEnv();
  * 可用 SEARCH_API_KEY 单独配置；未配置时相关功能会明确提示，不伪造来源。
  */
 export const SEARCH_CONFIG = {
+  /** zhipu（智谱 Web Search）| searxng（自建元搜索） */
+  provider: (process.env.SEARCH_PROVIDER || 'zhipu').toLowerCase(),
   apiKey: process.env.SEARCH_API_KEY || '',
   baseUrl: (process.env.SEARCH_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4').replace(/\/$/, ''),
+  /** 自建 SearXNG 的地址，例如 http://127.0.0.1:8080 */
+  searxngUrl: (process.env.SEARXNG_URL || '').replace(/\/$/, ''),
 };
 
-export const isSearchConfigured = () => Boolean(SEARCH_CONFIG.apiKey);
+export const isSearchConfigured = () =>
+  SEARCH_CONFIG.provider === 'searxng' ? Boolean(SEARCH_CONFIG.searxngUrl) : Boolean(SEARCH_CONFIG.apiKey);
 
 export const SERVER_CONFIG = {
   port: Number(process.env.PORT) || 5190,
