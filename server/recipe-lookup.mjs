@@ -141,14 +141,26 @@ export async function lookupDish({ dishName, dishId } = {}) {
     };
   }
 
-  const queries = [`${name} 做法 食材`, `${name} 菜谱`, `${name} 起源 历史`];
-  const found = await webSearchMany(queries, { count: 6, timeout: 15000 });
   const variants = nameVariants(name);
-  const relevant = found.sources.filter((s) => isRelevant(s, variants));
+  let queries = [`${name} 做法 食材`, `${name} 菜谱`, `${name} 起源 历史`];
+  let found = await webSearchMany(queries, { count: 6, timeout: 15000 });
+  let relevant = found.sources.filter((s) => isRelevant(s, variants));
+
+  // 三个长查询全空时，退回只搜菜名：自建实例对短查询命中率明显更高
+  if (!found.sources.length) {
+    const retry = await webSearchMany([name], { count: 8, timeout: 15000 });
+    if (retry.sources.length) {
+      found = retry;
+      relevant = retry.sources.filter((s) => isRelevant(s, variants));
+      queries = [name];
+    }
+  }
+
   const listed = (relevant.length ? relevant : found.sources.slice(0, 6)).slice(0, 8);
 
   let status = found.status;
-  if (relevant.length >= 2) status = 'ok';
+  // 只要有一条直接相关就能作为生成依据；此前要求 ≥2 条，冷门菜几乎必然落到「无资料」
+  if (relevant.length >= 1) status = 'ok';
   else if (found.status === 'ok' || found.status === 'empty') status = 'insufficient';
 
   const message =

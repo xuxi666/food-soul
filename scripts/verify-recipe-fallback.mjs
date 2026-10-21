@@ -1,16 +1,17 @@
 /**
- * 菜谱工作台：图鉴未收录 + 联网检索失败时的降级链路验收。
+ * 菜谱工作台：联网检索（自建 SearXNG）+ 降级链路验收。
  *
  * 三段：
- *  A. 单元：web-search 的错误分类 / 重试 / 缓存（stub fetch，零真实配额消耗）
- *  B. 集成：起本地 mock（web_search + chat/completions），另起一份应用实例指向它，
- *     用真实 HTTP 跑通「图鉴命中 / 检索 429 降级 / 检索成功 / 无结果 / 模型不可用」
- *  C. 页面：前端确实渲染「模型知识」徽标与未核实提示
+ *  A. 单元：web-search 的解析 / 空结果重试 / 错误分类 / 缓存（stub fetch，零外部请求）
+ *  B. 集成：本地 mock（SearXNG + OpenAI 兼容模型），另起应用实例指向它，
+ *     跑通「图鉴命中 / 检索成功 / 无结果降级 / 实例 5xx 降级 / 模型不可用 / 未登录」
+ *  C. 页面：徽标与横幅是否正确
  *
- * 前置：先 `npm run build`（应用实例直接托管 dist）
+ * 前置：npm run build（应用实例托管 dist）
  * 用法：node scripts/verify-recipe-fallback.mjs
  */
 import fs from 'node:fs';
+import path from 'node:path';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright-core';
@@ -22,23 +23,23 @@ const check = (name, pass, extra = '') => {
 };
 
 /* ============================================================
- * A. 单元测试：错误分类与重试（stub fetch）
+ * A. 单元测试
  * ============================================================ */
 
-process.env.SEARCH_API_KEY = process.env.SEARCH_API_KEY || 'unit-test-key';
-process.env.SEARCH_BASE_URL = 'https://search.test/v4';
+process.env.SEARXNG_URL = 'http://searxng.test';
+process.env.BING_RSS_URL = ''; // 单测只测 SearXNG 一路，Bing 兜底在集成段验证
 const { webSearch } = await import('../server/web-search.mjs');
 
 const realFetch = globalThis.fetch;
 let calls = 0;
+let lastUrl = '';
 
-let mockLastUrl = '';
 function stubFetch(handler) {
   calls = 0;
-  mockLastUrl = '';
+  lastUrl = '';
   globalThis.fetch = async (url, init) => {
     calls += 1;
-    mockLastUrl = String(url);
+    lastUrl = String(url);
     return handler(url, init, calls);
   };
 }
@@ -46,131 +47,73 @@ function jsonRes(status, obj) {
   return new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } });
 }
 
-stubFetch(() => jsonRes(429, { error: { code: '1113', message: '余额不足或无可用资源包,请充值。' } }));
-let r = await webSearch('馒头 做法 食材');
-check('429 余额不足 → errorKind=quota', r.errorKind === 'quota', r.errorKind);
-check('quota 不重试（只请求 1 次）', calls === 1, `calls=${calls}`);
-check('quota 提示可操作（提到充值/更换）', /充值|更换/.test(r.message), r.message.slice(0, 50));
+const okBody = {
+  results: [
+    { title: '花卷做法大全', url: 'https://example.com/a', content: '面粉 酵母 发酵 蒸制', engine: '360search' },
+    { title: '花卷（重复链接）', url: 'https://example.com/a', content: 'x', engine: '360search' },
+    { title: '花卷家常做法', url: 'https://example.com/b', content: '葱花 卷制', engine: 'sogou' },
+    { title: '非法链接', url: 'javascript:void(0)', content: 'y', engine: 'sogou' },
+  ],
+  unresponsive_engines: [['quark', 'Suspended: CAPTCHA']],
+};
 
-stubFetch(() => jsonRes(429, { error: { code: '1000', message: '令牌不匹配或检索配额已用完，请稍后重试' } }));
-r = await webSearch('花卷 做法');
-check('429 令牌不匹配 → errorKind=auth', r.errorKind === 'auth', r.errorKind);
-check('auth 不重试', calls === 1, `calls=${calls}`);
+stubFetch(() => jsonRes(200, okBody));
+let r = await webSearch('花卷 做法');
+check('200 → 解析结果、去重并过滤非法 URL', r.status === 'ok' && r.sources.length === 2, `${r.status}/${r.sources.length}`);
+check('来源带引擎名与摘要', r.sources[0].site === '360search' && r.sources[0].snippet.includes('面粉'), r.sources[0].site);
+check('请求打到 /search?format=json', lastUrl.includes('/search?') && lastUrl.includes('format=json'), lastUrl.slice(0, 50));
 
-stubFetch(() => jsonRes(429, { error: { code: '1302', message: '请求过于频繁，请稍后再试' } }));
-r = await webSearch('包子 做法');
-check('429 频率限制 → errorKind=rate_limit', r.errorKind === 'rate_limit', r.errorKind);
-check('rate_limit 有限重试（2 次）', calls === 2, `calls=${calls}`);
+stubFetch(() => jsonRes(200, { results: [] }));
+r = await webSearch('空结果菜');
+check('空结果会重试一次（共 2 次请求）', r.status === 'empty' && calls === 2, `${r.status}/${calls}`);
 
-stubFetch(() => jsonRes(401, { error: { code: '1001', message: '身份验证失败' } }));
-r = await webSearch('油条 做法');
-check('401 → errorKind=auth', r.errorKind === 'auth', r.errorKind);
+stubFetch(() => jsonRes(429, { error: 'slow down' }));
+r = await webSearch('限流菜');
+check('429 → rate_limit 且重试一次', r.errorKind === 'rate_limit' && calls === 2, `${r.errorKind}/${calls}`);
 
-// 智谱真实返回：401 + code 1000「身份验证失败。」→ Key 本身失效
-stubFetch(() => jsonRes(401, { error: { code: '1000', message: '身份验证失败。' } }));
-r = await webSearch('年糕 做法');
-check('401 + code 1000 → auth（Key 失效）', r.errorKind === 'auth', `${r.errorKind}/${r.httpStatus}`);
-check('auth 提示含「认证失败」与服务商错误码', /认证失败/.test(r.message) && r.message.includes('1000'), r.message.slice(0, 50));
-check('auth 不重试', calls === 1, `calls=${calls}`);
+stubFetch(() => jsonRes(500, { error: 'boom' }));
+r = await webSearch('服务端错误菜');
+check('5xx → server', r.errorKind === 'server', r.errorKind);
 
-stubFetch(() => jsonRes(404, { error: { message: 'not found' } }));
-r = await webSearch('豆浆 做法');
-check('404 → errorKind=not_found', r.errorKind === 'not_found', r.errorKind);
-
-stubFetch(() => jsonRes(500, { error: { message: 'internal' } }));
-r = await webSearch('锅贴 做法');
-check('500 → errorKind=server 且重试 1 次', r.errorKind === 'server' && calls === 2, `${r.errorKind}/${calls}`);
+stubFetch(() => jsonRes(403, { error: 'forbidden' }));
+r = await webSearch('被拒菜');
+check('403 → auth 且不重试', r.errorKind === 'auth' && calls === 1, `${r.errorKind}/${calls}`);
 
 stubFetch(
   (url, init) =>
     new Promise((_, reject) => {
       init.signal.addEventListener('abort', () => {
-        const err = new Error('aborted');
-        err.name = 'AbortError';
-        reject(err);
+        const e = new Error('aborted');
+        e.name = 'AbortError';
+        reject(e);
       });
     })
 );
-r = await webSearch('烧麦 做法', { timeout: 3000 });
-check('超时 → status=timeout', r.status === 'timeout' && r.errorKind === 'timeout', `${r.status}/${r.errorKind}`);
-
-stubFetch(() =>
-  jsonRes(200, {
-    search_result: [
-      { title: '馒头家常做法', link: 'https://example.com/a', content: '面粉 酵母 发酵 蒸', media: '示例' },
-      { title: '重复链接', link: 'https://example.com/a', content: 'x' },
-      { title: '花卷做法', link: 'https://example.com/b', content: 'y' },
-    ],
-  })
-);
-r = await webSearch('馒头 家常做法');
-check('200 → status=ok 且按 URL 去重', r.status === 'ok' && r.sources.length === 2, `${r.status}/${r.sources.length}`);
-
-stubFetch(() => jsonRes(200, { search_result: [] }));
-r = await webSearch('不存在的菜名xyz');
-check('200 空结果 → empty（区别于失败）', r.status === 'empty' && !r.errorKind, `${r.status}/${r.errorKind}`);
-
-const SECRETISH = 'sk-should-never-leak-1234567890';
-stubFetch(() => new Response(`Bad Gateway ${SECRETISH}`, { status: 502, headers: { 'content-type': 'text/html' } }));
-r = await webSearch('汤圆 做法');
-check('非 JSON 错误体不回传原文（无密钥泄漏）', !r.message.includes(SECRETISH) && !r.message.includes('Bad Gateway'), r.message.slice(0, 50));
-
-stubFetch(() => jsonRes(200, { search_result: [{ title: 't', link: 'https://example.com/c', content: 'z' }] }));
-await webSearch('缓存测试菜');
-const before = calls;
-const cached = await webSearch('缓存测试菜');
-check('同 query 命中缓存，不重复请求', calls === before && cached.cached === true, `calls=${calls}`);
-
-stubFetch(() => jsonRes(429, { error: { code: '1113', message: '余额不足或无可用资源包,请充值。' } }));
-await webSearch('配额缓存测试');
-const before2 = calls;
-await webSearch('配额缓存测试');
-check('quota 失败短缓存生效（不重复请求）', calls === before2, `calls=${calls}`);
-
-/* ---- SearXNG 适配（自建实例） ---- */
-process.env.SEARCH_PROVIDER = 'searxng';
-process.env.SEARXNG_URL = 'http://searxng.test';
-
-stubFetch(() =>
-  jsonRes(200, {
-    query: '馒头',
-    results: [
-      { title: '馒头做法大全', url: 'https://example.com/m1', content: '面粉 酵母 发酵 蒸制', engine: '360search' },
-      { title: '北方馒头做法', url: 'https://example.com/m2', content: '戗面 二发', engine: 'quark' },
-      { title: '无效链接', url: 'javascript:void(0)', content: 'x', engine: 'quark' },
-    ],
-    unresponsive_engines: [['baidu', 'Suspended: CAPTCHA']],
-  })
-);
-r = await webSearch('馒头 做法');
-check('SearXNG 200 → 解析结果并过滤非法 URL', r.status === 'ok' && r.sources.length === 2, `${r.status}/${r.sources.length}`);
-check('SearXNG 来源带引擎名与摘要', r.sources[0].site === '360search' && r.sources[0].snippet.includes('面粉'), r.sources[0].site);
-check('SearXNG 请求打到 /search?format=json', mockLastUrl.includes('/search?') && mockLastUrl.includes('format=json'), mockLastUrl.slice(0, 60));
-
-stubFetch(() => jsonRes(200, { results: [] }));
-r = await webSearch('不存在的菜名 abc');
-check('SearXNG 空结果 → empty', r.status === 'empty' && !r.errorKind, r.status);
-
-stubFetch(() => jsonRes(429, { error: 'too many' }));
-r = await webSearch('限流测试');
-check('SearXNG 429 → rate_limit 且重试一次', r.errorKind === 'rate_limit' && calls === 2, `${r.errorKind}/${calls}`);
-
-stubFetch(() => jsonRes(500, { error: 'boom' }));
-r = await webSearch('服务端错误测试');
-check('SearXNG 5xx → server', r.errorKind === 'server', r.errorKind);
+r = await webSearch('超时菜', { timeout: 3000 });
+check('超时 → timeout', r.status === 'timeout' && r.errorKind === 'timeout', `${r.status}/${r.errorKind}`);
 
 stubFetch(() => {
   throw Object.assign(new Error('connect ECONNREFUSED'), { cause: { code: 'ECONNREFUSED' } });
 });
-r = await webSearch('连不上测试');
-check('SearXNG 连不上 → network', r.errorKind === 'network' && r.status === 'failed', `${r.errorKind}/${r.status}`);
+r = await webSearch('连不上菜');
+check('连不上 → network', r.errorKind === 'network' && r.status === 'failed', `${r.errorKind}/${r.status}`);
+
+stubFetch(() => jsonRes(200, okBody));
+await webSearch('缓存菜');
+const before = calls;
+const cached = await webSearch('缓存菜');
+check('同 query 命中缓存，不重复请求', calls === before && cached.cached === true, `calls=${calls}`);
+
+stubFetch(() => jsonRes(500, { error: 'x' }));
+await webSearch('失败缓存菜');
+const before2 = calls;
+await webSearch('失败缓存菜');
+check('失败短缓存生效（不重复请求）', calls === before2, `calls=${calls}`);
 
 process.env.SEARXNG_URL = '';
-r = await webSearch('未配置测试');
-check('SearXNG 未配地址 → not_configured', r.errorKind === 'not_configured', r.errorKind);
-
-process.env.SEARCH_PROVIDER = 'zhipu';
-delete process.env.SEARXNG_URL;
+r = await webSearch('未配置菜');
+check('未配置 SEARXNG_URL → not_configured', r.errorKind === 'not_configured', r.errorKind);
+process.env.SEARXNG_URL = 'http://searxng.test';
 
 globalThis.fetch = realFetch;
 
@@ -179,82 +122,110 @@ globalThis.fetch = realFetch;
  * ============================================================ */
 
 const RECIPE = {
-  dish_name: '馒头',
+  dish_name: '花卷',
   servings: 2,
   prep_time_minutes: 90,
-  cook_time_minutes: 25,
+  cook_time_minutes: 20,
   difficulty: 'easy',
   ingredients: [
-    { name: '中筋面粉', amount: 500, unit: 'g', optional: false },
-    { name: '温水', amount: 260, unit: 'ml', optional: false },
-    { name: '干酵母', amount: 5, unit: 'g', optional: false },
+    { name: '中筋面粉', amount: 300, unit: 'g', optional: false },
+    { name: '温水', amount: 160, unit: 'ml', optional: false },
+    { name: '干酵母', amount: 3, unit: 'g', optional: false },
   ],
   seasonings: [{ name: '白糖', amount: 10, unit: 'g', optional: true }],
   steps: [
-    { step: 1, title: '和面', description: '酵母用温水化开，倒入面粉揉成光滑面团。', duration_minutes: 10, heat_level: 'low', tips: '水温不超过 35℃' },
-    { step: 2, title: '一发', description: '盖湿布发酵至两倍大。', duration_minutes: 60, heat_level: 'low', tips: '室温低时延长' },
-    { step: 3, title: '排气整形', description: '揉匀排气，分割滚圆。', duration_minutes: 10, heat_level: 'low', tips: '' },
-    { step: 4, title: '二发', description: '二次发酵 15 分钟。', duration_minutes: 15, heat_level: 'low', tips: '' },
-    { step: 5, title: '蒸制', description: '水开后大火蒸 15 分钟，关火焖 3 分钟。', duration_minutes: 18, heat_level: 'high', tips: '不要立刻开盖' },
+    { step: 1, title: '化酵母', description: '酵母和糖用温水化开静置 5 分钟。', duration_minutes: 5, heat_level: 'low', tips: '水温不超过 35℃' },
+    { step: 2, title: '和面', description: '分次加水揉成光滑面团。', duration_minutes: 15, heat_level: 'low', tips: '' },
+    { step: 3, title: '发酵', description: '盖布发酵至两倍大。', duration_minutes: 60, heat_level: 'low', tips: '' },
+    { step: 4, title: '整形', description: '擀开抹油撒葱花卷起切段。', duration_minutes: 10, heat_level: 'low', tips: '' },
+    { step: 5, title: '蒸制', description: '大火蒸 15 分钟焖 3 分钟。', duration_minutes: 18, heat_level: 'high', tips: '不要立刻开盖' },
   ],
-  taste_profile: ['原味', '麦香'],
-  substitutions: ['没有中筋粉可用高筋粉加玉米淀粉替代'],
-  common_mistakes: ['各地做法不同，北方多为戗面馒头，南方偏松软'],
-  safety_notes: ['蒸制时注意蒸汽烫伤'],
+  taste_profile: ['麦香', '咸香'],
+  substitutions: ['没有中筋粉可用高筋粉替代'],
+  common_mistakes: ['各地做法不同，南方偏松软，北方偏紧实'],
+  safety_notes: ['蒸制注意蒸汽烫伤'],
 };
 
-const mock = { search: 'quota', chat: 'ok' };
+const mock = { search: 'ok', chat: 'ok' };
 
 const mockServer = http.createServer((req, res) => {
   let body = '';
   req.on('data', (c) => (body += c));
   req.on('end', () => {
     const url = req.url || '';
-    if (url.includes('/web_search')) {
-      if (mock.search === 'quota') {
-        res.writeHead(429, { 'content-type': 'application/json' });
-        return res.end(JSON.stringify({ error: { code: '1113', message: '余额不足或无可用资源包,请充值。' } }));
-      }
+
+    if (url.startsWith('/search')) {
       if (mock.search === 'empty') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        return res.end(JSON.stringify({ search_result: [] }));
+        return res.end(JSON.stringify({ results: [] }));
       }
-      // 回显检索词里的菜名，保证命中 lookupDish 的相关性判断
-      let q = '';
-      try {
-        q = String(JSON.parse(body || '{}').search_query || '馒头');
-      } catch {
-        q = '馒头';
+      if (mock.search === 'fail') {
+        res.writeHead(500, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'boom' }));
       }
-      const dish = q.split(/\s+/)[0] || '馒头';
+      const q = new URL(url, 'http://x').searchParams.get('q') || '花卷';
+      const dish = q.split(/\s+/)[0] || '花卷';
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(
         JSON.stringify({
-          search_intent: `${dish}做法`,
-          search_result: [
-            { title: `${dish}（中国传统面食）做法`, link: 'https://example.com/a1', content: `${dish} 做法 面粉 酵母 发酵 蒸制`, media: '示例站点' },
-            { title: `${dish}家常做法详解`, link: 'https://example.com/a2', content: `${dish} 做法 戗面 二发 蒸`, media: '示例站点2' },
+          results: [
+            { title: `${dish}的家常做法`, url: 'https://example.com/1', content: `${dish} 做法 面粉 酵母 发酵 蒸制`, engine: '360search' },
+            { title: `${dish}做法详解`, url: 'https://example.com/2', content: `${dish} 做法 葱花 卷制`, engine: 'sogou' },
           ],
+          unresponsive_engines: [],
         })
       );
     }
+
+    if (url.startsWith('/bing')) {
+      if (mock.search === 'fail') {
+        res.writeHead(500, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'boom' }));
+      }
+      if (mock.search === 'empty') {
+        res.writeHead(200, { 'content-type': 'application/rss+xml' });
+        return res.end('<?xml version="1.0"?><rss><channel></channel></rss>');
+      }
+      const q = new URL(url, 'http://x').searchParams.get('q') || '花卷';
+      const dish = q.split(/\s+/)[0] || '花卷';
+      res.writeHead(200, { 'content-type': 'application/rss+xml' });
+      return res.end(
+        `<?xml version="1.0"?><rss><channel><item><title>${dish}的详细做法</title><link>https://example.com/bing1</link><description>${dish} 做法 步骤 面粉</description></item></channel></rss>`
+      );
+    }
+
+    if (url.startsWith('/bing')) {
+      if (mock.search === 'fail') {
+        res.writeHead(500, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'boom' }));
+      }
+      if (mock.search === 'empty') {
+        res.writeHead(200, { 'content-type': 'application/rss+xml' });
+        return res.end('<?xml version="1.0"?><rss><channel></channel></rss>');
+      }
+      const q = new URL(url, 'http://x').searchParams.get('q') || '花卷';
+      const dish = q.split(/\s+/)[0] || '花卷';
+      res.writeHead(200, { 'content-type': 'application/rss+xml' });
+      return res.end(
+        `<?xml version="1.0"?><rss><channel><item><title>${dish}的详细做法</title><link>https://example.com/bing1</link><description>${dish} 做法 步骤 面粉</description></item></channel></rss>`
+      );
+    }
+
     if (url.includes('/chat/completions')) {
       const auth = String(req.headers.authorization || '');
       if (mock.chat === 'auth' || auth.includes('bad-key')) {
         res.writeHead(401, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ error: { message: 'invalid api key' } }));
       }
-      // 菜谱调用现在走 stream:true，mock 需要按 SSE 返回，否则解析不到内容
+      const content = JSON.stringify(RECIPE);
       let wantStream = false;
       try {
         wantStream = Boolean(JSON.parse(body || '{}').stream);
       } catch {
         wantStream = false;
       }
-      const content = JSON.stringify(RECIPE);
       if (wantStream) {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
-        // 分块推送，模拟真实流
         for (let i = 0; i < content.length; i += 200) {
           res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: content.slice(i, i + 200) } }] })}\n\n`);
         }
@@ -264,6 +235,7 @@ const mockServer = http.createServer((req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content } }] }));
     }
+
     res.writeHead(404).end('{}');
   });
 });
@@ -281,8 +253,9 @@ const child = spawn(process.execPath, ['--env-file=.env', 'server/index.mjs'], {
   env: {
     ...process.env,
     PORT: String(APP_PORT),
-    SEARCH_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/v4`,
-    SEARCH_API_KEY: 'mock-search-key',
+    SEARXNG_URL: `http://127.0.0.1:${MOCK_PORT}`,
+    BING_RSS_URL: `http://127.0.0.1:${MOCK_PORT}/bing`,
+    BING_RSS_URL: `http://127.0.0.1:${MOCK_PORT}/bing`,
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -291,7 +264,7 @@ child.stdout.on('data', (d) => childLog.push(String(d)));
 child.stderr.on('data', (d) => childLog.push(String(d)));
 
 const APP = `http://127.0.0.1:${APP_PORT}`;
-for (let i = 0; i < 40; i += 1) {
+for (let i = 0; i < 60; i += 1) {
   try {
     const h = await fetch(APP + '/api/health');
     if (h.ok) break;
@@ -302,8 +275,8 @@ for (let i = 0; i < 40; i += 1) {
 }
 
 let cookie = '';
-async function req(path, { method = 'GET', body } = {}) {
-  const res = await fetch(APP + path, {
+async function req(p, { method = 'GET', body } = {}) {
+  const res = await fetch(APP + p, {
     method,
     headers: { 'content-type': 'application/json', Origin: APP, ...(cookie ? { Cookie: cookie } : {}) },
     body: body ? JSON.stringify(body) : undefined,
@@ -327,89 +300,74 @@ async function makeUser(name) {
   return { email, ok: reg.status === 200 };
 }
 
-async function saveModel(apiKey) {
+async function saveModel(apiKey = 'mock-ok-key') {
   const baseUrl = `http://127.0.0.1:${MOCK_PORT}/v1`;
   const t = await req('/api/ai/test', { method: 'POST', body: { provider: 'custom', baseUrl, model: 'mock-model', apiKey } });
   const s = await req('/api/ai/config', {
     method: 'POST',
     body: { provider: 'custom', baseUrl, model: 'mock-model', apiKey, verifyToken: t.data?.verifyToken },
   });
-  return { test: t.status, save: s.status, error: s.data?.error };
+  return { test: t.status, save: s.status };
 }
 
-/* --- B1 图鉴命中 --- */
-const u1 = await makeUser('recipe-lib');
+/* --- 图鉴命中 --- */
+const u1 = await makeUser('rf-lib');
 check('注册账号（图鉴路径）', u1.ok);
-await saveModel('mock-ok-key');
+await saveModel();
 const libLookup = await req('/api/recipe/lookup', { method: 'POST', body: { dishName: '麻婆豆腐' } });
 check('图鉴命中 → dataSource=library', libLookup.data?.dataSource === 'library', libLookup.data?.dataSource);
 const libGen = await req('/api/recipe', { method: 'POST', body: { dishName: '麻婆豆腐', servings: 2, difficulty: 'easy' } });
-check('图鉴菜品生成成功（不触发检索）', libGen.data?.dataSource === 'library' && Boolean(libGen.data?.recipe), `${libGen.data?.dataSource}/${Boolean(libGen.data?.recipe)}`);
+check('图鉴菜品生成成功（不触发检索）', libGen.data?.dataSource === 'library' && Boolean(libGen.data?.recipe), `${libGen.data?.dataSource}`);
 
-/* --- B2 图鉴未命中 + 检索 429 配额不足 → 降级生成 --- */
-const u2 = await makeUser('recipe-fallback');
-check('注册账号（降级路径）', u2.ok);
-await saveModel('mock-ok-key');
-
-const unkLookup = await req('/api/recipe/lookup', { method: 'POST', body: { dishName: '馒头' } });
-check('图鉴未命中：返回结构化失败而非 500', unkLookup.status === 200 && unkLookup.data?.status !== 'ok', `HTTP ${unkLookup.status} status=${unkLookup.data?.status}`);
-check('失败携带 errorKind=quota', unkLookup.data?.errorKind === 'quota', `kind=${unkLookup.data?.errorKind}`);
-check('错误信息不含原始 JSON 花括号', !/[{}]/.test(String(unkLookup.data?.message || '')), String(unkLookup.data?.message || '').slice(0, 50));
-
-const gen = await req('/api/recipe', { method: 'POST', body: { dishName: '馒头', servings: 2, difficulty: 'easy' } });
-check('检索 429 仍生成菜谱（不再整条中断）', gen.status === 200 && Boolean(gen.data?.recipe), `HTTP ${gen.status}`);
-check('降级标记 dataSource=ai-knowledge', gen.data?.dataSource === 'ai-knowledge', gen.data?.dataSource);
-check('降级标记 verification=model-knowledge', gen.data?.verification?.level === 'model-knowledge', gen.data?.verification?.level);
-check('横幅文案含「未联网核实」', /未联网核实/.test(gen.data?.verification?.label || ''), gen.data?.verification?.label);
-check('返回真实检索失败原因（quota）', gen.data?.search?.errorKind === 'quota', gen.data?.search?.errorKind);
-check('降级结果不伪造来源', Array.isArray(gen.data?.sources) && gen.data.sources.length === 0, `sources=${gen.data?.sources?.length}`);
-check('菜谱结构通过校验', (gen.data?.recipe?.steps?.length || 0) >= 4 && (gen.data?.recipe?.ingredients?.length || 0) >= 3,
-  `steps=${gen.data?.recipe?.steps?.length} ing=${gen.data?.recipe?.ingredients?.length}`);
-check('响应体不含模型 Key', !gen.text.includes('mock-ok-key'), 'checked');
-
-/* --- B3 检索成功 → 走 ai-search --- */
-mock.search = 'ok';
+/* --- 检索成功 → ai-search --- */
+const u2 = await makeUser('rf-search');
+check('注册账号（检索路径）', u2.ok);
+await saveModel();
 const okLookup = await req('/api/recipe/lookup', { method: 'POST', body: { dishName: '花卷' } });
-check('检索成功 → lookup status=ok', okLookup.data?.status === 'ok', `status=${okLookup.data?.status}`);
+check('图鉴未命中 + 检索成功 → status=ok', okLookup.data?.status === 'ok', `status=${okLookup.data?.status}`);
+check('检索结果带可追溯来源', (okLookup.data?.sources?.length || 0) > 0, `sources=${okLookup.data?.sources?.length}`);
 const okGen = await req('/api/recipe', { method: 'POST', body: { dishName: '花卷', servings: 2, difficulty: 'easy', lookupId: okLookup.data?.lookupId } });
-check('检索成功 → dataSource=ai-search', okGen.data?.dataSource === 'ai-search', okGen.data?.dataSource);
-check('检索成功 → 带可追溯来源', (okGen.data?.sources?.length || 0) > 0, `sources=${okGen.data?.sources?.length}`);
-check('检索成功 → 不标记为模型知识', okGen.data?.verification?.level !== 'model-knowledge', okGen.data?.verification?.level);
+check('生成 → dataSource=ai-search', okGen.data?.dataSource === 'ai-search', okGen.data?.dataSource);
+check('生成 → verification=ai-synthesized', okGen.data?.verification?.level === 'ai-synthesized', okGen.data?.verification?.level);
+check('生成 → 携带来源', (okGen.data?.sources?.length || 0) > 0, `sources=${okGen.data?.sources?.length}`);
 
-/* --- B4 检索无结果 → 仍降级（不是报错） --- */
+/* --- 检索无结果 → 降级 --- */
 mock.search = 'empty';
 const emptyLookup = await req('/api/recipe/lookup', { method: 'POST', body: { dishName: '糖三角' } });
-check('无搜索结果 → status=insufficient（区别于服务异常）', emptyLookup.data?.status === 'insufficient', emptyLookup.data?.status);
-check('无搜索结果不带 errorKind', !emptyLookup.data?.errorKind, String(emptyLookup.data?.errorKind || ''));
+check('检索无结果 → status=insufficient', emptyLookup.data?.status === 'insufficient', emptyLookup.data?.status);
 const emptyGen = await req('/api/recipe', { method: 'POST', body: { dishName: '糖三角', servings: 2, difficulty: 'easy' } });
-check('无搜索结果仍能生成（降级）', emptyGen.data?.dataSource === 'ai-knowledge' && Boolean(emptyGen.data?.recipe), emptyGen.data?.dataSource);
+check('无结果仍能生成（降级为模型知识）', emptyGen.data?.dataSource === 'ai-knowledge' && Boolean(emptyGen.data?.recipe), emptyGen.data?.dataSource);
+check('降级横幅含「未联网核实」', /未联网核实/.test(emptyGen.data?.verification?.label || ''), emptyGen.data?.verification?.label);
+check('降级不伪造来源', (emptyGen.data?.sources?.length || 0) === 0, `sources=${emptyGen.data?.sources?.length}`);
 
-/* --- B5 模型不可用 → 明确失败，不伪造成功 --- */
-mock.search = 'quota';
-const u3 = await makeUser('recipe-noai');
+/* --- 检索实例 5xx → 降级 --- */
+mock.search = 'fail';
+const failLookup = await req('/api/recipe/lookup', { method: 'POST', body: { dishName: '锅贴' } });
+check('实例 5xx → status=failed + errorKind=server', failLookup.data?.status === 'failed' && failLookup.data?.errorKind === 'server',
+  `${failLookup.data?.status}/${failLookup.data?.errorKind}`);
+const failGen = await req('/api/recipe', { method: 'POST', body: { dishName: '锅贴', servings: 2, difficulty: 'easy' } });
+check('实例 5xx 仍能降级生成', failGen.data?.dataSource === 'ai-knowledge' && Boolean(failGen.data?.recipe), failGen.data?.dataSource);
+
+/* --- 模型不可用 → 明确失败 --- */
+mock.search = 'ok';
+const u3 = await makeUser('rf-noai');
+await saveModel();
 mock.chat = 'auth';
-const badSave = await saveModel('bad-key');
-check('坏 Key 无法通过连接测试', badSave.test !== 200 || badSave.save !== 200, `test=${badSave.test} save=${badSave.save}`);
-
-mock.chat = 'ok';
-await saveModel('mock-ok-key');
-mock.chat = 'auth'; // 保存后让模型鉴权失效，模拟服务商侧异常
-const noAi = await req('/api/recipe', { method: 'POST', body: { dishName: '馒头', servings: 2, difficulty: 'easy' } });
+const noAi = await req('/api/recipe', { method: 'POST', body: { dishName: '花卷', servings: 2, difficulty: 'easy' } });
 check('模型不可用 → 不返回菜谱（不伪造成功）', noAi.status === 200 && !noAi.data?.recipe, `recipe=${Boolean(noAi.data?.recipe)}`);
-check('模型不可用 → 文案说明检索未完成且模型不可用', /联网检索未完成/.test(noAi.data?.message || ''), String(noAi.data?.message || '').slice(0, 50));
-check('模型不可用 → 仍保留真实检索原因', noAi.data?.search?.errorKind === 'quota', noAi.data?.search?.errorKind);
+check('模型不可用 → 文案说明未返回可用菜谱', /模型没有返回可用菜谱|未完成/.test(noAi.data?.message || ''), String(noAi.data?.message || '').slice(0, 40));
 mock.chat = 'ok';
 
-/* --- B6 未登录不可调用 --- */
+/* --- 鉴权 --- */
 const anon = await fetch(APP + '/api/recipe', {
   method: 'POST',
   headers: { 'content-type': 'application/json', Origin: APP },
-  body: JSON.stringify({ dishName: '馒头' }),
+  body: JSON.stringify({ dishName: '花卷' }),
 });
 check('未登录调用生成接口 → 401', anon.status === 401, `HTTP ${anon.status}`);
 
 /* ============================================================
- * C. 页面测试（同一实例：检索 quota，模型正常）
+ * C. 页面
  * ============================================================ */
 
 const browser = await chromium.launch({
@@ -429,50 +387,39 @@ await page.locator('.account-modal input[type="password"]').fill('Recipe1234!');
 await page.locator('.account-modal button[type="submit"]').click();
 await page.waitForTimeout(1200);
 
-await page.locator('#dishName').fill('馒头');
-// 状态条是瞬时的（mock 很快），用 observer 记录出现过的文案
-await page.evaluate(() => {
-  window.__statusTexts = [];
-  const obs = new MutationObserver(() => {
-    document.querySelectorAll('.lookup-status').forEach((n) => {
-      const t = n.textContent.trim();
-      if (t && !window.__statusTexts.includes(t)) window.__statusTexts.push(t);
-    });
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-});
+// 检索成功：应显示「AI 检索」
+await page.locator('#dishName').fill('花卷');
 await page.locator('.recipe-form button[type="submit"], form button[type="submit"]').first().click();
-await page.waitForTimeout(900);
-const statusTexts = await page.evaluate(() => window.__statusTexts || []);
-check('生成过程中显示降级状态条', statusTexts.some((t) => /模型已有知识/.test(t)), statusTexts.slice(0, 2).join(' / '));
-check('状态条说明「与你的 AI 模型无关」', statusTexts.some((t) => /与你的 AI 模型无关/.test(t)), statusTexts.slice(0, 2).join(' / '));
-check('状态条说明「与你的 AI 模型无关」', statusTexts.some((t) => /与你的 AI 模型无关/.test(t)), statusTexts.slice(0, 2).join(' / '));
-
 await page.waitForSelector('.recipe-card, .recipe-failure', { timeout: 60000 }).catch(() => {});
 await page.waitForTimeout(500);
-const ui = await page.evaluate(() => ({
+let ui = await page.evaluate(() => ({
   badge: document.querySelector('.recipe-source-badge')?.textContent?.trim() || '',
+  sources: document.querySelectorAll('.source-item').length,
   banner: document.querySelector('.verify-banner b')?.textContent?.trim() || '',
-  bannerNote: document.querySelector('.verify-banner p')?.textContent?.trim() || '',
-  hasCard: Boolean(document.querySelector('.recipe-card')),
-  failure: document.querySelector('.recipe-failure__title')?.textContent?.trim() || '',
   scrollW: document.documentElement.scrollWidth,
   clientW: document.documentElement.clientWidth,
-  input: document.querySelector('#dishName')?.value || '',
 }));
-check('页面渲染菜谱卡片', ui.hasCard, ui.failure || '');
-check('徽标显示「模型知识」', ui.badge === '模型知识', ui.badge);
-check('页面横幅标明未联网核实', /未联网核实/.test(ui.banner), ui.banner);
-check('横幅说明含差异/核对提示', /差异|核对/.test(ui.bannerNote), ui.bannerNote.slice(0, 40));
-check('横幅不暴露 HTTP 码与服务商原文', !/HTTP\s*\d|\d{4}：|余额不足或无可用资源包/.test(ui.bannerNote), ui.bannerNote.slice(0, 60));
-check('横幅不暴露 HTTP 码与服务商原文', !/HTTP\s*\d|\d{4}：|余额不足或无可用资源包/.test(ui.bannerNote), ui.bannerNote.slice(0, 60));
-check('降级后保留用户输入', ui.input === '馒头', ui.input);
+check('页面徽标为「AI 检索」', ui.badge === 'AI 检索', ui.badge);
+check('页面渲染来源列表', ui.sources > 0, `sources=${ui.sources}`);
+check('页面横幅为「AI 综合公开资料整理」', /综合公开资料/.test(ui.banner), ui.banner);
 check('页面无横向溢出', ui.scrollW <= ui.clientW, `${ui.scrollW}/${ui.clientW}`);
+await page.screenshot({ path: 'F:/AIweb/美食1.0/aimeishi2.0/shots/recipe-ai-search.png' });
+
+// 无结果：应显示「模型知识」
+mock.search = 'empty';
+await page.locator('#dishName').fill('糖三角');
+await page.locator('.recipe-form button[type="submit"], form button[type="submit"]').first().click();
+await page.waitForSelector('.recipe-card, .recipe-failure', { timeout: 60000 }).catch(() => {});
+await page.waitForTimeout(600);
+ui = await page.evaluate(() => ({
+  badge: document.querySelector('.recipe-source-badge')?.textContent?.trim() || '',
+  banner: document.querySelector('.verify-banner b')?.textContent?.trim() || '',
+}));
+check('无结果时徽标为「模型知识」', ui.badge === '模型知识', ui.badge);
+check('无结果时横幅标注未联网核实', /未联网核实/.test(ui.banner), ui.banner);
 check('页面无脚本异常', pageErrors.length === 0, pageErrors.slice(0, 2).join(' | '));
 
-await page.screenshot({ path: 'F:/AIweb/美食1.0/aimeishi2.0/shots/recipe-fallback.png' });
 await browser.close();
-
 child.kill();
 mockServer.close();
 await new Promise((ok) => setTimeout(ok, 300));

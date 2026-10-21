@@ -134,16 +134,23 @@ ADMIN_EMAILS=you@example.com,another@example.com
 
 **迁移**：旧版单套配置（`site_ai` 单行）在启动时自动转成第一套配置，保留原密文与验证状态。
 
-### 联网检索（可自建，免费）
+### 联网检索（自建，零成本）
 
-图鉴外的菜品会联网检索。两种 provider，用 `SEARCH_PROVIDER` 切换：
+图鉴外的菜品会联网检索，**不依赖任何付费检索 API**。两路并行、结果合并去重：
 
-| provider | 依赖 | 费用 |
-|---|---|---|
-| `zhipu`（默认） | `SEARCH_API_KEY` + `SEARCH_BASE_URL` | 智谱 Web Search 按资源包计费 |
-| `searxng` | `SEARXNG_URL`（自建实例） | **免费**，只需一台服务器 |
+| 来源 | 说明 |
+|---|---|
+| 自建 SearXNG | `SEARXNG_URL`，聚合国内搜索引擎 |
+| Bing RSS | 内置兜底，`https://cn.bing.com/search?...&format=rss`，无需 Key |
 
-**SearXNG 自建（本项目线上正在用）**
+任何一路有结果就能用；两路都空才判定「无资料」。日志会标出来源：
+
+```
+[web-search] provider=searxng endpoint=127.0.0.1:8080 stage=response status=200 results=4 engines=360search down=quark duration=1177ms
+[web-search] provider=searxng endpoint=cn.bing.com stage=bing-rss status=200 results=6 duration=310ms
+```
+
+**SearXNG 部署**
 
 ```bash
 docker run -d --name searxng --restart unless-stopped \
@@ -154,15 +161,16 @@ docker run -d --name searxng --restart unless-stopped \
 ```
 
 - 只监听 `127.0.0.1`，不对外暴露
-- `settings.yml` 必须开 `search.formats: [html, json]`，并把 `server.limiter` 设为 `false`
-- 国内服务器实测可用引擎：`360search`（稳定）、`quark`/`chinaso`（时好时坏）；`baidu` 会出 CAPTCHA、`sogou` 会崩、`google`/`duckduckgo` 不通，建议直接禁用，否则每次检索要多等十几秒
-- 单次检索约 1–3 秒，返回 3–9 条，够 `lookupDish` 的「≥2 条直接相关」判定
+- `settings.yml` 必须开 `search.formats: [html, json]`，`server.limiter: false`
+- 机房 IP 会被搜索引擎限流，`baidu`（CAPTCHA）、`google`/`duckduckgo`（不通）建议禁用；`360search`/`sogou`/`quark` 可用但会周期性冷却
+- 自带健康检查：`/opt/searxng/healthcheck.sh` 每 5 分钟探测一次，连续两次 0 结果就重启容器
 
-配置：
+**配置**
 
 ```bash
-SEARCH_PROVIDER=searxng
+SEARCH_PROVIDER=searxng      # 保留字段，检索已固定走自建 + Bing RSS
 SEARXNG_URL=http://127.0.0.1:8080
+# SEARCH_API_KEY 已不再用于检索（智谱检索已下线）
 ```
 
 **诊断**
@@ -171,15 +179,9 @@ SEARXNG_URL=http://127.0.0.1:8080
 node scripts/diagnose-search.mjs
 ```
 
-输出 provider、端点、Key 指纹（zhipu）、HTTP 状态、结果数、命中/不可用引擎、判定与建议。密钥只以 sha256 前 8 位出现。
+输出实例地址、HTTP 状态、结果数、命中/不可用引擎、耗时与建议。
 
-运行时日志同样脱敏：
-
-```
-[web-search] provider=searxng endpoint=127.0.0.1:8080 stage=response status=200 results=4 engines=360search down=1 duration=1177ms
-```
-
-检索失败不影响菜谱生成：会降级为「基于模型已有知识」，并在页面上标注未联网核实。
+检索失败不影响菜谱生成：降级为「基于模型已有知识」，页面标注未联网核实。
 
 ## 环境变量
 
