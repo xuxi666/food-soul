@@ -582,26 +582,23 @@ async function handleRecipe(req, res) {
 
   // 第二阶段：图鉴没有 → 使用当前用户已缓存的真实检索结果，或现场检索
   let lookup = null;
+  let knowledgeOnly = false;
   if (!dish) {
     lookup = input.lookupId ? takeLookup(input.lookupId, user.id) : null;
     if (!lookup) lookup = await lookupDish({ dishName: input.dishName });
     if (!lookup || lookup.status !== 'ok') {
-      return send(res, 200, {
-        status: lookup?.status || 'insufficient',
-        dataSource: lookup?.dataSource || 'ai-search',
-        sources: lookup?.sources || [],
-        sourceStats: lookup
-          ? { shown: lookup.sources?.length || 0, relevant: lookup.relevantCount || 0, total: lookup.totalCount || 0 }
-          : null,
-        message: lookup?.message || '暂未找到足够可靠的资料，无法生成菜谱。',
-        recipe: null,
-      });
+      // 检索失败（配额不足 / 鉴权失败 / 超时 / 无可靠结果）不再阻断生成：
+      // 降级为「基于模型已有知识」，并在响应里如实标注未联网核实。
+      knowledgeOnly = true;
     }
   }
 
-  const searchSources = lookup?.status === 'ok' ? lookup.sources : [];
-  const isAiSearch = Boolean(lookup);
-  const system = buildRecipePrompt(input, dish, searchSources);
+  const searchSources = !knowledgeOnly && lookup?.status === 'ok' ? lookup.sources : [];
+  const isAiSearch = !knowledgeOnly && Boolean(lookup);
+  const system = buildRecipePrompt(input, dish, searchSources, {
+    knowledgeOnly,
+    searchIssue: knowledgeOnly ? lookup?.message || '' : '',
+  });
   let lastIssues = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -621,33 +618,53 @@ async function handleRecipe(req, res) {
         ],
         temperature: attempt === 0 ? 0.5 : 0.2,
         maxTokens: 2000,
-        timeout: 60000,
+        // 菜谱输出较长（约 900 tokens），免费档模型实测 30–45 秒。
+        // 走流式累积：避免服务商在「长时间无字节」时掐断连接；超时留到 75s。
+        stream: true,
+        timeout: 75000,
       });
       const parsed = extractJSON(raw);
       const check = validateRecipe(parsed, input.servings);
       if (check.ok) {
         markAIConfigStatus(user.id, 'ok', null);
         const sources = isAiSearch ? attachSourceSupport(searchSources, check.recipe, input.dishName) : [];
+        const dataSource = knowledgeOnly ? 'ai-knowledge' : isAiSearch ? 'ai-search' : 'library';
         return send(res, 200, {
           source: 'ai',
-          dataSource: isAiSearch ? 'ai-search' : 'library',
+          dataSource,
           matchedDish: matchedDishPayload(dish),
-          lookupStatus: isAiSearch ? 'ok' : 'found',
+          lookupStatus: knowledgeOnly ? 'unverified' : isAiSearch ? 'ok' : 'found',
+          // 降级时把检索失败原因一并返回，前端据此显示「未联网核实」的原因
+          search: knowledgeOnly
+            ? {
+                status: lookup?.searchStatus || lookup?.status || 'failed',
+                errorKind: lookup?.errorKind || 'not_configured',
+                httpStatus: lookup?.httpStatus || 0,
+                retryable: Boolean(lookup?.retryable),
+                message: lookup?.message || '未进行联网检索。',
+              }
+            : null,
           sources,
           sourceStats: isAiSearch
             ? { shown: sources.length, relevant: lookup.relevantCount ?? sources.length, total: lookup.totalCount ?? sources.length }
             : null,
-          verification: isAiSearch
+          verification: knowledgeOnly
             ? {
-                level: 'ai-synthesized',
-                label: 'AI 综合公开资料整理',
-                note: '菜谱由已接入的模型综合下方来源整理，未逐条核验；「关键词匹配」只表示该来源提到相关食材或做法，请以原始资料为准。',
+                level: 'model-knowledge',
+                label: '基于模型已有知识生成 · 未联网核实',
+                note: `本次未能完成联网检索（${lookup?.message || '检索不可用'}），菜谱由模型依据自身知识生成，未与公开资料核对。地方做法差异较大，请按实际情况调整。`,
               }
-            : {
-                level: 'library',
-                label: '美食图鉴（站内数据）',
-                note: '菜品档案来自站内图鉴；用量与步骤由已接入的模型按档案生成。',
-              },
+            : isAiSearch
+              ? {
+                  level: 'ai-synthesized',
+                  label: 'AI 综合公开资料整理',
+                  note: '菜谱由已接入的模型综合下方来源整理，未逐条核验；「关键词匹配」只表示该来源提到相关食材或做法，请以原始资料为准。',
+                }
+              : {
+                  level: 'library',
+                  label: '美食图鉴（站内数据）',
+                  note: '菜品档案来自站内图鉴；用量与步骤由已接入的模型按档案生成。',
+                },
           valid: true,
           issues: [],
           recipe: check.recipe,
@@ -667,10 +684,21 @@ async function handleRecipe(req, res) {
   // 不提供本地/模拟菜谱兜底：模型失败时明确告知
   return send(res, 200, {
     status: 'failed',
-    dataSource: isAiSearch ? 'ai-search' : 'library',
+    dataSource: knowledgeOnly ? 'ai-knowledge' : isAiSearch ? 'ai-search' : 'library',
     matchedDish: matchedDishPayload(dish),
+    search: knowledgeOnly
+      ? {
+          status: lookup?.searchStatus || lookup?.status || 'failed',
+          errorKind: lookup?.errorKind || 'not_configured',
+          httpStatus: lookup?.httpStatus || 0,
+          retryable: Boolean(lookup?.retryable),
+          message: lookup?.message || '未进行联网检索。',
+        }
+      : null,
     sources: isAiSearch ? attachSourceSupport(searchSources, null, input.dishName) : [],
-    message: '模型没有返回可用菜谱，请稍后重试。',
+    message: knowledgeOnly
+      ? '联网检索未完成，且模型没有返回可用菜谱。请稍后重试，或先检查右上角「接入 AI」的模型配置。'
+      : '模型没有返回可用菜谱，请稍后重试。',
     issues: lastIssues,
     recipe: null,
   });

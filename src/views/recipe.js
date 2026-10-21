@@ -44,6 +44,8 @@ function buildText(recipe, factor, sources = [], dataSource = 'library') {
     lines.push('说明：菜谱由 AI 综合以上公开资料整理，未逐条核验。');
   } else if (dataSource === 'library') {
     lines.push('', '【资料来源】美食图鉴（站内数据库）');
+  } else if (dataSource === 'ai-knowledge') {
+    lines.push('', '【资料来源】模型已有知识生成 · 本次未完成联网核实，地方做法可能有差异，请自行核对。');
   }
   return lines.join('\n');
 }
@@ -53,6 +55,32 @@ function statusPanel(text, tone = '') {
     h('span', { class: 'lookup-status__dot', 'aria-hidden': 'true' }),
     h('p', { text })
   );
+}
+
+/** 把后端返回的检索失败类型翻成一句人话（用于状态条与失败卡片标题） */
+function searchIssueText(payload) {
+  const kind = payload?.errorKind || '';
+  if (kind === 'quota') return '检索服务额度不足';
+  if (kind === 'auth') return '检索服务认证失败';
+  if (kind === 'not_found') return '检索接口地址异常';
+  if (kind === 'rate_limit') return '检索服务被限流';
+  if (kind === 'server') return '检索服务暂时不可用';
+  if (kind === 'not_configured') return '未配置联网检索';
+  if (payload?.status === 'timeout') return '联网检索超时';
+  if (payload?.status === 'unavailable') return '未配置联网检索';
+  if (payload?.status === 'insufficient' || payload?.status === 'empty') return '未检索到可靠资料';
+  return '联网检索失败';
+}
+
+/** 不可通过重试解决的检索问题，给出明确解决方向 */
+function searchHint(payload) {
+  const kind = payload?.errorKind || '';
+  if (kind === 'quota') return '检索服务返回额度不足或余额用尽，需要到服务商充值或更换检索 Key；代码本身无法凭空恢复额度。';
+  if (kind === 'auth') return '检索 Key 无效、过期或未开通 Web Search 接口权限，请检查服务器 .env 中的 SEARCH_API_KEY。';
+  if (kind === 'not_found') return '检索接口地址返回 404，请检查 SEARCH_BASE_URL 是否正确。';
+  if (kind === 'not_configured') return '服务器未配置 SEARCH_API_KEY，图鉴外的菜品只能按模型已有知识生成。';
+  if (kind === 'rate_limit') return '检索服务限流，稍后重试通常可以恢复。';
+  return '';
 }
 
 function sourceItem(s) {
@@ -302,6 +330,7 @@ export default {
 
     function renderFailure(payload) {
       const sources = Array.isArray(payload.sources) ? payload.sources : [];
+      const search = payload.search || payload;
       const title = {
         insufficient: '暂未找到足够可靠的资料',
         timeout: '联网检索超时',
@@ -309,7 +338,8 @@ export default {
         unavailable: '无法联网检索',
         empty: '没有检索到相关资料',
         invalid: '菜名无效',
-      }[payload.status] || '暂时无法生成菜谱';
+      }[payload.status] || (search.errorKind === 'quota' ? '检索服务额度不足' : '暂时无法生成菜谱');
+      const hint = searchHint(search);
 
       clear(result);
       result.append(
@@ -317,6 +347,7 @@ export default {
           h('div', { class: 'empty-state' },
             h('p', { class: 'recipe-failure__title', text: title }),
             h('p', { text: payload.message || '请稍后重试，或换一个菜名。' }),
+            hint ? h('p', { class: 'recipe-failure__hint', text: hint }) : null,
             h('button', { class: 'btn btn--sm', type: 'button', onclick: () => form.requestSubmit() }, '重试')
           ),
           sources.length
@@ -339,6 +370,7 @@ export default {
       const baseServings = recipe.servings;
       const dish = meta.matchedDish || DISHES.find((d) => d.name === recipe.dish_name) || null;
       const isAi = meta.dataSource === 'ai-search';
+      const isKnowledge = meta.dataSource === 'ai-knowledge';
 
       const servingsLabel = h('span', { text: `${baseServings} 人份` });
       const ingList = h('ul', { class: 'ing-list' });
@@ -397,7 +429,7 @@ export default {
           h('div', { class: 'recipe-head__main' },
             h('div', { class: 'recipe-head__title' },
               h('h2', { text: recipe.dish_name }),
-              h('span', { class: `recipe-source-badge recipe-source-badge--${isAi ? 'ai' : 'library'}` }, isAi ? 'AI 检索' : '美食图鉴')
+              h('span', { class: `recipe-source-badge recipe-source-badge--${isKnowledge ? 'knowledge' : isAi ? 'ai' : 'library'}` }, isKnowledge ? '模型知识' : isAi ? 'AI 检索' : '美食图鉴')
             ),
             h('div', { class: 'recipe-meta' },
               h('span', { text: `准备 ${recipe.prep_time_minutes} 分钟` }),
@@ -419,17 +451,22 @@ export default {
             dish ? h('a', { class: 'btn btn--sm btn--gold', href: `/chat/${dish.id}`, 'data-link': '' }, '继续问它') : null
           )
         ),
-        verify.level === 'ai-synthesized'
+        verify.level === 'model-knowledge'
           ? h('div', { class: 'verify-banner verify-banner--warn' },
-              h('b', { text: verify.label || 'AI 综合整理 · 未逐条核验' }),
-              h('p', { text: verify.note || '菜谱由 AI 综合公开资料整理，请对照下方来源核实。' })
+              h('b', { text: verify.label || '基于模型已有知识生成 · 未联网核实' }),
+              h('p', { text: verify.note || '本次未完成联网检索，菜谱未与公开资料核对，地方做法可能有差异。' })
             )
-          : verify.level === 'library'
-            ? h('div', { class: 'verify-banner verify-banner--ok' },
-                h('b', { text: verify.label || '美食图鉴（站内数据）' }),
-                h('p', { text: verify.note || '菜品档案来自站内图鉴。' })
+          : verify.level === 'ai-synthesized'
+            ? h('div', { class: 'verify-banner verify-banner--warn' },
+                h('b', { text: verify.label || 'AI 综合整理 · 未逐条核验' }),
+                h('p', { text: verify.note || '菜谱由 AI 综合公开资料整理，请对照下方来源核实。' })
               )
-            : null,
+            : verify.level === 'library'
+              ? h('div', { class: 'verify-banner verify-banner--ok' },
+                  h('b', { text: verify.label || '美食图鉴（站内数据）' }),
+                  h('p', { text: verify.note || '菜品档案来自站内图鉴。' })
+                )
+              : null,
         h('div', { class: 'recipe-cols' },
           h('div', {},
             h('div', { class: 'recipe-block' },
@@ -509,8 +546,22 @@ export default {
           renderAmbiguous(lookup);
           return;
         }
-        if (lookup.status !== 'ok') {
+        if (lookup.status === 'invalid') {
           renderFailure(lookup);
+          return;
+        }
+        if (lookup.status !== 'ok') {
+          // 图鉴未命中且检索不可用（配额/鉴权/超时/无可靠结果）：
+          // 不中断流程，交给后端按模型已有知识生成，并在结果里标明未联网核实。
+          const reason = searchIssueText(lookup);
+          clear(result);
+          result.append(statusPanel(`${reason}，正在按模型已有知识生成菜谱…`, 'warn'));
+          const res = await api.recipe({ dishName: name, ...readForm() });
+          if (!res.recipe) {
+            renderFailure({ ...res, search: res.search || lookup });
+            return;
+          }
+          renderRecipe(res.recipe, res);
           return;
         }
 

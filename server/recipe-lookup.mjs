@@ -155,17 +155,22 @@ export async function lookupDish({ dishName, dishId } = {}) {
     status === 'ok'
       ? `图鉴暂无记录，已检索到 ${relevant.length} 条与「${name}」直接相关的公开资料。`
       : status === 'timeout'
-        ? '联网检索超时，请稍后重试。'
+        ? '联网检索超时。'
         : status === 'failed'
-          ? found.message || '联网检索失败，请稍后重试。'
+          ? found.message || '联网检索失败。'
           : status === 'unavailable'
             ? '未配置联网检索服务（SEARCH_API_KEY），无法联网检索。'
-            : `暂未找到足够可靠的资料（检索到 ${found.sources.length} 条，直接相关 ${relevant.length} 条），无法确认「${name}」的做法。`;
+            : `暂未找到足够可靠的资料（检索到 ${found.sources.length} 条，直接相关 ${relevant.length} 条）。`;
 
   return {
     status,
     dataSource: 'ai-search',
     dishName: name,
+    // 检索层的真实结果，供上层决定「降级为模型知识」还是「直接报错」
+    searchStatus: found.status,
+    errorKind: found.errorKind || '',
+    httpStatus: found.httpStatus || 0,
+    retryable: Boolean(found.retryable),
     sources: listed.map((s) => ({
       ...s,
       relevant: relevant.includes(s),

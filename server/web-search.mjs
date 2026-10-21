@@ -6,11 +6,24 @@ import { SEARCH_CONFIG } from './config.mjs';
  * 使用 /api/paas/v4/web_search 而不是聊天接口的 web_search 工具：
  * 后者在 glm-4-flash 等模型上不会返回 search_result，容易把模型自身知识伪装成检索结果。
  * 这里返回的每一条都来自搜索接口的 search_result（title/link/media/content），可追溯。
+ *
+ * 错误分类（errorKind）：
+ *   quota       429 且服务商说余额/资源包不足 → 不可重试，需要充值或换 Key
+ *   auth        401/403 或「令牌不匹配」 → 不可重试，需要检查 Key / 接口权限
+ *   not_found   404 → 接口地址不对
+ *   rate_limit  429 但属于频率限制 → 可有限重试
+ *   server      5xx → 可有限重试
+ *   network     网络异常 → 可有限重试
+ *   timeout     超时 → 可有限重试
+ * 说明：服务商可能把「余额不足」也放在 429 里，所以不能只看状态码。
  */
 
 const CACHE = new Map();
 const CACHE_TTL = 10 * 60 * 1000;
+/** 失败结果的短缓存：避免配额/鉴权类错误在几秒内被重复打到服务商 */
+const FAIL_CACHE_TTL = 20 * 1000;
 const MAX_CACHE = 80;
+const MAX_ATTEMPTS = 2;
 
 function hostOf(url) {
   try {
@@ -54,17 +67,157 @@ function dedupe(list) {
   return out;
 }
 
+/* ---------------- 错误解析与分类 ---------------- */
+
+const QUOTA_RE = /余额|资源包|充值|欠费|配额|额度|quota|balance|insufficient|arrears/i;
+// 只匹配「凭证/权限」类措辞。不能用裸 token —— 智谱会把
+// 「令牌不匹配或检索配额已用完」放在同一条里，那类其实要先查 Key 与接口权限。
+const AUTH_RE = /令牌不匹配|令牌无效|令牌已过期|令牌错误|身份验证失败|鉴权失败|认证失败|未授权|无权限|没有访问权限|api[\s_-]?key\s*(无效|错误)|invalid\s*(api[\s_-]?)?key|unauthorized|forbidden/i;
+
+/** 服务商明确的业务码优先，避免文案里同时出现「令牌」和「配额」时判错 */
+const QUOTA_CODES = new Set(['1113', '1114']);
+const AUTH_CODES = new Set(['1000', '1001', '1002', '1003', '1004']);
+
+/**
+ * 只从结构化 JSON 里取错误信息。
+ * 非 JSON 响应体一律不回传内容 —— 避免把服务商原始报文（可能含凭证片段）带给前端。
+ */
+function readErrorBody(text) {
+  const raw = String(text || '').trim();
+  if (!raw || raw[0] !== '{') return { code: '', message: '' };
+  try {
+    const data = JSON.parse(raw);
+    const err = data?.error || data;
+    return {
+      code: cleanText(err?.code ?? err?.error_code ?? '', 20),
+      message: cleanText(err?.message ?? err?.msg ?? '', 120),
+    };
+  } catch {
+    return { code: '', message: '' };
+  }
+}
+
+function classify(status, body) {
+  const code = String(body.code || '');
+  const hay = `${body.code} ${body.message}`;
+
+  // 1) 服务商业务码
+  if (QUOTA_CODES.has(code)) return 'quota';
+  if (AUTH_CODES.has(code)) return 'auth';
+  // 2) 文案措辞：先判凭证/权限，再判额度（避免「令牌不匹配或配额已用完」被当成额度问题）
+  if (AUTH_RE.test(hay)) return 'auth';
+  if (QUOTA_RE.test(hay)) return 'quota';
+  // 3) 状态码兜底
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 404) return 'not_found';
+  if (status === 429) return 'rate_limit';
+  if (status >= 500) return 'server';
+  return 'failed';
+}
+
+const RETRYABLE = new Set(['rate_limit', 'server', 'network', 'timeout']);
+
+const KIND_MESSAGE = {
+  quota: '检索服务额度不足（余额或资源包已用尽），需要充值或更换检索 Key',
+  auth: '检索服务认证失败（Key 无效、过期或未开通该接口权限）',
+  not_found: '检索接口地址不正确（404），请检查 SEARCH_BASE_URL',
+  rate_limit: '检索服务请求过于频繁，已被限流',
+  server: '检索服务暂时不可用（服务商 5xx）',
+  network: '联网检索网络异常',
+  failed: '联网检索失败',
+};
+
+function describe(errorKind, httpStatus, body) {
+  const base = KIND_MESSAGE[errorKind] || KIND_MESSAGE.failed;
+  const detail = body.message ? `：${body.message}` : '';
+  return `${base}（HTTP ${httpStatus}${body.code ? ` / ${body.code}` : ''}）${detail}`;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/* ---------------- 单次请求 ---------------- */
+
+async function requestOnce(url, payload, timeout) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${SEARCH_CONFIG.apiKey}`,
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      const raw = Array.isArray(data?.search_result) ? data.search_result : [];
+      return {
+        ok: true,
+        sources: dedupe(raw.map(normalizeSource).filter(Boolean)),
+        intent: cleanText(data?.search_intent, 60),
+      };
+    }
+
+    const text = await res.text().catch(() => '');
+    const body = readErrorBody(text);
+    const errorKind = classify(res.status, body);
+    const retryAfter = Number(res.headers.get('retry-after'));
+    return {
+      ok: false,
+      errorKind,
+      httpStatus: res.status,
+      code: body.code,
+      message: describe(errorKind, res.status, body),
+      retryable: RETRYABLE.has(errorKind),
+      retryAfterMs: Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 4000) : 0,
+    };
+  } catch (err) {
+    const aborted = err?.name === 'AbortError';
+    const errorKind = aborted ? 'timeout' : 'network';
+    return {
+      ok: false,
+      errorKind,
+      httpStatus: 0,
+      code: '',
+      message: aborted
+        ? `联网检索超时（${Math.round(timeout / 1000)} 秒内未返回）`
+        : `联网检索失败：${cleanText(err?.message || err, 80)}`,
+      retryable: true,
+      retryAfterMs: 0,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ---------------- 对外接口 ---------------- */
+
 /**
  * @param {string} query
  * @param {{count?:number, engine?:'search_std'|'search_pro', timeout?:number}} [opts]
- * @returns {Promise<{status:'ok'|'empty'|'failed'|'timeout'|'unavailable', sources:Array, message:string, cached?:boolean}>}
+ * @returns {Promise<{status:'ok'|'empty'|'failed'|'timeout'|'unavailable', errorKind:string,
+ *   httpStatus:number, retryable:boolean, sources:Array, message:string, cached?:boolean}>}
  */
 export async function webSearch(query, opts = {}) {
   const q = cleanText(query, 80);
   if (!SEARCH_CONFIG.apiKey) {
-    return { status: 'unavailable', sources: [], message: '未配置联网检索服务（SEARCH_API_KEY），无法联网检索。' };
+    return {
+      status: 'unavailable',
+      errorKind: 'not_configured',
+      httpStatus: 0,
+      retryable: false,
+      sources: [],
+      message: '未配置联网检索服务（SEARCH_API_KEY），无法联网检索。',
+    };
   }
-  if (!q) return { status: 'empty', sources: [], message: '检索词为空。' };
+  if (!q) {
+    return { status: 'empty', errorKind: '', httpStatus: 0, retryable: false, sources: [], message: '检索词为空。' };
+  }
 
   const engine = opts.engine === 'search_pro' ? 'search_pro' : 'search_std';
   const count = Math.max(1, Math.min(10, Number(opts.count) || 6));
@@ -72,65 +225,81 @@ export async function webSearch(query, opts = {}) {
   const key = `${engine}|${count}|${q}`;
 
   const hit = CACHE.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL) {
-    return { ...hit.value, cached: true };
+  if (hit) {
+    const ttl = hit.value.status === 'ok' || hit.value.status === 'empty' ? CACHE_TTL : FAIL_CACHE_TTL;
+    if (Date.now() - hit.at < ttl) return { ...hit.value, cached: true };
+    CACHE.delete(key);
   }
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeout);
-  try {
-    const res = await fetch(`${SEARCH_CONFIG.baseUrl}/web_search`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${SEARCH_CONFIG.apiKey}`,
-      },
-      signal: ctrl.signal,
-      body: JSON.stringify({ search_engine: engine, search_query: q, count }),
-    });
+  const url = `${SEARCH_CONFIG.baseUrl}/web_search`;
+  const payload = { search_engine: engine, search_query: q, count };
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
+  let last = null;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const r = await requestOnce(url, payload, timeout);
+
+    if (r.ok) {
       const value = {
-        status: 'failed',
-        sources: [],
-        message: `检索服务返回 ${res.status}${text ? `：${cleanText(text, 80)}` : ''}`,
+        status: r.sources.length ? 'ok' : 'empty',
+        errorKind: '',
+        httpStatus: 200,
+        retryable: false,
+        sources: r.sources,
+        message: r.sources.length ? '' : '没有检索到相关资料。',
+        intent: r.intent,
       };
+      if (CACHE.size >= MAX_CACHE) CACHE.delete(CACHE.keys().next().value);
+      CACHE.set(key, { at: Date.now(), value });
       return value;
     }
 
-    const data = await res.json().catch(() => null);
-    const raw = Array.isArray(data?.search_result) ? data.search_result : [];
-    const sources = dedupe(raw.map(normalizeSource).filter(Boolean));
-    const value = {
-      status: sources.length ? 'ok' : 'empty',
-      sources,
-      message: sources.length ? '' : '没有检索到相关资料。',
-      intent: cleanText(data?.search_intent, 60),
-    };
-    if (CACHE.size >= MAX_CACHE) CACHE.delete(CACHE.keys().next().value);
-    CACHE.set(key, { at: Date.now(), value });
-    return value;
-  } catch (err) {
-    const aborted = err?.name === 'AbortError';
-    return {
-      status: aborted ? 'timeout' : 'failed',
-      sources: [],
-      message: aborted
-        ? '联网检索超时（15 秒内未返回），请稍后重试。'
-        : `联网检索失败：${cleanText(err?.message || err, 80)}`,
-    };
-  } finally {
-    clearTimeout(timer);
+    last = r;
+    // 配额/鉴权/地址错误重试没有意义，直接返回
+    if (!r.retryable || attempt === MAX_ATTEMPTS - 1) break;
+    const wait = r.retryAfterMs || 400 * (attempt + 1);
+    await sleep(wait);
   }
+
+  const value = {
+    status: last.errorKind === 'timeout' ? 'timeout' : 'failed',
+    errorKind: last.errorKind,
+    httpStatus: last.httpStatus,
+    retryable: last.retryable,
+    sources: [],
+    message: last.message,
+  };
+  // 失败也短缓存，避免同一菜品被连点/多标签页反复打到服务商
+  if (CACHE.size >= MAX_CACHE) CACHE.delete(CACHE.keys().next().value);
+  CACHE.set(key, { at: Date.now(), value });
+  return value;
 }
 
 /** 并发执行多组检索词，按 URL 去重合并来源 */
 export async function webSearchMany(queries, opts = {}) {
   const list = [...new Set((Array.isArray(queries) ? queries : [queries]).map((q) => cleanText(q, 80)).filter(Boolean))];
-  if (!list.length) return { status: 'empty', sources: [], message: '检索词为空。', queries: [] };
+  if (!list.length) {
+    return { status: 'empty', errorKind: '', sources: [], message: '检索词为空。', queries: [] };
+  }
 
-  const results = await Promise.all(list.map((q) => webSearch(q, opts)));
+  // 先跑第一条：如果配额/鉴权/地址本身有问题，剩下的查询必然同样失败，
+  // 直接返回可以少打两次请求（避免无谓消耗与限流）。
+  const first = await webSearch(list[0], opts);
+  const fatal = ['quota', 'auth', 'not_found', 'not_configured'];
+  if (first.errorKind && fatal.includes(first.errorKind)) {
+    return {
+      status: first.status,
+      errorKind: first.errorKind,
+      httpStatus: first.httpStatus,
+      retryable: first.retryable,
+      sources: [],
+      message: first.message,
+      queries: list,
+      results: [first.status],
+    };
+  }
+
+  const rest = list.length > 1 ? await Promise.all(list.slice(1).map((q) => webSearch(q, opts))) : [];
+  const results = [first, ...rest];
   const sources = dedupe(results.flatMap((r) => r.sources));
 
   let status = 'empty';
@@ -139,10 +308,17 @@ export async function webSearchMany(queries, opts = {}) {
   else if (results.every((r) => r.status === 'failed')) status = 'failed';
   else if (results.every((r) => r.status === 'unavailable')) status = 'unavailable';
 
-  const message =
-    status === 'ok'
-      ? ''
-      : results.find((r) => r.message)?.message || '没有检索到相关资料。';
+  // 取第一个有 errorKind 的结果作为本次失败的代表
+  const primary = results.find((r) => r.errorKind) || results[0];
 
-  return { status, sources, message, queries: list, results: results.map((r) => r.status) };
+  return {
+    status,
+    errorKind: status === 'ok' ? '' : primary.errorKind || '',
+    httpStatus: primary.httpStatus || 0,
+    retryable: Boolean(primary.retryable),
+    sources,
+    message: status === 'ok' ? '' : primary.message || '没有检索到相关资料。',
+    queries: list,
+    results: results.map((r) => r.status),
+  };
 }

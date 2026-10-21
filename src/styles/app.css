@@ -1056,6 +1056,19 @@
   line-height: 1.6;
 }
 
+/* 降级/警告态状态条：金色改成偏暖橙，避免和「正在加载」混淆 */
+.lookup-status--warn {
+  border-color: rgba(232, 185, 111, 0.35);
+  background: rgba(232, 185, 111, 0.06);
+  color: #e8c9a0;
+}
+
+.lookup-status--warn .lookup-status__dot {
+  background: #e8b96f;
+  animation: none;
+  box-shadow: 0 0 0 4px rgba(232, 185, 111, 0.14);
+}
+
 .lookup-status__dot {
   width: 9px;
   height: 9px;
@@ -1102,6 +1115,13 @@
 .recipe-source-badge--ai {
   color: var(--gold);
   border-color: var(--gold-dim);
+}
+
+/* 检索不可用时的降级来源徽标 */
+.recipe-source-badge--knowledge {
+  color: #e8b96f;
+  border-color: rgba(232, 185, 111, 0.45);
+  background: rgba(232, 185, 111, 0.08);
 }
 
 .recipe-head__thumb--ph {
@@ -1323,6 +1343,17 @@
   font-size: 15px;
   color: var(--ink);
   margin-bottom: 6px;
+}
+
+.recipe-failure__hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(232, 185, 111, 0.28);
+  background: rgba(232, 185, 111, 0.06);
+  font-size: 12px;
+  line-height: 1.75;
+  color: #e8c9a0;
 }
 
 @media (max-width: 620px) {

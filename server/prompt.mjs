@@ -144,13 +144,25 @@ export const RECIPE_JSON_SHAPE = `{
   "safety_notes": string[]
 }`;
 
-export function buildRecipePrompt(input, dish, sources = []) {
+export function buildRecipePrompt(input, dish, sources = [], opts = {}) {
   const hasSources = Array.isArray(sources) && sources.length > 0;
+  const knowledgeOnly = Boolean(opts.knowledgeOnly);
   const context = dish
     ? `参考菜品档案：${dish.name}（${CUISINE_BY_ID[dish.cuisine]?.name}），代表食材 ${(dish.ingredients || []).join('、') || '暂无'}，技法 ${(dish.techniques || []).join('、') || '暂无'}，风味 ${dish.signature || '暂无'}。`
     : hasSources
       ? `用户输入的菜品不在站内图鉴中。下方是从公开网页真实检索到的资料，只能据此整理，禁止编造资料中没有的信息。`
       : `用户指定的菜品不在站内数据库中，请按中国传统家常做法生成，不要编造具体店号与人名。`;
+
+  const knowledgeBlock = knowledgeOnly
+    ? [
+        ``,
+        `【重要：本次没有联网核实】`,
+        `本次未能完成联网检索${opts.searchIssue ? `（${String(opts.searchIssue).slice(0, 120)}）` : ''}，你只能依据自身已有知识生成。`,
+        `- 不要声称查阅了任何网页、资料或来源，也不要编造链接、店名、人名、年份。`,
+        `- 对存在地区差异或多种做法的菜（例如发面/死面、甜咸口、先蒸后煎），必须在 common_mistakes 或 substitutions 里明确说明「各地做法不同」。`,
+        `- 拿不准的用量与时间，在对应 step 的 tips 里标注「AI 建议」。`,
+      ].join('\n')
+    : '';
 
   const sourceBlock = hasSources
     ? [
@@ -175,6 +187,7 @@ export function buildRecipePrompt(input, dish, sources = []) {
     `你是中国菜谱结构化的专家。根据用户条件生成一份可执行的家常菜谱。`,
     context,
     sourceBlock,
+    knowledgeBlock,
     ``,
     `用户条件：`,
     `- 菜品：${input.dishName}`,

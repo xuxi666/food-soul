@@ -126,6 +126,21 @@ ADMIN_EMAILS=you@example.com,another@example.com
 - 接口：`GET/POST /api/admin/site-ai`、`/site-ai/test`、`/site-ai/config`、`/site-ai/toggle`
 
 
+### 菜谱工作台：图鉴 → 联网检索 → 模型知识
+
+查询顺序：站内图鉴（含 AI 补全库）→ 智谱 Web Search → 模型已有知识。
+
+| 情况 | 结果 |
+|---|---|
+| 图鉴命中 | `dataSource: library`，用图鉴档案生成 |
+| 图鉴未命中 + 检索成功 | `dataSource: ai-search`，附带可追溯来源 |
+| 图鉴未命中 + 检索失败（429/401/超时/无结果） | **仍生成**，`dataSource: ai-knowledge`，横幅标明「基于模型已有知识生成 · 未联网核实」 |
+| 检索与模型都不可用 | 明确失败，不返回菜谱 |
+
+检索错误会分类（`errorKind`）：`quota`（余额/资源包不足，不可重试）、`auth`（Key 或权限问题）、`not_found`、`rate_limit`（有限重试）、`server`、`timeout`。
+只有 `rate_limit` / `server` / `timeout` / `network` 会重试一次；配额与鉴权类直接返回，避免无谓请求。
+同一检索词 10 分钟内走缓存，失败结果缓存 20 秒，防止连点重复打到服务商。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |

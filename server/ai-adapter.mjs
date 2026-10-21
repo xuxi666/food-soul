@@ -203,13 +203,16 @@ export async function chatStream({
       if (signal?.aborted) throw err;
       throw new AIError('模型响应超时，请稍后重试', { code: 'timeout' });
     }
-    throw new AIError(redactSecret(`模型调用失败：${err?.message || err}`, apiKey), { code: 'network' });
+    // 带上底层网络错误码（如 ECONNRESET / UND_ERR_SOCKET），便于区分「服务商断连」和「超时」
+    const cause = err?.cause?.code || err?.cause?.errno || '';
+    const detail = cause ? `${err?.message || err}（${cause}）` : String(err?.message || err);
+    throw new AIError(redactSecret(`模型调用失败：${detail}`, apiKey), { code: 'network' });
   } finally {
     cleanup();
   }
 }
 
-/** 非流式调用：返回文本 */
+/** 非流式调用：返回文本。stream=true 时内部走 SSE 累积，返回同样的整段文本 */
 export async function complete({
   baseUrl,
   apiKey,
@@ -220,6 +223,7 @@ export async function complete({
   maxTokens = 2000,
   timeout = 60000,
   signal,
+  stream = false,
 }) {
   const baseCheck = validateBaseUrl(baseUrl);
   if (!baseCheck.ok) throw new AIError(baseCheck.error, { code: 'invalid' });
@@ -234,13 +238,46 @@ export async function complete({
       signal: s,
       body: JSON.stringify({
         model,
-        stream: false,
+        stream,
         temperature,
         max_tokens: maxTokens,
         messages: [{ role: 'system', content: system }, ...messages],
       }),
     });
     if (!res.ok) throw await readError(res, apiKey);
+
+    if (stream) {
+      // 长输出（菜谱约 900 tokens）在非流式下服务商可能 60 秒无字节而断连；
+      // 用 SSE 让数据持续流动，同时拿到同样的整段文本。
+      if (!res.body) throw new AIError('模型返回空响应体', { code: 'format' });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let full = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(payload);
+            const delta = json?.choices?.[0]?.delta?.content || json?.choices?.[0]?.message?.content || '';
+            if (delta) full += delta;
+          } catch {
+            /* 跳过不完整行 */
+          }
+        }
+      }
+      if (!full) throw new AIError('模型返回格式不符合 OpenAI 兼容规范', { code: 'format' });
+      return full;
+    }
+
     const json = await res.json().catch(() => null);
     const content = pickContent(json);
     if (content === null) throw new AIError('模型返回格式不符合 OpenAI 兼容规范', { code: 'format' });
@@ -251,7 +288,10 @@ export async function complete({
       if (signal?.aborted) throw err;
       throw new AIError('模型响应超时，请稍后重试', { code: 'timeout' });
     }
-    throw new AIError(redactSecret(`模型调用失败：${err?.message || err}`, apiKey), { code: 'network' });
+    // 带上底层网络错误码（如 ECONNRESET / UND_ERR_SOCKET），便于区分「服务商断连」和「超时」
+    const cause = err?.cause?.code || err?.cause?.errno || '';
+    const detail = cause ? `${err?.message || err}（${cause}）` : String(err?.message || err);
+    throw new AIError(redactSecret(`模型调用失败：${detail}`, apiKey), { code: 'network' });
   } finally {
     cleanup();
   }
