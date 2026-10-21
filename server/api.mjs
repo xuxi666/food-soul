@@ -509,6 +509,24 @@ async function handleSuggest(req, res) {
  * 菜谱生成：两阶段菜品查询
  * ------------------------------------------------------------------ */
 
+/** 检索失败原因的一句话版本（给普通用户看，不含 HTTP 码与服务商原文） */
+function searchReasonShort(search) {
+  const kind = search?.errorKind || '';
+  const map = {
+    quota: '检索服务额度不足',
+    auth: '检索服务认证失败',
+    not_found: '检索接口地址异常',
+    rate_limit: '检索服务限流',
+    server: '检索服务暂时不可用',
+    timeout: '联网检索超时',
+    network: '联网检索网络异常',
+    not_configured: '未配置联网检索',
+  };
+  if (map[kind]) return map[kind];
+  if (search?.status === 'insufficient' || search?.status === 'empty') return '未检索到可靠资料';
+  return '联网检索未完成';
+}
+
 function matchedDishPayload(d) {
   if (!d) return null;
   return { id: d.id, name: d.name, cuisine: d.cuisine, tastes: d.tastes, image: d.image, alt: d.alt };
@@ -636,13 +654,16 @@ async function handleRecipe(req, res) {
           lookupStatus: knowledgeOnly ? 'unverified' : isAiSearch ? 'ok' : 'found',
           // 降级时把检索失败原因一并返回，前端据此显示「未联网核实」的原因
           search: knowledgeOnly
-            ? {
-                status: lookup?.searchStatus || lookup?.status || 'failed',
-                errorKind: lookup?.errorKind || 'not_configured',
-                httpStatus: lookup?.httpStatus || 0,
-                retryable: Boolean(lookup?.retryable),
-                message: lookup?.message || '未进行联网检索。',
-              }
+            ? (() => {
+                const info = {
+                  status: lookup?.searchStatus || lookup?.status || 'failed',
+                  errorKind: lookup?.errorKind || 'not_configured',
+                  httpStatus: lookup?.httpStatus || 0,
+                  retryable: Boolean(lookup?.retryable),
+                  message: lookup?.message || '未进行联网检索。',
+                };
+                return { ...info, reason: searchReasonShort(info) };
+              })()
             : null,
           sources,
           sourceStats: isAiSearch
@@ -652,7 +673,8 @@ async function handleRecipe(req, res) {
             ? {
                 level: 'model-knowledge',
                 label: '基于模型已有知识生成 · 未联网核实',
-                note: `本次未能完成联网检索（${lookup?.message || '检索不可用'}），菜谱由模型依据自身知识生成，未与公开资料核对。地方做法差异较大，请按实际情况调整。`,
+                // 面向普通用户：只给一句人话原因，HTTP 码与服务商原文留在 search.message 里备查
+                note: `本次未能完成联网检索（${searchReasonShort({ errorKind: lookup?.errorKind, status: lookup?.searchStatus || lookup?.status })}），菜谱由模型依据自身知识生成，未与公开资料核对。地方做法差异较大，请按实际情况调整。`,
               }
             : isAiSearch
               ? {
@@ -687,13 +709,16 @@ async function handleRecipe(req, res) {
     dataSource: knowledgeOnly ? 'ai-knowledge' : isAiSearch ? 'ai-search' : 'library',
     matchedDish: matchedDishPayload(dish),
     search: knowledgeOnly
-      ? {
-          status: lookup?.searchStatus || lookup?.status || 'failed',
-          errorKind: lookup?.errorKind || 'not_configured',
-          httpStatus: lookup?.httpStatus || 0,
-          retryable: Boolean(lookup?.retryable),
-          message: lookup?.message || '未进行联网检索。',
-        }
+      ? (() => {
+          const info = {
+            status: lookup?.searchStatus || lookup?.status || 'failed',
+            errorKind: lookup?.errorKind || 'not_configured',
+            httpStatus: lookup?.httpStatus || 0,
+            retryable: Boolean(lookup?.retryable),
+            message: lookup?.message || '未进行联网检索。',
+          };
+          return { ...info, reason: searchReasonShort(info) };
+        })()
       : null,
     sources: isAiSearch ? attachSourceSupport(searchSources, null, input.dishName) : [],
     message: knowledgeOnly

@@ -407,6 +407,8 @@ check('页面渲染菜谱卡片', ui.hasCard, ui.failure || '');
 check('徽标显示「模型知识」', ui.badge === '模型知识', ui.badge);
 check('页面横幅标明未联网核实', /未联网核实/.test(ui.banner), ui.banner);
 check('横幅说明含差异/核对提示', /差异|核对/.test(ui.bannerNote), ui.bannerNote.slice(0, 40));
+check('横幅不暴露 HTTP 码与服务商原文', !/HTTP\s*\d|\d{4}：|余额不足或无可用资源包/.test(ui.bannerNote), ui.bannerNote.slice(0, 60));
+check('横幅不暴露 HTTP 码与服务商原文', !/HTTP\s*\d|\d{4}：|余额不足或无可用资源包/.test(ui.bannerNote), ui.bannerNote.slice(0, 60));
 check('降级后保留用户输入', ui.input === '馒头', ui.input);
 check('页面无横向溢出', ui.scrollW <= ui.clientW, `${ui.scrollW}/${ui.clientW}`);
 check('页面无脚本异常', pageErrors.length === 0, pageErrors.slice(0, 2).join(' | '));
