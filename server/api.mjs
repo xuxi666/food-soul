@@ -513,8 +513,8 @@ async function handleSuggest(req, res) {
 function searchReasonShort(search) {
   const kind = search?.errorKind || '';
   const map = {
-    quota: '检索服务额度不足',
-    auth: '检索服务认证失败',
+    quota: '联网检索额度不足',
+    auth: '联网检索认证失败',
     not_found: '检索接口地址异常',
     rate_limit: '检索服务限流',
     server: '检索服务暂时不可用',

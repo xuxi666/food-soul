@@ -60,11 +60,11 @@ function statusPanel(text, tone = '') {
 /** 把后端返回的检索失败类型翻成一句人话（用于状态条与失败卡片标题） */
 function searchIssueText(payload) {
   const kind = payload?.errorKind || '';
-  if (kind === 'quota') return '检索服务额度不足';
-  if (kind === 'auth') return '检索服务认证失败';
+  if (kind === 'quota') return '联网检索额度不足';
+  if (kind === 'auth') return '联网检索认证失败';
   if (kind === 'not_found') return '检索接口地址异常';
-  if (kind === 'rate_limit') return '检索服务被限流';
-  if (kind === 'server') return '检索服务暂时不可用';
+  if (kind === 'rate_limit') return '联网检索被限流';
+  if (kind === 'server') return '联网检索暂时不可用';
   if (kind === 'not_configured') return '未配置联网检索';
   if (payload?.status === 'timeout') return '联网检索超时';
   if (payload?.status === 'unavailable') return '未配置联网检索';
@@ -75,8 +75,8 @@ function searchIssueText(payload) {
 /** 不可通过重试解决的检索问题，给出明确解决方向 */
 function searchHint(payload) {
   const kind = payload?.errorKind || '';
-  if (kind === 'quota') return '检索服务返回额度不足或余额用尽，需要到服务商充值或更换检索 Key；代码本身无法凭空恢复额度。';
-  if (kind === 'auth') return '检索 Key 无效、过期或未开通 Web Search 接口权限，请检查服务器 .env 中的 SEARCH_API_KEY。';
+  if (kind === 'quota') return '这是服务器上的联网检索服务（智谱 Web Search）额度用尽，需要管理员充值或更换 SEARCH_API_KEY。它与你「接入 AI」里填的模型（DeepSeek / OpenAI 等）额度无关，不影响模型调用。';
+  if (kind === 'auth') return '服务器上的检索 Key 无效、过期或未开通 Web Search 接口权限，请管理员检查 .env 中的 SEARCH_API_KEY。这与你的模型 Key 无关。';
   if (kind === 'not_found') return '检索接口地址返回 404，请检查 SEARCH_BASE_URL 是否正确。';
   if (kind === 'not_configured') return '服务器未配置 SEARCH_API_KEY，图鉴外的菜品只能按模型已有知识生成。';
   if (kind === 'rate_limit') return '检索服务限流，稍后重试通常可以恢复。';
@@ -554,8 +554,9 @@ export default {
           // 图鉴未命中且检索不可用（配额/鉴权/超时/无可靠结果）：
           // 不中断流程，交给后端按模型已有知识生成，并在结果里标明未联网核实。
           const reason = searchIssueText(lookup);
+          const scope = lookup.errorKind === 'quota' || lookup.errorKind === 'auth' ? '（与你的 AI 模型无关）' : '';
           clear(result);
-          result.append(statusPanel(`${reason}，正在按模型已有知识生成菜谱…`, 'warn'));
+          result.append(statusPanel(`${reason}${scope}，正在按模型已有知识生成菜谱…`, 'warn'));
           const res = await api.recipe({ dishName: name, ...readForm() });
           if (!res.recipe) {
             renderFailure({ ...res, search: res.search || lookup });

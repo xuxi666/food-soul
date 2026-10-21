@@ -390,6 +390,8 @@ await page.locator('.recipe-form button[type="submit"], form button[type="submit
 await page.waitForTimeout(900);
 const statusTexts = await page.evaluate(() => window.__statusTexts || []);
 check('生成过程中显示降级状态条', statusTexts.some((t) => /模型已有知识/.test(t)), statusTexts.slice(0, 2).join(' / '));
+check('状态条说明「与你的 AI 模型无关」', statusTexts.some((t) => /与你的 AI 模型无关/.test(t)), statusTexts.slice(0, 2).join(' / '));
+check('状态条说明「与你的 AI 模型无关」', statusTexts.some((t) => /与你的 AI 模型无关/.test(t)), statusTexts.slice(0, 2).join(' / '));
 
 await page.waitForSelector('.recipe-card, .recipe-failure', { timeout: 60000 }).catch(() => {});
 await page.waitForTimeout(500);
