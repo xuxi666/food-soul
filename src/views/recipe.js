@@ -161,10 +161,12 @@ export default {
   async mount(root) {
     const search = new URLSearchParams(location.search);
     const presetRaw = search.get('dish') || '';
+    // 详情页会同时传 name，用于精确回填输入框（URLSearchParams 已自动解码，中文/空格/特殊字符都安全）
+    const presetNameParam = (search.get('name') || '').trim().slice(0, 30);
 
     let presetDish = DISH_BY_ID[presetRaw] || null;
-    let presetName = presetDish?.name || '';
-    if (!presetDish && presetRaw) {
+    let presetName = presetNameParam || presetDish?.name || '';
+    if (!presetDish && presetRaw && !presetNameParam) {
       const byName = DISHES.find((d) => d.name === presetRaw);
       if (byName) {
         presetDish = byName;
@@ -196,6 +198,7 @@ export default {
       list: 'dish-name-list',
       value: presetName,
     });
+    if (presetName) dishInput.value = presetName;
     const dishList = h('datalist', { id: 'dish-name-list' }, ...DISHES.map((d) => h('option', { value: d.name })));
     const fieldHint = h('p', { class: 'field__hint', text: '可输入图鉴中没有的菜名；系统会先查图鉴，再联网检索可靠资料。' });
     const fieldError = h('p', { class: 'field__error', hidden: true });
@@ -596,8 +599,7 @@ export default {
       }
     });
 
-    // 带参数进入时自动生成
-    if (presetName) form.requestSubmit();
+    // 带参数进入时只回填名称，由用户点「生成菜谱」再触发（不自动发请求）
 
     return { destroy() {} };
   },

@@ -68,6 +68,11 @@ export function buildCategoryPage({ kind, id }) {
     : [...new Set(dishes.flatMap((d) => d.tastes))].map((t) => TASTE_BY_ID[t]?.name).filter(Boolean);
 
   const go = (href, el) => {
+    // 先写入地址：转场里的目标页在 mount 时读的是 location.search，
+    // adopt 要到动画结束才 pushState，晚一步会导致 query 参数读不到
+    if (location.pathname + location.search !== href.split('#')[0]) {
+      history.pushState({}, '', href);
+    }
     fluidTransition({
       kind: 'card',
       el,

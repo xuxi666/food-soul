@@ -32,6 +32,11 @@ export default {
     const accent = theme.accent || cuisine?.accent || TASTE_BY_ID[dish.tastes[0]]?.color || '#d8b26a';
 
     const go = (href, el) => {
+      // 先写入地址：转场里的目标页在 mount 时读的是 location.search，
+      // adopt 要到动画结束才 pushState，晚一步会导致 query 参数读不到
+      if (location.pathname + location.search !== href.split('#')[0]) {
+        history.pushState({}, '', href);
+      }
       fluidTransition({
         kind: 'card',
         el,
@@ -90,7 +95,9 @@ export default {
               h('button', {
                 class: 'btn',
                 type: 'button',
-                onclick: (e) => go(`/recipe?dish=${dish.id}`, e.currentTarget),
+                // 同时带上菜品 id 与真实名称：菜谱页优先用名称填输入框，避免 id 解析失败时名称丢失
+                onclick: (e) =>
+                  go(`/recipe?dish=${encodeURIComponent(dish.id)}&name=${encodeURIComponent(dish.name)}`, e.currentTarget),
               }, '生成菜谱'),
               h('a', { class: 'btn', href: `/videos?q=${encodeURIComponent(dish.name)}`, 'data-link': '' }, '做菜视频')
             )
