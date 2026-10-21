@@ -32,9 +32,33 @@ const MAX_ATTEMPTS = 2;
  * 只记录服务商、端点主机、HTTP 状态、服务商错误码、阶段、耗时和密钥指纹。
  * 密钥本身永不落日志；指纹是 sha256 前 8 位，用于确认「加载的是哪一把 Key」。
  */
-const KEY_FP = SEARCH_CONFIG.apiKey
-  ? crypto.createHash('sha256').update(SEARCH_CONFIG.apiKey).digest('hex').slice(0, 8)
-  : 'none';
+function fingerprint(key) {
+  return key ? crypto.createHash('sha256').update(key).digest('hex').slice(0, 8) : 'none';
+}
+
+/**
+ * 解析本次请求用的检索 Key。
+ * 优先 SEARCH_API_KEY；没配时复用「内置 AI」当前启用的智谱配置，
+ * 这样一个智谱账号只需要维护一把 Key。非智谱的内置配置不会拿来检索。
+ */
+let resolveKeyPromise = null;
+async function resolveKey() {
+  if (SEARCH_CONFIG.apiKey) return { apiKey: SEARCH_CONFIG.apiKey, source: 'env' };
+  if (!resolveKeyPromise) {
+    resolveKeyPromise = import('./site-ai.mjs')
+      .then((m) => m.getActiveZhipuKey())
+      .catch(() => null)
+      .finally(() => {
+        // 允许配置变化后重新解析（不长期缓存）
+        setTimeout(() => {
+          resolveKeyPromise = null;
+        }, 3000);
+      });
+  }
+  const fromSite = await resolveKeyPromise;
+  if (fromSite?.apiKey) return { apiKey: fromSite.apiKey, source: 'site-profile' };
+  return { apiKey: '', source: 'none' };
+}
 
 function endpointHost() {
   try {
@@ -45,7 +69,8 @@ function endpointHost() {
 }
 
 function logSearch(fields) {
-  const parts = [`provider=zhipu`, `endpoint=${endpointHost()}`, `keyFp=${KEY_FP}`, ...Object.entries(fields)
+  const { keyFp = 'none', ...rest } = fields;
+  const parts = [`provider=zhipu`, `endpoint=${endpointHost()}`, `keyFp=${keyFp}`, ...Object.entries(rest)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([k, v]) => `${k}=${typeof v === 'string' && /\s/.test(v) ? JSON.stringify(v) : v}`)];
   console.log('[web-search] ' + parts.join(' '));
@@ -165,17 +190,17 @@ function sleep(ms) {
 
 /* ---------------- 单次请求 ---------------- */
 
-async function requestOnce(url, payload, timeout) {
+async function requestOnce(url, payload, timeout, apiKey, keyFp) {
   const started = Date.now();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
-  logSearch({ stage: 'request', engine: payload.search_engine, q: cleanText(payload.search_query, 40), count: payload.count });
+  logSearch({ keyFp, stage: 'request', engine: payload.search_engine, q: cleanText(payload.search_query, 40), count: payload.count });
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${SEARCH_CONFIG.apiKey}`,
+        authorization: `Bearer ${apiKey}`,
       },
       signal: ctrl.signal,
       body: JSON.stringify(payload),
@@ -185,7 +210,7 @@ async function requestOnce(url, payload, timeout) {
       const data = await res.json().catch(() => null);
       const raw = Array.isArray(data?.search_result) ? data.search_result : [];
       const sources = dedupe(raw.map(normalizeSource).filter(Boolean));
-      logSearch({ stage: 'response', status: res.status, results: sources.length, duration: `${Date.now() - started}ms` });
+      logSearch({ keyFp, stage: 'response', status: res.status, results: sources.length, duration: `${Date.now() - started}ms` });
       return {
         ok: true,
         sources,
@@ -198,6 +223,7 @@ async function requestOnce(url, payload, timeout) {
     const errorKind = classify(res.status, body);
     const retryAfter = Number(res.headers.get('retry-after'));
     logSearch({
+      keyFp,
       stage: 'response',
       status: res.status,
       code: body.code || '-',
@@ -219,6 +245,7 @@ async function requestOnce(url, payload, timeout) {
     const aborted = err?.name === 'AbortError';
     const errorKind = aborted ? 'timeout' : 'network';
     logSearch({
+      keyFp,
       stage: 'transport',
       kind: errorKind,
       cause: err?.cause?.code || err?.code || '-',
@@ -251,7 +278,9 @@ async function requestOnce(url, payload, timeout) {
  */
 export async function webSearch(query, opts = {}) {
   const q = cleanText(query, 80);
-  if (!SEARCH_CONFIG.apiKey) {
+
+  const { apiKey, source } = await resolveKey();
+  if (!apiKey) {
     logSearch({ stage: 'config', kind: 'not_configured' });
     return {
       status: 'unavailable',
@@ -259,9 +288,10 @@ export async function webSearch(query, opts = {}) {
       httpStatus: 0,
       retryable: false,
       sources: [],
-      message: '未配置联网检索服务（SEARCH_API_KEY），无法联网检索。',
+      message: '未配置联网检索服务（SEARCH_API_KEY），且没有可复用的内置 AI 智谱配置。',
     };
   }
+  const keyFp = fingerprint(apiKey);
   if (!q) {
     return { status: 'empty', errorKind: '', httpStatus: 0, retryable: false, sources: [], message: '检索词为空。' };
   }
@@ -269,7 +299,8 @@ export async function webSearch(query, opts = {}) {
   const engine = opts.engine === 'search_pro' ? 'search_pro' : 'search_std';
   const count = Math.max(1, Math.min(10, Number(opts.count) || 6));
   const timeout = Math.max(3000, Math.min(30000, Number(opts.timeout) || 15000));
-  const key = `${engine}|${count}|${q}`;
+  // 缓存 key 带上凭据来源，避免换 Key 后仍命中旧结果
+  const key = `${engine}|${count}|${q}|${keyFp}`;
 
   const hit = CACHE.get(key);
   if (hit) {
@@ -279,11 +310,12 @@ export async function webSearch(query, opts = {}) {
   }
 
   const url = `${SEARCH_CONFIG.baseUrl}/web_search`;
+  if (source !== 'env') logSearch({ keyFp, stage: 'config', source });
   const payload = { search_engine: engine, search_query: q, count };
 
   let last = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-    const r = await requestOnce(url, payload, timeout);
+    const r = await requestOnce(url, payload, timeout, apiKey, keyFp);
 
     if (r.ok) {
       const value = {
@@ -304,7 +336,7 @@ export async function webSearch(query, opts = {}) {
     // 配额/鉴权/地址错误重试没有意义，直接返回
     if (!r.retryable || attempt === MAX_ATTEMPTS - 1) break;
     const wait = r.retryAfterMs || 400 * (attempt + 1);
-    logSearch({ stage: 'retry', attempt: attempt + 1, kind: r.errorKind, waitMs: wait });
+    logSearch({ keyFp, stage: 'retry', attempt: attempt + 1, kind: r.errorKind, waitMs: wait });
     await sleep(wait);
   }
 

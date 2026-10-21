@@ -136,7 +136,9 @@ ADMIN_EMAILS=you@example.com,another@example.com
 
 ### 联网检索排障
 
-图鉴外的菜品会调用智谱 Web Search（`SEARCH_API_KEY` + `SEARCH_BASE_URL`，与「内置 AI」的服务商配置**完全独立**，切换 AI 服务商不会影响它）。
+图鉴外的菜品会调用智谱 Web Search（`SEARCH_API_KEY` + `SEARCH_BASE_URL`）。
+
+**可以只用一把 Key**：`SEARCH_API_KEY` 留空时，若「内置 AI」当前启用的是**智谱**配置，检索会自动复用该配置的 Key（`keyFp` 相同，日志里 `stage=config source=site-profile`）。前提是内置 AI 总开关开着、启用项已验证；内置 AI 关闭或启用的是 DeepSeek/火山时不会复用，此时必须单独配 `SEARCH_API_KEY`。
 
 一条命令定位问题（不会输出密钥，只给 sha256 前 8 位指纹）：
 

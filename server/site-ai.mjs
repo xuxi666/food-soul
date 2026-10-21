@@ -227,6 +227,20 @@ export function resolveAIConfig(user) {
   return { ...result, source: 'user' };
 }
 
+/**
+ * 供联网检索复用：当前启用配置若是智谱，返回其明文 Key。
+ * 用途：同一账号下检索与聊天共用一把 Key 时，不必在 .env 里再存一份。
+ * 只返回给服务端内部调用，不进入任何响应。
+ */
+export function getActiveZhipuKey() {
+  const active = getEnabledSiteProfile();
+  if (!active || active.provider !== 'zhipu') return null;
+  if (active.last_status !== 'ok' || !active.verified_at) return null;
+  const dec = decryptProfile(active);
+  if (!dec || dec.error || !dec.apiKey) return null;
+  return { apiKey: dec.apiKey, model: active.model, profileName: active.name };
+}
+
 /* ---------------- 写：增删改查 ---------------- */
 
 function validateInput(input, { requireKey }) {
