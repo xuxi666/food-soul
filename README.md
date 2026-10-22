@@ -81,6 +81,27 @@ location / {
 }
 ```
 
+### 发布与同步（本地 → 服务器 → GitHub）
+
+日常改完代码，一条命令完成「提交 + 部署 + GitHub 同步」：
+
+```bash
+npm run ship -- -m "feat: 这次改了什么"
+```
+
+- 服务器 `/opt/food-soul` 是仓库工作区，收到更新后自动 `npm ci`（按需）→ `npm run build` → `pm2 restart food-soul` → 健康检查
+- 部署成功后服务器自动 `git push` 回 GitHub，保证线上与仓库一致
+- `.env`、`data/`、`public/uploads/` 等运行时文件不会被覆盖
+
+| 命令 | 作用 |
+| --- | --- |
+| `npm run ship -- -m "msg"` | 提交并发布 |
+| `npm run deploy` | 发布当前 HEAD |
+| `npm run deploy:status` | 查看服务器部署状态 |
+| `npm run deploy:setup` | 首次接管服务器（幂等） |
+
+首次配置（服务器信息、SSH 私钥、GitHub 部署密钥）与故障排查见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
+
 
 ## 管理后台
 

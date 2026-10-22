@@ -42,16 +42,20 @@ health_code="000"
 
 # ---------- 1) 同步 GitHub（源仓库保持与线上一致） ----------
 echo "[deploy] 同步 GitHub ..."
-if GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=15" \
-   timeout 180 $GIT push origin main >"$DEPLOY_DIR/github.log" 2>&1; then
-  github_ok=true; github_msg="已同步"
-else
-  if grep -q "Permission denied\|could not read\|Authentication failed" "$DEPLOY_DIR/github.log" 2>/dev/null; then
-    github_msg="鉴权失败：部署密钥未添加或无写权限（见 docs/DEPLOY.md）"
-  else
-    github_msg="同步失败（见 .deploy/github.log）"
+for i in 1 2 3; do
+  if GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=15" \
+     timeout 180 $GIT push origin main >"$DEPLOY_DIR/github.log" 2>&1; then
+    github_ok=true; github_msg="已同步"; break
   fi
-fi
+  # 鉴权失败重试无意义
+  if grep -q "Permission denied\|could not read\|Authentication failed" "$DEPLOY_DIR/github.log" 2>/dev/null; then
+    github_msg="鉴权失败：部署密钥未添加或无写权限（见 docs/DEPLOY.md）"; break
+  fi
+  echo "[deploy] GitHub 推送第 $i 次失败，重试 ..."
+  sleep 3
+  github_msg="同步失败（见 .deploy/github.log）"
+done
+if [ "$github_ok" = "true" ]; then github_msg="已同步"; fi
 echo "[deploy] GitHub：$github_msg"
 
 # ---------- 2) 依赖：仅在 package-lock.json 变化或 node_modules 缺失时安装 ----------

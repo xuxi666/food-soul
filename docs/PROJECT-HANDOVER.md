@@ -12,7 +12,8 @@
 ## 2. 目录与仓库关系（重要）
 
 - `F:\AIweb\美食1.0`（上级目录）是一个 **git 仓库**，内容是 1.0 React/TS 版（`src/App.tsx`、`server/api.ts`、92 道菜品库 `src/data/dishes/*.ts`），当前有未提交改动。
-- `aimeishi2.0` 是上级仓库 **gitignore 的子目录，自身没有 .git** —— 即本项目 2.0 **没有任何版本控制**（风险点 ①）。
+- `aimeishi2.0` **已是独立 git 仓库**，`origin = https://github.com/xuxi666/food-soul.git`，分支 `main`；历史已与 GitHub 对齐，换行统一为 LF（`.gitattributes`）。迁移前的本地历史保留在分支 `backup/pre-sync-20261022`。
+- 线上 `http://39.106.251.146/` 由服务器 `/opt/food-soul` 提供服务（pm2 + Nginx），该目录同时是 git 工作区，发布流程见 `docs/DEPLOY.md`：本地 `npm run ship` → 服务器构建重启 → 服务器自动 push 回 GitHub。
 - `ref-shiyouling` 是另一独立 git 仓库（参考项目）。
 - `scripts/import-dishes.mjs` 是「从 1.0 参考库迁移 92 道菜 → 2.0」的脚本（生成 `src/data/dishes/library.js` + 复制照片），**未执行完成**：`library.js` 不存在，`dishes.js` 仍是独立 16 道菜（风险点 ②）。`public/dishes/` 里 97 张 jpg = 16 张 2.0 菜品图 + 81 张 1.0 迁移残留图。
 
@@ -88,8 +89,9 @@ src/styles/               base(主题令牌)/home(转环)/app(通用)/community 
 
 ## 8. 已知风险/待办（接手时发现）
 
-1. **无版本控制**：aimeishi2.0 没有自己的 .git，被上级仓库忽略 —— 建议 `git init`。
+1. ~~**无版本控制**：aimeishi2.0 没有自己的 .git~~ —— **已解决**：已建独立仓库并与 GitHub 对齐，发布链路见 `docs/DEPLOY.md`。剩余待办：GitHub 部署密钥需要管理员在仓库 Settings → Deploy keys 添加并勾选 write access，否则服务器只能部署、无法回推 GitHub。
 2. **菜品库迁移未完成**：import-dishes.mjs 可用但未落地（92 道菜未合并进来，81 张残留图待清理）。
 3. **生产环境上传图 404**：`/api/upload` 写 `public/uploads/`，但生产只静态服务 `dist/`，上传图片在生产可能加载失败。
 4. 上级 1.0 仓库有未提交改动（App.tsx、api.ts、社区组件等），与本项目互不影响但需留意。
 5. 首页转环在无 WebGL 时降级为普通网格（已处理，非缺陷）。
+6. 服务器直连 GitHub 偶发 TLS 中断（部署钩子已内置重试；失败时线上不受影响，重跑发布即可补推）。
