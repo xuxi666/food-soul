@@ -160,10 +160,7 @@ function installHook() {
     process.exit(1);
   }
   const ok = run(
-    ssh(
-      `mkdir -p ${APP}/scripts/server && cp ${tmp} ${APP}/scripts/server/post-update.sh && ` +
-        `install -m 755 ${tmp} ${APP}/.git/hooks/post-update && rm -f ${tmp}`,
-    ),
+    ssh(`install -D -m 755 ${tmp} ${APP}/.git/hooks/post-update && rm -f ${tmp}`),
     { allowFail: true },
   );
   if (!ok) {
