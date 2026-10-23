@@ -63,5 +63,25 @@ export function syncNavActive(raw = location.pathname) {
       a.removeAttribute('aria-current');
     }
   });
+  // 移动端导航条可横向滚动：把当前项滚进可视区，避免选中了却看不见
+  if (marked === 1) {
+    const bar = document.querySelector('.nav__links');
+    const link = bar?.querySelector('a.is-active');
+    if (bar && link && bar.scrollWidth > bar.clientWidth + 1) {
+      const left = link.offsetLeft - (bar.clientWidth - link.offsetWidth) / 2;
+      bar.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }
+  }
+
+  // 移动端导航条可横向滚动：把当前项滚进可视区，避免选中了却看不见
+  if (marked === 1) {
+    const bar = document.querySelector('.nav__links');
+    const link = bar?.querySelector('a.is-active');
+    if (bar && link && bar.scrollWidth > bar.clientWidth + 1) {
+      const left = link.offsetLeft - (bar.clientWidth - link.offsetWidth) / 2;
+      bar.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }
+  }
+
   return { active: target, count: marked };
 }

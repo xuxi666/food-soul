@@ -210,50 +210,67 @@ p {
 
 .nav__links a {
   position: relative;
-  padding: 6px 0;
-  transition: color 0.3s var(--ease);
+  padding: 6px 11px;
+  border-radius: 999px;
   white-space: nowrap;
+  transition: color 0.28s var(--ease), background-color 0.28s var(--ease);
 }
 
+/* 悬停短线：未选中项专用，从文字中心向两侧展开 */
 .nav__links a::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 11px;
+  right: 11px;
+  bottom: 1px;
   height: 1px;
   background: var(--color-primary);
   transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.35s var(--ease);
+  transform-origin: center;
+  opacity: 0;
+  transition: transform 0.26s var(--ease), opacity 0.2s var(--ease);
+  pointer-events: none;
 }
 
 .nav__links a:hover {
-  color: var(--color-text);
+  color: var(--color-primary-hover);
 }
 
 .nav__links a:hover::after {
   transform: scaleX(1);
+  opacity: 0.85;
 }
 
-/* 当前页指示：由 src/lib/nav-active.js 依据 location.pathname 写入 .is-active，
-   与 hover 共用同一条 ::after 下划线，保证位置/宽度/圆角/动画完全一致 */
+/* 当前页：胶囊底，不出现任何横线（hover 也不出现）
+   .is-active 由 src/lib/nav-active.js 依据 location.pathname 写入 */
 .nav__links a.is-active {
-  color: var(--color-text);
+  color: var(--color-primary-hover);
+  background: var(--color-primary-soft);
+  box-shadow: inset 0 0 0 1px rgba(217, 75, 50, 0.14);
 }
 
-.nav__links a.is-active::after {
-  transform: scaleX(1);
+.nav__links a.is-active::after,
+.nav__links a.is-active:hover::after {
+  transform: scaleX(0);
+  opacity: 0;
 }
 
-/* 当前页指示：由 src/lib/nav-active.js 依据 location.pathname 写入 .is-active，
-   与 hover 共用同一条 ::after 下划线，保证位置/宽度/圆角/动画完全一致 */
-.nav__links a.is-active {
-  color: var(--color-text);
+/* 键盘焦点：胶囊形状的清晰焦点环 */
+.nav__links a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 999px;
 }
 
-.nav__links a.is-active::after {
-  transform: scaleX(1);
+/* 减少动效：去掉横线展开与颜色过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .nav__links a,
+  .nav__links a::after {
+    transition: none;
+  }
+  .nav__links a:hover::after {
+    opacity: 0.85;
+  }
 }
 
 .nav__mode {
@@ -301,9 +318,9 @@ p {
   }
 }
 
-/* 断点取 800px：实测 721–795px 单行时「登录/接入 AI」胶囊右缘会超出视口
-   （768px 平板竖屏超出约 24px），改成两行比裁掉按钮更合理 */
-@media (max-width: 800px) {
+/* 断点取 960px：导航项加了胶囊内边距后，801–915px 单行会把「登录/接入 AI」
+   挤出视口；两行比裁掉按钮更合理 */
+@media (max-width: 960px) {
   /* 右上角加入「接入 AI / 登录」后，单行放不下 5 个导航项，改为两行：
      第一行 品牌 + 账号操作，第二行 导航链接（可横向滚动） */
   :root {

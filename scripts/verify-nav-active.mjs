@@ -30,10 +30,15 @@ const readActive = () =>
     const aria = links.filter((a) => a.getAttribute('aria-current') === 'page');
     const first = active[0];
     const cs = first ? getComputedStyle(first, '::after') : null;
+    const self = first ? getComputedStyle(first) : null;
     return {
       labels: active.map((a) => a.textContent.trim()),
       aria: aria.map((a) => a.textContent.trim()),
       underline: cs ? cs.transform : '',
+      underlineOpacity: cs ? cs.opacity : '',
+      origin: cs ? cs.transformOrigin : '',
+      bg: self ? self.backgroundColor : '',
+      radius: self ? self.borderRadius : '',
       count: active.length,
     };
   });
@@ -48,8 +53,9 @@ async function gotoPath(p, wait = 700) {
 let a = await gotoPath('/');
 check('首页 → 仅「首页」激活', a.count === 1 && a.labels[0] === '首页', JSON.stringify(a.labels));
 check('激活项带 aria-current', a.aria.length === 1 && a.aria[0] === '首页', JSON.stringify(a.aria));
-check('激活下划线可见（scaleX=1）', /matrix\(1,/.test(a.underline) || a.underline === 'none' || a.underline.includes('1,'),
-  a.underline);
+check('激活项显示胶囊底色（非透明）', a.bg && a.bg !== 'rgba(0, 0, 0, 0)', a.bg);
+check('激活项为胶囊圆角', a.radius === '999px', a.radius);
+check('激活项没有下划线（::after 隐藏）', a.underlineOpacity === '0', `opacity=${a.underlineOpacity}`);
 
 /* 2. 直接访问各入口 */
 const direct = [
@@ -76,6 +82,31 @@ for (const p of ['/cuisines/chuan', '/tastes/mala', '/videos', '/explore']) {
   check(`${p} 无对应导航入口 → 全部不激活`, a.count === 0, JSON.stringify(a.labels));
 }
 
+/* 4.5 悬停：未选中项出线、选中项不出线 */
+await gotoPath('/dishes');
+await page.hover('.nav__links a:text-is("菜谱工作台")');
+await page.waitForTimeout(420);
+const hoverIdle = await page.evaluate(() => {
+  const link = [...document.querySelectorAll('.nav__links a')].find((a) => a.textContent.trim() === '菜谱工作台');
+  const cs = getComputedStyle(link, '::after');
+  return { opacity: cs.opacity, transform: cs.transform, origin: cs.transformOrigin };
+});
+check('悬停未选中项：横线展开', hoverIdle.opacity !== '0' && /matrix\(1,/.test(hoverIdle.transform),
+  `opacity=${hoverIdle.opacity} transform=${hoverIdle.transform}`);
+check('横线从中心展开（transform-origin 居中）', /50%|center/.test(hoverIdle.origin) || /^\d+(\.\d+)?px/.test(hoverIdle.origin),
+  hoverIdle.origin);
+
+await page.hover('.nav__links a:text-is("美食图鉴")');
+await page.waitForTimeout(420);
+const hoverActive = await page.evaluate(() => {
+  const link = [...document.querySelectorAll('.nav__links a')].find((a) => a.classList.contains('is-active'));
+  const cs = getComputedStyle(link, '::after');
+  const self = getComputedStyle(link);
+  return { opacity: cs.opacity, bg: self.backgroundColor };
+});
+check('悬停选中项：仍然只有胶囊、没有横线', hoverActive.opacity === '0' && hoverActive.bg !== 'rgba(0, 0, 0, 0)',
+  `opacity=${hoverActive.opacity} bg=${hoverActive.bg}`);
+
 /* 5. 点击切换 */
 await gotoPath('/');
 await page.locator('.nav__links a', { hasText: '美食图鉴' }).click();
@@ -86,7 +117,12 @@ check('点击「美食图鉴」→ 横线切换', a.count === 1 && a.labels[0] =
 await page.locator('.nav__links a', { hasText: '美食社区' }).click();
 await page.waitForTimeout(1200);
 a = await readActive();
-check('点击「美食社区」→ 横线切换', a.count === 1 && a.labels[0] === '美食社区', JSON.stringify(a.labels));
+check('点击「美食社区」→ 选中切换', a.count === 1 && a.labels[0] === '美食社区', JSON.stringify(a.labels));
+const oldBg = await page.evaluate(() => {
+  const link = [...document.querySelectorAll('.nav__links a')].find((x) => x.textContent.trim() === '美食图鉴');
+  return getComputedStyle(link).backgroundColor;
+});
+check('旧选中项恢复为普通导航（无底色）', oldBg === 'rgba(0, 0, 0, 0)', oldBg);
 
 /* 6. 刷新保持 */
 await page.reload({ waitUntil: 'networkidle' });
@@ -131,7 +167,7 @@ const geo = await page.evaluate(() => {
   const cs = getComputedStyle(link, '::after');
   return { width: Math.round(r.width), bottom: cs.bottom, left: cs.left, height: cs.height };
 });
-check('下划线宽度与文字块一致（left:0/right:0）', geo && geo.left === '0px' && geo.width > 0, JSON.stringify(geo));
+check('悬停横线与文字宽度协调（左右各内缩 11px）', geo && geo.left === '11px' && geo.width > 0, JSON.stringify(geo));
 
 /* 11. 移动端：两行布局下不错位 */
 const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -151,6 +187,12 @@ const m = await mobile.evaluate(() => {
   };
 });
 check('移动端：社区页激活正确', m.count === 1 && m.label === '美食社区', JSON.stringify(m));
+const mPill = await mobile.evaluate(() => {
+  const link = document.querySelector('.nav__links a.is-active');
+  const cs = link ? getComputedStyle(link) : null;
+  return { bg: cs?.backgroundColor || '', radius: cs?.borderRadius || '' };
+});
+check('移动端：选中项显示胶囊底色', mPill.bg && mPill.bg !== 'rgba(0, 0, 0, 0)' && mPill.radius === '999px', JSON.stringify(mPill));
 check('移动端：激活项在视口内且无横向溢出', m.insideViewport && m.docW <= m.cliW, `${m.docW}/${m.cliW}`);
 await mobile.screenshot({ path: 'F:/AIweb/美食1.0/aimeishi2.0/shots/nav-active-mobile.png' });
 
