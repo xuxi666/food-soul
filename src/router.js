@@ -1,4 +1,5 @@
 import { clear } from './lib/dom.js';
+import { syncNavActive } from './lib/nav-active.js';
 import home from './views/home.js';
 import chat from './views/chat.js';
 import recipe from './views/recipe.js';
@@ -131,6 +132,7 @@ export async function render() {
     return;
   }
   active = instance || null;
+  syncNavActive(location.pathname);
 
   if (location.hash) requestAnimationFrame(() => scrollToHash(location.hash));
   else window.scrollTo(0, 0);
@@ -165,6 +167,8 @@ export function adopt(stage, instance, path) {
   if (location.pathname + location.search !== want) {
     history.pushState({}, '', path);
   }
+  // 地址已经写成目标路径，这里按最终路径刷新导航激活态
+  syncNavActive(location.pathname);
   active = instance || null;
   window.scrollTo(0, 0);
   focusView();

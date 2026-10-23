@@ -236,6 +236,26 @@ p {
   transform: scaleX(1);
 }
 
+/* 当前页指示：由 src/lib/nav-active.js 依据 location.pathname 写入 .is-active，
+   与 hover 共用同一条 ::after 下划线，保证位置/宽度/圆角/动画完全一致 */
+.nav__links a.is-active {
+  color: var(--color-text);
+}
+
+.nav__links a.is-active::after {
+  transform: scaleX(1);
+}
+
+/* 当前页指示：由 src/lib/nav-active.js 依据 location.pathname 写入 .is-active，
+   与 hover 共用同一条 ::after 下划线，保证位置/宽度/圆角/动画完全一致 */
+.nav__links a.is-active {
+  color: var(--color-text);
+}
+
+.nav__links a.is-active::after {
+  transform: scaleX(1);
+}
+
 .nav__mode {
   flex-shrink: 0;
   font-size: 9px;
