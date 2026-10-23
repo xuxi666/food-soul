@@ -245,7 +245,7 @@
 .msg__text {
   font-size: 14.5px;
   line-height: 1.95;
-  color: rgba(244, 241, 234, 0.88);
+  color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -405,7 +405,7 @@
 .chat-empty__hi {
   font-size: 15px;
   line-height: 2;
-  color: rgba(244, 241, 234, 0.82);
+  color: var(--color-text-secondary);
   max-width: 560px;
 }
 
@@ -609,7 +609,7 @@
 .comment__text {
   font-size: 13.5px;
   line-height: 1.9;
-  color: rgba(244, 241, 234, 0.82);
+  color: var(--color-text-secondary);
   white-space: pre-wrap;
 }
 
@@ -868,9 +868,9 @@
   align-items: baseline;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px dashed rgba(244, 241, 234, 0.07);
+  border-bottom: 1px dashed var(--color-border-soft);
   font-size: 12.5px;
-  color: rgba(244, 241, 234, 0.84);
+  color: var(--color-text-secondary);
 }
 
 .ing__name {
@@ -967,7 +967,7 @@
 .step__desc {
   font-size: 13.5px;
   line-height: 1.9;
-  color: rgba(244, 241, 234, 0.78);
+  color: var(--color-text-secondary);
 }
 
 .step__tips {
@@ -1432,7 +1432,7 @@
 .pick__reason {
   font-size: 13.5px;
   line-height: 1.95;
-  color: rgba(244, 241, 234, 0.8);
+  color: var(--color-text-secondary);
 }
 
 .pick__meta {

@@ -24,21 +24,75 @@
 }
 
 :root {
-  --bg: #05060a;
-  --bg-soft: #080a10;
-  --ink: #f4f1ea;
-  --muted: rgba(244, 241, 234, 0.55);
-  --faint: rgba(244, 241, 234, 0.32);
-  --gold: #d8b26a;
-  --gold-dim: rgba(216, 178, 106, 0.42);
-  --red: #c2452d;
-  --line: rgba(244, 241, 234, 0.12);
-  --line-soft: rgba(244, 241, 234, 0.07);
-  --panel: rgba(255, 255, 255, 0.028);
+  /* ---------- 统一色彩令牌：温暖明亮的美食体系 ---------- */
+  /* 页面基础背景 */
+  --color-bg: #fff8ed;
+  --color-bg-secondary: #fff1de;
+  --color-bg-tertiary: #f3e5d0;
+
+  /* 卡片与内容表面 */
+  --color-surface: #ffffff;
+  --color-surface-soft: #fff4e5;
+  --color-surface-hover: #fbebd7;
+
+  /* 品牌与交互色 */
+  --color-primary: #d94b32;
+  --color-primary-hover: #bd3826;
+  --color-primary-soft: #fbe4da;
+
+  /* 强调色 */
+  --color-accent: #f39a38;
+  --color-gold: #d9a441;
+  /* 金色作为文字时的加深版本（保证米白底上的可读性） */
+  --color-gold-ink: #a9761f;
+  --color-fresh: #72865a;
+
+  /* 文字颜色 */
+  --color-text: #51372a;
+  --color-text-secondary: #806b5b;
+  --color-text-muted: #988575;
+  --color-text-inverse: #ffffff;
+
+  /* 边框 */
+  --color-border: #e8d9c6;
+  --color-border-strong: #d8c3a9;
+  --color-border-soft: #f1e4d2;
+
+  /* 状态颜色 */
+  --color-success: #527b4d;
+  --color-warning: #b97824;
+  --color-danger: #c93d31;
+  --color-info: #537a91;
+
+  /* 阴影：暖棕色、低透明度 */
+  --shadow-sm: 0 2px 8px rgba(93, 61, 37, 0.06);
+  --shadow-md: 0 8px 24px rgba(93, 61, 37, 0.1);
+  --shadow-lg: 0 16px 40px rgba(93, 61, 37, 0.12);
+
+  /* 交互 */
+  --transition-fast: 180ms ease;
+  --transition-normal: 240ms ease;
+
+  /* ---------- 旧令牌映射（既有样式继续可用，逐阶段迁移） ---------- */
+  --bg: var(--color-bg);
+  --bg-soft: var(--color-bg-secondary);
+  --ink: var(--color-text);
+  --muted: var(--color-text-secondary);
+  --faint: var(--color-text-muted);
+  --gold: var(--color-gold-ink);
+  --gold-dim: rgba(217, 164, 65, 0.42);
+  --red: var(--color-primary);
+  --line: var(--color-border);
+  --line-soft: var(--color-border-soft);
+  --panel: var(--color-surface);
+
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --max: 1240px;
   /* 顶部导航高度：移动端变两行后由媒体查询覆盖，页面留白统一引用此变量 */
   --nav-h: 62px;
+
+  /* 让浏览器原生控件（滚动条、输入框、日期选择）跟随浅色主题 */
+  color-scheme: light;
 }
 
 * {
@@ -51,8 +105,8 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
   font-weight: 300;
@@ -62,7 +116,8 @@ body {
 }
 
 ::selection {
-  background: rgba(216, 178, 106, 0.28);
+  background: var(--color-primary-soft);
+  color: var(--color-text);
 }
 
 a {
@@ -89,7 +144,7 @@ p {
 }
 
 :focus-visible {
-  outline: 1px solid var(--gold);
+  outline: 1px solid var(--color-primary);
   outline-offset: 3px;
 }
 
@@ -113,7 +168,12 @@ p {
   align-items: center;
   gap: 28px;
   padding: 0 clamp(16px, 3.4vw, 40px);
-  background: linear-gradient(180deg, rgba(5, 6, 10, 0.92), rgba(5, 6, 10, 0.55) 70%, rgba(5, 6, 10, 0));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 248, 237, 0.96) 0%,
+    rgba(255, 248, 237, 0.82) 62%,
+    rgba(255, 248, 237, 0) 100%
+  );
   backdrop-filter: blur(10px);
 }
 
@@ -128,12 +188,13 @@ p {
   font-size: 17.5px;
   letter-spacing: 0.22em;
   font-weight: 400;
+  color: var(--color-text);
 }
 
 .nav__en {
   font-size: 9.5px;
   letter-spacing: 0.34em;
-  color: var(--gold);
+  color: var(--color-primary);
   opacity: 0.85;
 }
 
@@ -144,7 +205,7 @@ p {
   margin-left: auto;
   font-size: 12.5px;
   letter-spacing: 0.14em;
-  color: var(--muted);
+  color: var(--color-text-secondary);
 }
 
 .nav__links a {
@@ -161,14 +222,14 @@ p {
   right: 0;
   bottom: 0;
   height: 1px;
-  background: var(--gold);
+  background: var(--color-primary);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.35s var(--ease);
 }
 
 .nav__links a:hover {
-  color: var(--ink);
+  color: var(--color-text);
 }
 
 .nav__links a:hover::after {
@@ -180,19 +241,22 @@ p {
   font-size: 9px;
   letter-spacing: 0.2em;
   padding: 4px 9px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
-  color: var(--faint);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
 }
 
 .nav__mode.is-demo {
-  color: var(--gold);
-  border-color: var(--gold-dim);
+  color: var(--color-warning);
+  border-color: rgba(185, 120, 36, 0.35);
+  background: var(--color-surface-soft);
 }
 
 .nav__mode.is-live {
-  color: #8fbf9a;
-  border-color: rgba(143, 191, 154, 0.4);
+  color: var(--color-success);
+  border-color: rgba(82, 123, 77, 0.35);
+  background: rgba(114, 134, 90, 0.08);
 }
 
 @media (max-width: 620px) {
@@ -629,7 +693,7 @@ body.is-ready .stage canvas,
   place-content: center;
   justify-items: center;
   gap: 15px;
-  background: #05060a;
+  background: var(--color-bg);
   transition: opacity 0.9s var(--ease), visibility 0.9s;
 }
 
@@ -643,14 +707,14 @@ body.is-ready .stage canvas,
   font-size: 9px;
   letter-spacing: 0.44em;
   text-indent: 0.44em;
-  color: rgba(244, 241, 234, 0.5);
+  color: var(--color-text-secondary);
 }
 
 .loader__track {
   display: block;
   width: 132px;
   height: 1px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-border);
   overflow: hidden;
 }
 
@@ -658,14 +722,14 @@ body.is-ready .stage canvas,
   display: block;
   width: 0;
   height: 100%;
-  background: var(--gold);
+  background: var(--color-primary);
   transition: width 0.4s var(--ease);
 }
 
 .loader__count {
   font-size: 9px;
   letter-spacing: 0.3em;
-  color: rgba(244, 241, 234, 0.26);
+  color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -690,47 +754,53 @@ body.is-ready .stage canvas,
   gap: 8px;
   height: 38px;
   padding: 0 18px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color-border-strong);
   border-radius: 999px;
-  background: transparent;
-  color: var(--ink);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 12.5px;
   letter-spacing: 0.12em;
   cursor: pointer;
-  transition: border-color 0.3s var(--ease), background 0.3s var(--ease), color 0.3s var(--ease);
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease), color 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
   white-space: nowrap;
 }
 
 .btn:hover {
-  border-color: rgba(216, 178, 106, 0.55);
-  background: rgba(216, 178, 106, 0.07);
+  border-color: var(--color-primary);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .btn--gold {
-  border-color: rgba(216, 178, 106, 0.5);
-  color: var(--gold);
+  border-color: rgba(217, 164, 65, 0.55);
+  color: var(--color-gold-ink);
+  background: var(--color-surface-soft);
 }
 
 .btn--gold:hover {
-  background: rgba(216, 178, 106, 0.12);
+  border-color: rgba(217, 164, 65, 0.85);
+  background: rgba(217, 164, 65, 0.16);
+  color: var(--color-gold-ink);
 }
 
 .btn--solid {
-  background: var(--ink);
-  color: #0a0b10;
-  border-color: var(--ink);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
   font-weight: 400;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn--solid:hover {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: #0a0b10;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-text-inverse);
 }
 
 .btn--sm {
@@ -741,12 +811,13 @@ body.is-ready .stage canvas,
 
 .btn--ghost {
   border-color: transparent;
-  color: var(--muted);
+  background: transparent;
+  color: var(--color-text-secondary);
 }
 
 .btn--ghost:hover {
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
+  background: var(--color-surface-soft);
 }
 
 .chip {
@@ -756,23 +827,24 @@ body.is-ready .stage canvas,
   height: 26px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--color-border-soft);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.015);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-soft);
 }
 
 .chip--gold {
-  color: var(--gold);
-  border-color: var(--gold-dim);
+  color: var(--color-gold-ink);
+  border-color: rgba(217, 164, 65, 0.45);
+  background: rgba(217, 164, 65, 0.1);
 }
 
 .chip--ai {
-  color: var(--gold);
-  border-color: rgba(216, 178, 106, 0.34);
+  color: var(--color-gold-ink);
+  border-color: rgba(217, 164, 65, 0.42);
   border-style: dashed;
-  background: rgba(216, 178, 106, 0.07);
+  background: rgba(243, 154, 56, 0.1);
 }
 
 .tag-dot {
@@ -798,11 +870,12 @@ body.is-ready .stage canvas,
 .toast {
   padding: 9px 16px;
   border-radius: 999px;
-  background: rgba(12, 13, 18, 0.94);
-  border: 1px solid var(--line);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
   font-size: 11.5px;
   letter-spacing: 0.06em;
-  color: var(--ink);
+  color: var(--color-text);
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
@@ -814,8 +887,8 @@ body.is-ready .stage canvas,
 }
 
 .toast--err {
-  border-color: rgba(194, 69, 45, 0.5);
-  color: #f0b3a4;
+  border-color: rgba(201, 61, 49, 0.45);
+  color: var(--color-danger);
 }
 
 /* page transitions */
@@ -839,8 +912,8 @@ body.is-ready .stage canvas,
   position: absolute;
   inset: -12% -20%;
   background:
-    radial-gradient(46% 58% at 50% 44%, rgba(216, 178, 106, 0.42), rgba(216, 178, 106, 0) 68%),
-    radial-gradient(70% 90% at 50% 60%, rgba(255, 244, 226, 0.12), rgba(255, 244, 226, 0) 72%);
+    radial-gradient(46% 58% at 50% 44%, rgba(243, 154, 56, 0.28), rgba(243, 154, 56, 0) 68%),
+    radial-gradient(70% 90% at 50% 60%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 70%);
   opacity: 0;
   will-change: transform, opacity;
 }
@@ -848,7 +921,7 @@ body.is-ready .stage canvas,
 .shuttle__in {
   position: absolute;
   inset: 0;
-  background: var(--bg);
+  background: var(--color-bg);
   will-change: transform, opacity;
   backface-visibility: hidden;
 }
@@ -857,8 +930,8 @@ body.is-ready .stage canvas,
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 82% at 50% -6%, color-mix(in srgb, var(--shuttle-accent, #d8b26a) 15%, transparent), transparent 62%),
-    linear-gradient(180deg, #07080e 0%, var(--bg) 34%, var(--bg) 100%);
+    radial-gradient(120% 82% at 50% -6%, color-mix(in srgb, var(--shuttle-accent, #d9a441) 14%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg) 34%, var(--color-bg) 100%);
 }
 
 .shuttle__stage {
@@ -875,7 +948,7 @@ body.is-ready .stage canvas,
   height: 2px;
   margin-left: -66px;
   border-radius: 2px;
-  background: rgba(216, 178, 106, 0.16);
+  background: rgba(217, 75, 50, 0.16);
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.28s ease;
@@ -889,7 +962,7 @@ body.is-ready .stage canvas,
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
   animation: shuttle-pending 1.15s linear infinite;
 }
 
@@ -904,7 +977,7 @@ body.is-ready .stage canvas,
 
 /* 阶段 1：点击目标的亮度反馈（无弹跳） */
 .is-tap {
-  filter: brightness(1.07);
+  filter: brightness(0.98);
 }
 
 body.is-transitioning {
