@@ -41,7 +41,7 @@ src/data/dishes.js        16 道菜（独立数据源）；DISH_BY_ID / dishesBy
 src/data/cuisines.js      八大菜系 + 八种味型（CUISINE_BY_ID / TASTE_BY_ID）
 src/data/personalities.js 8 种味型人格（name/archetype/flavor/language/emotion/rhythm/metaphors/avoid/rules/greeting/samples）+ PROBE_QUESTIONS
 src/data/wheel.js         首页转环节点构建器（cuisine/taste 双模式）
-src/styles/               base(主题令牌)/home(转环)/app(通用)/community 四个 CSS
+src/styles/               base(主题令牌)/home(转环)/app(通用)/community/account(账号弹窗)/admin(后台) 六个 CSS
 ```
 
 ### 路由与视图（hash 路由）
@@ -58,7 +58,43 @@ src/styles/               base(主题令牌)/home(转环)/app(通用)/community 
 | `/community` | community | 访客发帖（≤800 字、可附图≤3MB）、点赞、评论、「让菜回应」、举报/删除、分页 |
 | 其他 | notfound | 404「这道菜不在菜单上。」 |
 
-## 5. 后端 API（server/api.mjs 统一分发）
+## 5. 配色令牌与主题层（2025 换肤）
+
+全站已从「近黑底 + 冷白字」改为「奶油米白底 + 焦糖字 + 番茄红点缀」。新增样式时**只用令牌，不写字面色值**。
+
+### 5.1 基础令牌（`src/styles/base.css` 的 `:root`）
+
+| 令牌 | 值 | 用途 |
+| --- | --- | --- |
+| `--color-bg` | `#FFF8ED` | 页面底（奶油） |
+| `--color-bg-secondary` / `--color-bg-tertiary` | `#FFF1DE` / `#F3E5D0` | 分区底 / 图片占位底 |
+| `--color-surface` / `--color-surface-soft` / `--color-surface-hover` | `#FFF` / `#FFF4E5` / `#FBEBD7` | 卡片 / 次级卡 / 悬浮态 |
+| `--color-primary` / `-hover` / `-soft` | `#D94B32` / `#BD3826` / `#FBE4DA` | 番茄红：主按钮、强调、选中态文字 |
+| `--color-accent` / `--color-gold` / `--color-gold-ink` | `#F39A38` / `#D9A441` / `#96671A` | 烤橘金装饰 / 金色装饰 / **金色文字**（`gold` 在米白上只有 ~2:1，文字一律用 `gold-ink`） |
+| `--color-text` / `-secondary` / `-muted` | `#51372A` / `#806B5B` / `#988575` | 正文 / 次要 / 弱化（占位符） |
+| `--color-border` / `-strong` / `-soft` | `#E8D9C6` / `#D8C3A9` / `#F1E4D2` | 卡片边 / 输入边 / 分隔线 |
+| `--color-success` / `-warning` / `-danger` / `-info` | `#527B4D` / `#B97824` / `#C93D31` / `#537A91` | 状态色 |
+| `--shadow-sm/md/lg` | 暖棕低透明度 | 卡片/浮层/弹窗阴影 |
+
+旧变量 `--bg/--ink/--muted/--faint/--gold/--red/--line/--panel` 仍保留并映射到新令牌，老样式不会失效。聚焦环统一：`1px` 主色边 + `0 0 0 3px rgba(217,75,50,.14)`。
+
+### 5.2 菜品/口味主题（`src/data/visualThemes.js`）
+
+17 套主题（品牌 + 8 菜系 + 8 味型）的数据表仍保留 1.0 时期的深色配色（`background`/`text`/`chatBackground` 等），但 **`themeVars()` 不再直接取用**，而是按各主题的 `primary`/`accent` 现算浅色版 `--t-*`：
+
+- `--t-bg` = 强调色 6% 叠在米白；`--t-surface` = 白；`--t-text` = 焦糖深棕
+- `--t-border` = 主色 22%；`--t-glow` = 强调色 30%
+- `--t-bubble-*` / `--t-user-*` = 主色 7% / 14% 的浅杏
+- `--t-btn-bg` + `--t-btn-text` = 主色实心 + 白字
+- `--t-accent-ink` = 强调色压深 62% 的版本，**凡是用强调色当文字色都用它**，否则浅底上只有 2:1
+
+消费方只有 `community.css` 的 `.theme-page` / `.theme-chat` 段。想换某套主题的味道，改它的 `primary`/`accent` 即可，不要改 `themeVars()` 里的固定值。
+
+### 5.3 首页 3D 环形画廊（`src/gallery.js`）
+
+颜色都在 JS 里烘焙：`scene.fog` 米白、`bakeShadow()` 暖棕投影、`bakeGlow()` 暖杏光池、`bakeRim()` 橘金选中光边（用 `NormalBlending`，加亮混合在浅底会烧成白色）、`bakeFace()` 占位渐变。卡片转开时的亮度下限是 `0.66 + 0.34 * face^1.5`，低于这个值会显脏。
+
+## 6. 后端 API（server/api.mjs 统一分发）
 
 | 端点 | 说明 |
 | --- | --- |
@@ -75,19 +111,19 @@ src/styles/               base(主题令牌)/home(转环)/app(通用)/community 
 服务端复用前端 `src/data/dishes.js`；请求统一挂 `x-guest-id`/`x-guest-name` 访客身份头。
 持久化：`data/comments.json`、`data/community.json`（gitignored，首启播种 3 条评论 + 3 条官方帖子）。
 
-## 6. 关键机制备忘
+## 7. 关键机制备忘
 
 - **AI 聊天链路**：`chatStream` → `POST /api/chat` → `handleChat` 开 SSE → demo（`demoReply`/`demoMascotReply`）或 live（`streamGLM` + `buildDishSystemPrompt`/`buildMascotSystemPrompt` 第一人称人格提示词）。
 - **菜谱链路**：`validateRecipe`（zod schema：食材 1-30、步骤 1-30、难度/火候枚举等）→ `normalizeRecipe` 宽松修复 → 合法才返回，否则 fallback demo。
 - **转场系统**：`circularReveal({origin, accent, render, commit})` —— 先在新页面画布上以圆形遮罩播放缩放预览，`commit` 时 `adopt` 把舞台 DOM 搬进 `#view` 并推 history；`abortReveal` 可取消（用于连续旋转）。
 - **演示模式**：`CONFIG.isDemoMode()`（无 GLM key），全站 AI 能力不依赖网络可用。
 
-## 7. QA 与脚本
+## 8. QA 与脚本
 
 - `scripts/`：约 26 个 playwright-core 无头脚本（`verify.mjs`、`smoke.mjs`、`qa*.mjs`、`shot*.mjs`、`measure*.mjs`、`probe*.mjs`、`import-dishes.mjs`、`board/*` 等），产出 `shots/` 截图；`verify.mjs` 依赖 `window.__exhibition.gallery` 调试钩子（home.js 挂载）。
 - 字体：`public/fonts/inter-{200,300,400,500}.woff2`。
 
-## 8. 已知风险/待办（接手时发现）
+## 9. 已知风险/待办（接手时发现）
 
 1. ~~**无版本控制**：aimeishi2.0 没有自己的 .git~~ —— **已解决**：已建独立仓库并与 GitHub 对齐，发布链路见 `docs/DEPLOY.md`。剩余待办：GitHub 部署密钥需要管理员在仓库 Settings → Deploy keys 添加并勾选 write access，否则服务器只能部署、无法回推 GitHub。
 2. **菜品库迁移未完成**：import-dishes.mjs 可用但未落地（92 道菜未合并进来，81 张残留图待清理）。
@@ -95,3 +131,5 @@ src/styles/               base(主题令牌)/home(转环)/app(通用)/community 
 4. 上级 1.0 仓库有未提交改动（App.tsx、api.ts、社区组件等），与本项目互不影响但需留意。
 5. 首页转环在无 WebGL 时降级为普通网格（已处理，非缺陷）。
 6. 服务器直连 GitHub 偶发 TLS 中断（部署钩子已内置重试；失败时线上不受影响，重跑发布即可补推）。
+7. **导航在 721–800px 单行放不下（换肤前就存在）**：`@media (max-width: 720px)` 才切成两行，所以在 768px 这类平板竖屏下，右侧「登录 / 接入 AI」按钮会超出视口约 24px（胶囊右边缘被裁掉，文字仍可读）。修法二选一：把该断点提到 `max-width: 860px`（整段变两行，会改变该区间的布局），或给 `.nav__account` 加 `flex-shrink: 1` 并允许按钮换行。换肤阶段按要求未擅自改布局。
+8. 深色残留（有意保留）：社区图片灯箱 `.lightbox`（全屏看图需要黑底）、照片上的 `.cat-hero__caption` / `.chat-aside__name` / `.upload-preview__x`（压在照片上的小字条，用暖棕半透明渐变保证可读）、账号弹窗遮罩 `.account-modal-backdrop`。
