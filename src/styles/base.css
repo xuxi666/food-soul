@@ -400,17 +400,16 @@ p {
 
 /* 竖屏：插画裁切后只剩空白，改用纯晕染 + 稍强的米白遮罩保证文字可读 */
 @media (max-width: 900px) {
-  /* 竖屏只放得下画面一侧：放大后取左上（远山古塔），右侧香料交给底部晕染 */
+  /* 竖屏用专门的竖版插画（1280×2278），构图本来就是给手机做的，直接 cover 即可 */
   .hero__bg {
+    --hero-art: url('/bg/home-ink-mobile.jpg');
     background:
-      /* 竖屏文字更密，压一层米白保证可读 */
-      linear-gradient(180deg, rgba(255, 248, 237, 0.62) 0%, rgba(255, 248, 237, 0.42) 46%, rgba(255, 248, 237, 0.6) 100%),
-      var(--hero-art) 8% 34% / 190% auto no-repeat,
-      radial-gradient(120% 60% at 50% 108%, rgba(217, 122, 62, 0.16) 0%, rgba(255, 248, 237, 0) 62%),
+      var(--hero-art) center top / cover no-repeat,
       linear-gradient(180deg, #fff8ed 0%, #fdf1e0 55%, #fbe8d2 100%);
   }
+  /* 竖版画面本身留白充足，晕染层关掉避免发浑 */
   .hero__bg::before {
-    opacity: 0.35;
+    opacity: 0;
   }
 }
 
