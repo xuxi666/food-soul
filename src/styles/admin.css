@@ -154,7 +154,7 @@
 .admin-state--error {
   flex-direction: column;
   border-color: rgba(194, 69, 45, 0.4);
-  color: #e8836f;
+  color: var(--color-danger);
 }
 
 .admin-spinner {
@@ -210,7 +210,7 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 16px;
-  background: rgba(10, 12, 18, 0.6);
+  background: var(--color-surface);
 }
 
 .admin-card__head {
@@ -549,7 +549,7 @@
 /* 危险操作按钮 */
 .btn--danger {
   border-color: rgba(194, 69, 45, 0.55);
-  color: #e8836f;
+  color: var(--color-danger);
 }
 
 .btn--danger:hover {
@@ -600,11 +600,11 @@
 }
 
 .admin-ai__result.is-ok {
-  color: #86c69a;
+  color: var(--color-success);
 }
 
 .admin-ai__result.is-err {
-  color: #e8836f;
+  color: var(--color-danger);
 }
 
 .admin-ai__meta {

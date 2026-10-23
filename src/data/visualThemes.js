@@ -543,30 +543,73 @@ export function themeIdFor({ kind, id }) {
   return BRAND_THEME_ID;
 }
 
+/* ---------------- 浅色版主题推导 ----------------
+ * 主题表里存的是 1.0 时期的深色配色（背景偏黑、文字偏白）。
+ * 现在全站是奶油米白底，所以 --t-* 不再直接取表里的深色值，
+ * 而是按每套主题自己的主色/强调色，推导出同色系的浅色版本：
+ * 背景=主色极淡叠加米白，表面=白，文字=焦糖深棕，按钮=主色实心白字。
+ * 这样八菜系 / 八口味依然各有一个“味道色”，但不再把页面压成黑底。
+ */
+const LIGHT_TEXT = '#51372A';
+const LIGHT_MUTED = '#806B5B';
+const LIGHT_BG = [255, 248, 237];
+const LIGHT_BG_2 = [255, 241, 222];
+
+function hexToRgb(hex) {
+  const v = String(hex || '').replace('#', '');
+  const full = v.length === 3 ? v.split('').map((c) => c + c).join('') : v;
+  const n = parseInt(full.slice(0, 6), 16);
+  if (Number.isNaN(n)) return [217, 164, 65];
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgba(hex, alpha) {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** 把颜色按比例混到米白里，得到不透明的浅色（用于背景/气泡） */
+function tint(hex, alpha, base = LIGHT_BG) {
+  const [r, g, b] = hexToRgb(hex);
+  const mix = (c, t) => Math.round(c * alpha + t * (1 - alpha));
+  return `rgb(${mix(r, base[0])}, ${mix(g, base[1])}, ${mix(b, base[2])})`;
+}
+
+/** 把高亮的强调色压深，作为浅底上的文字色（保证 4.5:1 左右） */
+function ink(hex) {
+  const [r, g, b] = hexToRgb(hex);
+  const mix = (c, t, w) => Math.round(c * (1 - w) + t * w);
+  return `rgb(${mix(r, 81, 0.62)}, ${mix(g, 55, 0.62)}, ${mix(b, 42, 0.62)})`;
+}
+
 /** 把主题映射成 CSS 自定义属性（--t-*），挂在页面根节点上 */
 export function themeVars(theme) {
+  const primary = theme.primary || '#D94B32';
+  const accent = theme.accent || '#F39A38';
   return {
-    '--t-primary': theme.primary,
+    '--t-primary': primary,
     '--t-secondary': theme.secondary,
-    '--t-accent': theme.accent,
-    '--t-bg': theme.background,
-    '--t-surface': theme.surfaceColor,
-    '--t-border': theme.borderColor,
-    '--t-shadow': theme.shadowColor,
-    '--t-text': theme.text,
-    '--t-muted': theme.mutedText,
-    '--t-glow': theme.glowColor,
-    '--t-orb': theme.orbColor,
-    '--t-chat-bg': theme.chatBackground,
-    '--t-bubble-bg': theme.bubbleStyle.background,
-    '--t-bubble-border': theme.bubbleStyle.border,
-    '--t-bubble-text': theme.bubbleStyle.text,
-    '--t-user-bg': theme.bubbleStyle.userBackground,
-    '--t-user-text': theme.bubbleStyle.userText,
-    '--t-btn-bg': theme.buttonStyle.background,
-    '--t-btn-text': theme.buttonStyle.text,
-    '--t-btn-solid': theme.primary,
-    '--t-on-primary': theme.onPrimary,
+    '--t-accent': accent,
+    /* 强调色作文字时的加深版本 */
+    '--t-accent-ink': ink(accent),
+    '--t-bg': tint(accent, 0.06),
+    '--t-surface': '#FFFFFF',
+    '--t-border': rgba(primary, 0.22),
+    '--t-shadow': 'rgba(93, 61, 37, 0.12)',
+    '--t-text': LIGHT_TEXT,
+    '--t-muted': LIGHT_MUTED,
+    '--t-glow': rgba(accent, 0.3),
+    '--t-orb': primary,
+    '--t-chat-bg': `radial-gradient(120% 80% at 18% 0%, ${rgba(accent, 0.18)} 0%, ${rgba(accent, 0.04)} 42%, transparent 68%), linear-gradient(180deg, rgb(${LIGHT_BG.join(', ')}) 0%, rgb(${LIGHT_BG_2.join(', ')}) 100%)`,
+    '--t-bubble-bg': tint(primary, 0.07),
+    '--t-bubble-border': rgba(primary, 0.18),
+    '--t-bubble-text': LIGHT_TEXT,
+    '--t-user-bg': tint(primary, 0.14),
+    '--t-user-text': '#3F2A1F',
+    '--t-btn-bg': primary,
+    '--t-btn-text': '#FFFFFF',
+    '--t-btn-solid': primary,
+    '--t-on-primary': '#FFFFFF',
   };
 }
 

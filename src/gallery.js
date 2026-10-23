@@ -94,8 +94,8 @@ function bakeFace(img) {
     drawCover(ctx, img, TEX_W, TEX_H);
   } else {
     const g = ctx.createLinearGradient(0, 0, TEX_W, TEX_H);
-    g.addColorStop(0, '#1b2030');
-    g.addColorStop(1, '#0b0d14');
+    g.addColorStop(0, '#fff1de');
+    g.addColorStop(1, '#f3e5d0');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, TEX_W, TEX_H);
   }
@@ -133,9 +133,9 @@ function bakeRim() {
   const ctx = c.getContext('2d');
   const ox = (w - TEX_W) / 2;
   const oy = (h - TEX_H) / 2;
-  ctx.shadowColor = 'rgba(255,247,235,0.85)';
-  ctx.shadowBlur = 30;
-  ctx.strokeStyle = 'rgba(255,248,238,0.95)';
+  ctx.shadowColor = 'rgba(217,75,50,0.55)';
+  ctx.shadowBlur = 26;
+  ctx.strokeStyle = 'rgba(243,154,56,0.96)';
   ctx.lineWidth = 4;
   roundRect(ctx, ox + 2, oy + 2, TEX_W - 4, TEX_H - 4, CORNER);
   ctx.stroke();
@@ -152,10 +152,10 @@ function bakeShadow() {
   // keep the falloff inside the canvas, otherwise the gradient is clipped
   // and the plane shows a hard rectangular edge
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s / 2);
-  g.addColorStop(0, 'rgba(0,0,0,0.95)');
-  g.addColorStop(0.35, 'rgba(0,0,0,0.62)');
-  g.addColorStop(0.68, 'rgba(0,0,0,0.2)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
+  g.addColorStop(0, 'rgba(93,61,37,0.62)');
+  g.addColorStop(0.35, 'rgba(93,61,37,0.4)');
+  g.addColorStop(0.68, 'rgba(93,61,37,0.13)');
+  g.addColorStop(1, 'rgba(93,61,37,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.ellipse(0, 0, s / 2, s / 2.15, 0, 0, Math.PI * 2);
@@ -169,11 +169,11 @@ function bakeGlow() {
   const c = makeCanvas(s, s);
   const ctx = c.getContext('2d');
   const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0, 'rgba(138,154,190,0.5)');
-  g.addColorStop(0.3, 'rgba(110,124,156,0.32)');
-  g.addColorStop(0.58, 'rgba(74,84,110,0.14)');
-  g.addColorStop(0.82, 'rgba(48,54,72,0.04)');
-  g.addColorStop(1, 'rgba(40,46,60,0)');
+  g.addColorStop(0, 'rgba(243,154,56,0.26)');
+  g.addColorStop(0.3, 'rgba(240,146,72,0.16)');
+  g.addColorStop(0.58, 'rgba(232,140,86,0.07)');
+  g.addColorStop(0.82, 'rgba(226,136,96,0.02)');
+  g.addColorStop(1, 'rgba(226,136,96,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, s, s);
   return c;
@@ -216,7 +216,7 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
   renderer.toneMapping = THREE.NoToneMapping;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x05060a, 6.2, 16.5);
+  scene.fog = new THREE.Fog(0xfff8ed, 6.4, 17);
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 120);
   camera.position.set(0, 0.2, 9.07);
 
@@ -253,7 +253,7 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
       transparent: true,
       depthWrite: false,
       toneMapped: false,
-      opacity: 0.9,
+      opacity: 0.72,
       fog: false,
     })
   );
@@ -450,9 +450,9 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
 
     const shadowMat = new THREE.MeshBasicMaterial({
       map: shadowTex,
-      color: 0x000000,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.45,
       depthWrite: false,
       toneMapped: false,
     });
@@ -477,9 +477,9 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       toneMapped: false,
-      color: 0xfff6e8,
+      color: 0xffffff,
     });
     const rim = new THREE.Mesh(rimGeo, rimMat);
     rim.position.z = 0.004;
@@ -782,13 +782,13 @@ export function createGallery({ canvas, stage, overlay, items, panelMode = 'full
       c.depth = view.camZ - pz;
 
       // prints lose their light as they turn away from the viewer
-      const falloff = 0.34 + 0.66 * Math.pow(face, 1.5);
+      const falloff = 0.66 + 0.34 * Math.pow(face, 1.5);
       const lit = falloff + (1 - falloff) * e * 0.85;
-      c.photoMat.color.setScalar(lit * (1 + 0.18 * e + 0.05 * h));
+      c.photoMat.color.setScalar(lit * (1 + 0.1 * e + 0.03 * h));
 
-      c.shadowMat.opacity = 0.3 * Math.pow(face, 0.9);
+      c.shadowMat.opacity = 0.34 * Math.pow(face, 0.9);
       c.shadow.visible = face > 0.25;
-      const rimOp = (0.62 * e + 0.12 * h) * face;
+      const rimOp = (0.92 * e + 0.18 * h) * face;
       c.rimMat.opacity = rimOp;
       c.rim.visible = rimOp > 0.006;
     }
