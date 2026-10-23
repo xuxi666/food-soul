@@ -127,9 +127,9 @@ src/styles/               base(主题令牌)/home(转环)/app(通用)/community/
 
 1. ~~**无版本控制**：aimeishi2.0 没有自己的 .git~~ —— **已解决**：已建独立仓库并与 GitHub 对齐，发布链路见 `docs/DEPLOY.md`。剩余待办：GitHub 部署密钥需要管理员在仓库 Settings → Deploy keys 添加并勾选 write access，否则服务器只能部署、无法回推 GitHub。
 2. **菜品库迁移未完成**：import-dishes.mjs 可用但未落地（92 道菜未合并进来，81 张残留图待清理）。
-3. **生产环境上传图 404**：`/api/upload` 写 `public/uploads/`，但生产只静态服务 `dist/`，上传图片在生产可能加载失败。
+3. ~~**生产环境上传图 404**~~ —— **已修**：`server/index.mjs` 对 `/uploads/*` 单独从 `public/uploads` 读取（含目录穿越校验）。线上实测 upload → GET 200 `image/png`。
 4. 上级 1.0 仓库有未提交改动（App.tsx、api.ts、社区组件等），与本项目互不影响但需留意。
 5. 首页转环在无 WebGL 时降级为普通网格（已处理，非缺陷）。
 6. 服务器直连 GitHub 偶发 TLS 中断（部署钩子已内置重试；失败时线上不受影响，重跑发布即可补推）。
-7. **导航在 721–800px 单行放不下（换肤前就存在）**：`@media (max-width: 720px)` 才切成两行，所以在 768px 这类平板竖屏下，右侧「登录 / 接入 AI」按钮会超出视口约 24px（胶囊右边缘被裁掉，文字仍可读）。修法二选一：把该断点提到 `max-width: 860px`（整段变两行，会改变该区间的布局），或给 `.nav__account` 加 `flex-shrink: 1` 并允许按钮换行。换肤阶段按要求未擅自改布局。
+7. ~~**导航在 721–800px 单行放不下**~~ —— **已修**：断点由 `max-width: 720px` 提到 `800px`，721–800px 改走两行布局。实测 721/768/800 溢出 0px（改前 768px 溢出 24px、721px 溢出 66px）。
 8. 深色残留（有意保留）：社区图片灯箱 `.lightbox`（全屏看图需要黑底）、照片上的 `.cat-hero__caption` / `.chat-aside__name` / `.upload-preview__x`（压在照片上的小字条，用暖棕半透明渐变保证可读）、账号弹窗遮罩 `.account-modal-backdrop`。
