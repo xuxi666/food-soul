@@ -368,7 +368,10 @@ p {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* 竖屏下裁切后只剩空白，用透明层顶掉插画，退回纯晕染 */
+  --hero-art: url('/bg/home-ink.jpg');
   background:
+    var(--hero-art) center bottom / 100% auto no-repeat,
     radial-gradient(56% 42% at 50% 46%, rgba(243, 154, 56, 0.26) 0%, rgba(243, 154, 56, 0.09) 46%, rgba(255, 248, 237, 0) 78%),
     radial-gradient(95% 65% at 50% 112%, rgba(217, 75, 50, 0.1) 0%, rgba(255, 248, 237, 0) 62%),
     linear-gradient(180deg, #fff8ed 0%, #fff3e2 46%, #fdedd8 100%);
@@ -382,6 +385,7 @@ p {
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  opacity: 0;
   background:
     /* 左上：淡墨远山 */
     radial-gradient(58% 42% at 6% 26%, rgba(122, 96, 66, 0.22) 0%, rgba(122, 96, 66, 0.09) 42%, rgba(122, 96, 66, 0) 72%),
@@ -392,6 +396,22 @@ p {
     /* 右下：番茄红一抹，呼应主色 */
     radial-gradient(44% 36% at 99% 66%, rgba(193, 80, 46, 0.14) 0%, rgba(193, 80, 46, 0) 72%);
   filter: blur(0.2px);
+}
+
+/* 竖屏：插画裁切后只剩空白，改用纯晕染 + 稍强的米白遮罩保证文字可读 */
+@media (max-width: 900px) {
+  /* 竖屏只放得下画面一侧：放大后取左上（远山古塔），右侧香料交给底部晕染 */
+  .hero__bg {
+    background:
+      /* 竖屏文字更密，压一层米白保证可读 */
+      linear-gradient(180deg, rgba(255, 248, 237, 0.62) 0%, rgba(255, 248, 237, 0.42) 46%, rgba(255, 248, 237, 0.6) 100%),
+      var(--hero-art) 8% 34% / 190% auto no-repeat,
+      radial-gradient(120% 60% at 50% 108%, rgba(217, 122, 62, 0.16) 0%, rgba(255, 248, 237, 0) 62%),
+      linear-gradient(180deg, #fff8ed 0%, #fdf1e0 55%, #fbe8d2 100%);
+  }
+  .hero__bg::before {
+    opacity: 0.35;
+  }
 }
 
 /* 边缘米白晕影 + 宣纸颗粒（同一层，避免 background 简写互相覆盖） */
