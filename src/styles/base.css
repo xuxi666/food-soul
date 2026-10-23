@@ -374,11 +374,38 @@ p {
     linear-gradient(180deg, #fff8ed 0%, #fff3e2 46%, #fdedd8 100%);
 }
 
+/* 水墨晕染：左右两侧淡墨/暖橘晕开，中间留白给标题与转盘。
+   用多层极低透明度的径向渐变模拟宣纸上的墨与色，不引入位图资源。 */
+.hero__bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    /* 左上：淡墨远山 */
+    radial-gradient(58% 42% at 6% 26%, rgba(122, 96, 66, 0.22) 0%, rgba(122, 96, 66, 0.09) 42%, rgba(122, 96, 66, 0) 72%),
+    /* 左下：更淡的一层，制造层次 */
+    radial-gradient(46% 34% at 2% 62%, rgba(122, 96, 66, 0.14) 0%, rgba(122, 96, 66, 0) 70%),
+    /* 右上：烤橘暖光（香料一侧） */
+    radial-gradient(52% 46% at 96% 24%, rgba(217, 122, 62, 0.2) 0%, rgba(217, 122, 62, 0.07) 45%, rgba(217, 122, 62, 0) 74%),
+    /* 右下：番茄红一抹，呼应主色 */
+    radial-gradient(44% 36% at 99% 66%, rgba(193, 80, 46, 0.14) 0%, rgba(193, 80, 46, 0) 72%);
+  filter: blur(0.2px);
+}
+
+/* 边缘米白晕影 + 宣纸颗粒（同一层，避免 background 简写互相覆盖） */
 .hero__bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(118% 96% at 50% 46%, rgba(255, 248, 237, 0) 42%, rgba(255, 248, 237, 0.42) 82%, rgba(255, 248, 237, 0.72) 100%);
+  z-index: 2;
+  pointer-events: none;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E"),
+    radial-gradient(118% 96% at 50% 46%, rgba(255, 248, 237, 0) 42%, rgba(255, 248, 237, 0.42) 82%, rgba(255, 248, 237, 0.72) 100%);
+  opacity: 0.55;
+  mix-blend-mode: multiply;
 }
 
 .stage {
