@@ -1897,3 +1897,14 @@
 .lookup-status {
   box-shadow: var(--shadow-sm);
 }
+/* 游客态：评论输入区换成登录提示（hidden 需要压过 display:flex） */
+.comment-form[hidden] {
+  display: none !important;
+}
+
+.comment-form--locked {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}

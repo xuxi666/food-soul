@@ -112,6 +112,47 @@ function personaFor(dish) {
  * 账号与用户级 AI 配置
  * ------------------------------------------------------------------ */
 
+/** 当前请求的操作者标识：登录用户用 id，游客按 IP 区分（限流与短时缓存隔离） */
+function actorKey(req, user) {
+  if (user) return user.id;
+  const ip =
+    String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+    req.socket?.remoteAddress ||
+    'unknown';
+  return `guest:${ip}`;
+}
+
+/**
+ * AI 入口统一鉴权（后端最终裁决，不看前端传的任何身份字段）。
+ * - 登录用户：内置 AI 开启时用内置，否则用自己已验证的个人配置
+ * - 游客：只能用管理员开启的内置 AI；未开启时返回 ai_disabled，而不是要求登录
+ * - 游客单独限流，避免内置 AI 被匿名刷量
+ * 返回 null 表示已经写过错误响应。
+ */
+function resolveAIForRequest(req, res, scope = 'ai') {
+  const user = getCurrentUser(req);
+  if (!user) {
+    const rl = rateLimit(req, `guest-${scope}`, 20, 60_000);
+    if (!rl.ok) {
+      send(res, 429, { error: `AI 调用过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
+      return null;
+    }
+  }
+  const ai = resolveAIConfig(user);
+  if (!ai.ok) {
+    const status = ai.code === 'auth_required' ? 401 : 409;
+    send(res, status, { error: ai.message, code: ai.code });
+    return null;
+  }
+  return { user, ai };
+}
+
+/** 记录个人 AI 配置的健康状态；游客走内置 AI，没有个人配置可记 */
+function noteAIStatus(user, status, err) {
+  if (!user) return;
+  markAIConfigStatus(user.id, status, err);
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function publicUser(user) {
@@ -240,10 +281,9 @@ async function handleAIModels(req, res) {
 
 async function handleChat(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const user = requireUser(req, res, send);
-  if (!user) return;
-  const ai = resolveAIConfig(user);
-  if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
+  const ctx = resolveAIForRequest(req, res, 'chat');
+  if (!ctx) return;
+  const { user, ai } = ctx;
 
   const body = await readJson(req);
   const askedKind = body.kind || body.mode;
@@ -316,12 +356,12 @@ async function handleChat(req, res) {
       signal: controller.signal,
       onDelta: (text) => sse(res, { type: 'delta', text }),
     });
-    markAIConfigStatus(user.id, 'ok', null);
+    noteAIStatus(user, 'ok', null);
     sse(res, { type: 'done' });
   } catch (err) {
     if (!controller.signal.aborted) {
       const code = err?.code || 'network';
-      markAIConfigStatus(user.id, code, err?.message || String(err));
+      noteAIStatus(user, code, err?.message || String(err));
       sse(res, { type: 'error', message: String(err?.message || err).slice(0, 300) });
     }
   } finally {
@@ -411,10 +451,9 @@ function sanitizeSuggestions(raw, { mode, dish, categoryDishes = [], kind, meta,
 
 async function handleSuggest(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const user = requireUser(req, res, send);
-  if (!user) return;
-  const ai = resolveAIConfig(user);
-  if (!ai.ok) return send(res, 200, { suggestions: [], code: ai.code, error: ai.message });
+  const ctx = resolveAIForRequest(req, res, 'suggest');
+  if (!ctx) return;
+  const { user, ai } = ctx;
   const body = await readJson(req);
   const askedKind = body.kind || body.mode;
   const kind = askedKind === 'taste' ? 'taste' : askedKind === 'cuisine' ? 'cuisine' : '';
@@ -496,11 +535,11 @@ async function handleSuggest(req, res) {
       suggestions = sanitizeSuggestions(extractJSON(retryRaw), base);
     }
 
-    markAIConfigStatus(user.id, 'ok', null);
+    noteAIStatus(user, 'ok', null);
     return send(res, 200, { suggestions });
   } catch (err) {
     console.warn(`[suggest] ${String(err.message || err).slice(0, 160)}`);
-    markAIConfigStatus(user.id, err?.code || 'network', err?.message || String(err));
+    noteAIStatus(user, err?.code || 'network', err?.message || String(err));
     return send(res, 200, { suggestions: [], error: '建议生成失败' });
   }
 }
@@ -535,9 +574,9 @@ function matchedDishPayload(d) {
 /** 第一阶段 + 第二阶段查询（供前端分步展示状态） */
 async function handleRecipeLookup(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const user = requireUser(req, res, send);
-  if (!user) return;
-  const rl = rateLimit(req, `recipe-lookup:${user.id}`, 30, 60_000);
+  // 检索本身不调模型，游客也可用；按操作者（登录 id 或游客 IP）限流
+  const user = getCurrentUser(req);
+  const rl = rateLimit(req, `recipe-lookup:${actorKey(req, user)}`, 30, 60_000);
   if (!rl.ok) return send(res, 429, { error: `查询过于频繁，请 ${rl.retryAfter} 秒后再试` });
 
   const body = await readJson(req);
@@ -567,16 +606,15 @@ async function handleRecipeLookup(req, res) {
   }
   if (result.status === 'invalid') return send(res, 400, { error: result.message || '请填写菜品名称' });
 
-  const lookupId = rememberLookup(result, user.id);
+  const lookupId = rememberLookup(result, actorKey(req, user));
   return send(res, 200, { ...result, lookupId });
 }
 
 async function handleRecipe(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const user = requireUser(req, res, send);
-  if (!user) return;
-  const ai = resolveAIConfig(user);
-  if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
+  const ctx = resolveAIForRequest(req, res, 'recipe');
+  if (!ctx) return;
+  const { user, ai } = ctx;
 
   const body = await readJson(req);
   const input = {
@@ -602,7 +640,7 @@ async function handleRecipe(req, res) {
   let lookup = null;
   let knowledgeOnly = false;
   if (!dish) {
-    lookup = input.lookupId ? takeLookup(input.lookupId, user.id) : null;
+    lookup = input.lookupId ? takeLookup(input.lookupId, actorKey(req, user)) : null;
     if (!lookup) lookup = await lookupDish({ dishName: input.dishName });
     if (!lookup || lookup.status !== 'ok') {
       // 检索失败（配额不足 / 鉴权失败 / 超时 / 无可靠结果）不再阻断生成：
@@ -644,7 +682,7 @@ async function handleRecipe(req, res) {
       const parsed = extractJSON(raw);
       const check = validateRecipe(parsed, input.servings);
       if (check.ok) {
-        markAIConfigStatus(user.id, 'ok', null);
+        noteAIStatus(user, 'ok', null);
         const sources = isAiSearch ? attachSourceSupport(searchSources, check.recipe, input.dishName) : [];
         const dataSource = knowledgeOnly ? 'ai-knowledge' : isAiSearch ? 'ai-search' : 'library';
         return send(res, 200, {
@@ -698,7 +736,7 @@ async function handleRecipe(req, res) {
       lastIssues = check.issues;
     } catch (err) {
       console.warn(`[recipe] attempt ${attempt} 调用失败：${String(err.message || err).slice(0, 200)}`);
-      markAIConfigStatus(user.id, err?.code || 'network', err?.message || String(err));
+      noteAIStatus(user, err?.code || 'network', err?.message || String(err));
       lastIssues = [String(err.message || err).slice(0, 160)];
     }
   }
@@ -798,10 +836,9 @@ function filterCandidates(input) {
 
 async function handleRecommend(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const user = requireUser(req, res, send);
-  if (!user) return;
-  const ai = resolveAIConfig(user);
-  if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
+  const ctx = resolveAIForRequest(req, res, 'recommend');
+  if (!ctx) return;
+  const { user, ai } = ctx;
 
   const body = await readJson(req);
   const input = {
@@ -840,7 +877,7 @@ async function handleRecommend(req, res) {
       if (valid.length) picks = valid.slice(0, 3);
     }
   } catch (err) {
-    markAIConfigStatus(user.id, err?.code || 'network', err?.message || String(err));
+    noteAIStatus(user, err?.code || 'network', err?.message || String(err));
     return send(res, 503, { error: '模型暂时不可用，请稍后重试', code: 'ai_failed' });
   }
 
@@ -848,7 +885,7 @@ async function handleRecommend(req, res) {
     return send(res, 200, { source: 'ai', demo: false, relaxed, picks: [], message: '模型没有给出可用推荐，请重试。' });
   }
 
-  markAIConfigStatus(user.id, 'ok', null);
+  noteAIStatus(user, 'ok', null);
   send(res, 200, {
     source: 'ai',
     demo: false,
@@ -884,8 +921,12 @@ async function handleComments(req, res, url) {
   }
 
   if (req.method === 'POST' && !parts.length) {
+    // 评论属于社区内容，游客只能看不能发
+    if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+    const user = requireUser(req, res, send, '登录后即可参与美食交流');
+    if (!user) return;
     const body = await readJson(req);
-    const who = guest(req);
+    const who = { id: user.id, name: user.name || user.email.split('@')[0] };
     const content = String(body.content || '').trim();
     if (!body.dishId || !findDish(body.dishId)) return send(res, 400, { error: '菜品不存在' });
     if (content.length < 2) return send(res, 400, { error: '评论太短了，至少 2 个字' });
@@ -901,21 +942,25 @@ async function handleComments(req, res, url) {
   }
 
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'like') {
-    const who = guest(req);
-    const result = toggleLike(parts[0], who.id);
+    const user = requireUser(req, res, send, '登录后即可点赞');
+    if (!user) return;
+    const result = toggleLike(parts[0], user.id);
     if (!result) return send(res, 404, { error: '评论不存在' });
     return send(res, 200, result);
   }
 
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'report') {
+    const user = requireUser(req, res, send, '登录后即可举报');
+    if (!user) return;
     const result = reportComment(parts[0]);
     if (!result) return send(res, 404, { error: '评论不存在' });
     return send(res, 200, { ...result, message: '已收到举报，演示环境不会自动处理。' });
   }
 
   if (req.method === 'DELETE' && parts.length === 1) {
-    const who = guest(req);
-    const result = deleteComment(parts[0], who.id);
+    const user = requireUser(req, res, send, '登录后才能删除自己的评论');
+    if (!user) return;
+    const result = deleteComment(parts[0], user.id);
     if (!result.ok) {
       return send(res, result.reason === 'forbidden' ? 403 : 404, {
         error: result.reason === 'forbidden' ? '只能删除自己发布的评论' : '评论不存在',
@@ -956,10 +1001,10 @@ async function handleComments(req, res, url) {
         isAI: true,
       });
       if (!result.ok) return send(res, 400, { error: '要回复的评论不存在' });
-      markAIConfigStatus(user.id, 'ok', null);
+      noteAIStatus(user, 'ok', null);
       return send(res, 201, { comment: result.comment });
     } catch (err) {
-      markAIConfigStatus(user.id, err?.code || 'network', err?.message || String(err));
+      noteAIStatus(user, err?.code || 'network', err?.message || String(err));
       return send(res, 503, { error: '模型暂时不可用，请稍后重试', code: 'ai_failed' });
     }
   }
@@ -1041,8 +1086,9 @@ async function handlePosts(req, res, url) {
   }
 
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'like') {
-    const who = guest(req);
-    const result = togglePostLike(parts[0], who.id);
+    const user = requireUser(req, res, send, '登录后即可点赞');
+    if (!user) return;
+    const result = togglePostLike(parts[0], user.id);
     if (!result) return send(res, 404, { error: '帖子不存在' });
     return send(res, 200, result);
   }
@@ -1146,10 +1192,10 @@ async function handlePosts(req, res, url) {
         aiDishId: dish.id,
       });
       if (!result.ok) return send(res, 404, { error: '帖子不存在' });
-      markAIConfigStatus(user.id, 'ok', null);
+      noteAIStatus(user, 'ok', null);
       return send(res, 201, { comment: result.comment });
     } catch (err) {
-      markAIConfigStatus(user.id, err?.code || 'network', err?.message || String(err));
+      noteAIStatus(user, err?.code || 'network', err?.message || String(err));
       return send(res, 503, { error: '模型暂时不可用，请稍后重试', code: 'ai_failed' });
     }
   }
@@ -1202,12 +1248,12 @@ export async function handleApi(req, res) {
     if (req.method === 'GET' && path === '/api/greeting') {
       const user = getCurrentUser(req);
       const aiStatus = getAIStatus(user?.id);
-      // 与聊天接口使用同一套路由：内置 AI 开启时无需个人配置
-      const resolved = user ? resolveAIConfig(user) : { ok: false, code: 'auth_required' };
+      // 与聊天接口使用同一套路由：内置 AI 开启时游客也能用
+      const resolved = resolveAIConfig(user);
       const aiConfigured = Boolean(resolved.ok);
       const aiSource = resolved.ok ? resolved.source : '';
       const aiModel = resolved.ok ? resolved.config?.model : aiStatus.model || null;
-      const aiMessage = resolved.ok ? '' : resolved.message || '请点击右上角「接入 AI」配置自己的模型。';
+      const aiMessage = resolved.ok ? '' : resolved.message || 'AI 服务暂不可用，请稍后再试。';
       const kindParam = url.searchParams.get('kind');
       // 分类 AI 欢迎语：菜系 / 口味由 kind + categoryId 决定，菜品只是可选话题
       if (kindParam === 'cuisine' || kindParam === 'taste') {
@@ -1270,10 +1316,9 @@ export async function handleApi(req, res) {
       return send(res, saved.ok ? 200 : 400, saved);
     }
     if (req.method === 'POST' && path === '/api/dishes/search') {
-      const user = requireUser(req, res, send);
-      if (!user) return;
-      const ai = resolveAIConfig(user);
-      if (!ai.ok) return send(res, 409, { error: ai.message, code: ai.code });
+      const ctx = resolveAIForRequest(req, res, 'dish-search');
+      if (!ctx) return;
+      const { ai } = ctx;
       const body = await readJson(req);
       const result = await searchDishes({
         kind: body.kind,

@@ -210,7 +210,7 @@ export function resolveAIConfig(user) {
     return {
       ok: false,
       code: 'ai_disabled',
-      message: '站点内置 AI 暂未开启，请点击右上角「接入 AI」配置自己的模型。',
+      message: '站点内置 AI 暂未开启；登录后可以接入自己的模型继续使用。',
     };
   }
   const result = getConfigForRequest(user.id);

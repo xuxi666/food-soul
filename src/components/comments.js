@@ -1,8 +1,10 @@
 import { h, clear, fmtTime, toast } from '../lib/dom.js';
-import { api, guest } from '../lib/api.js';
+import { api } from '../lib/api.js';
+import { openAuthModal } from './account.js';
 
 export function mountComments(root, dishId) {
-  const me = guest();
+  // 评论属于社区交互：游客只能看，发言/点赞/举报/删除都要登录
+  let me = null;
   let page = 1;
   let total = 0;
   let items = [];
@@ -23,13 +25,41 @@ export function mountComments(root, dishId) {
     h(
       'div',
       { class: 'comment-form__side' },
-      h('span', { class: 'comment-form__who', text: `以访客「${me.name}」发言` }),
+      h('span', { class: 'comment-form__who', text: '登录后即可参与讨论' }),
       h('button', { class: 'btn btn--sm btn--solid', type: 'submit' }, '发布')
     )
   );
 
+  // 游客态：用登录提示替换输入框，不清空已加载的评论
+  const loginPrompt = h(
+    'div',
+    { class: 'comment-form comment-form--locked', hidden: true },
+    h('p', { class: 'comment-form__who', text: '登录后即可参与美食交流' }),
+    h('button', {
+      class: 'btn btn--sm btn--gold',
+      type: 'button',
+      onclick: () => openAuthModal('login'),
+    }, '登录 / 注册')
+  );
+
+  function syncIdentity() {
+    const logged = Boolean(me);
+    form.hidden = !logged;
+    loginPrompt.hidden = logged;
+    const whoEl = form.querySelector('.comment-form__who');
+    if (whoEl) whoEl.textContent = logged ? `以「${me.name || me.email}」发言` : '登录后即可参与讨论';
+  }
+
+  function requireLogin() {
+    if (me) return false;
+    toast('登录后即可参与美食交流', 'err');
+    openAuthModal('login');
+    return true;
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (requireLogin()) return;
     const content = textarea.value.trim();
     if (content.length < 2) {
       toast('至少写两个字吧', 'err');
@@ -58,6 +88,7 @@ export function mountComments(root, dishId) {
         class: `like${c.likedBy?.includes(me.id) ? ' is-on' : ''}`,
         type: 'button',
         onclick: async () => {
+          if (requireLogin()) return;
           try {
             const res = await api.comments.like(c.id);
             c.likes = res.likes;
@@ -85,6 +116,7 @@ export function mountComments(root, dishId) {
         ? h('button', {
             type: 'button',
             onclick: () => {
+              if (requireLogin()) return;
               replyBox.style.display = replyBox.style.display === 'none' ? 'flex' : 'none';
               if (replyBox.style.display === 'flex') replyInput.focus();
             },
@@ -95,6 +127,7 @@ export function mountComments(root, dishId) {
             type: 'button',
             title: '由你主动触发，让这道菜以它的味型人格回应',
             onclick: async (e) => {
+              if (requireLogin()) return;
               const btn = e.currentTarget;
               btn.disabled = true;
               btn.textContent = '思考中…';
@@ -114,6 +147,7 @@ export function mountComments(root, dishId) {
       h('button', {
         type: 'button',
         onclick: async () => {
+          if (requireLogin()) return;
           if (!confirm('确认举报这条评论？')) return;
           try {
             const res = await api.comments.report(c.id);
@@ -141,6 +175,7 @@ export function mountComments(root, dishId) {
     );
 
     replySend.addEventListener('click', async () => {
+      if (requireLogin()) return;
       const v = replyInput.value.trim();
       if (v.length < 1) return;
       replySend.disabled = true;
@@ -226,16 +261,46 @@ export function mountComments(root, dishId) {
     h('div', { class: 'comments__head' },
       h('h2', { text: '食客评论' }),
       countEl,
-      h('span', { class: 'comments__count', text: '· 访客身份，仅存本机' })
+      h('span', { class: 'comments__count', text: '· 登录后可参与讨论' })
     ),
     form,
+    loginPrompt,
     list,
     moreWrap,
     h('p', { class: 'note-line', text: '评论保存在服务端 data/comments.json，刷新后仍在。AI 回复需要你手动触发，并会明确标注。' })
   );
 
   root.append(section);
+  syncIdentity();
   load();
 
-  return { destroy() {} };
+  api.auth
+    .me()
+    .then((res) => {
+      me = res?.user || null;
+      syncIdentity();
+      render();
+    })
+    .catch(() => {
+      me = null;
+      syncIdentity();
+    });
+
+  const onAuth = () => {
+    api.auth
+      .me()
+      .then((res) => {
+        me = res?.user || null;
+        syncIdentity();
+        load();
+      })
+      .catch(() => {});
+  };
+  window.addEventListener('foodsoul:auth', onAuth);
+
+  return {
+    destroy() {
+      window.removeEventListener('foodsoul:auth', onAuth);
+    },
+  };
 }

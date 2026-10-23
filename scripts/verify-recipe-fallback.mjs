@@ -364,7 +364,11 @@ const anon = await fetch(APP + '/api/recipe', {
   headers: { 'content-type': 'application/json', Origin: APP },
   body: JSON.stringify({ dishName: '花卷' }),
 });
-check('未登录调用生成接口 → 401', anon.status === 401, `HTTP ${anon.status}`);
+// 游客现在也能调用生成接口，但是否成功取决于内置 AI：未开启时应返回 409 ai_disabled
+const anonData = await anon.json().catch(() => ({}));
+check('游客调用生成接口：内置 AI 未开启时被拒（409 ai_disabled）',
+  anon.status === 409 && anonData.code === 'ai_disabled',
+  `HTTP ${anon.status} code=${anonData.code}`);
 
 /* ============================================================
  * C. 页面
