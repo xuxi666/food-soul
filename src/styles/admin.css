@@ -27,7 +27,7 @@
   padding: 16px 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(12, 14, 20, 0.92), rgba(8, 9, 14, 0.7));
+  background: var(--color-surface);
 }
 
 .admin-nav__brand {
@@ -77,17 +77,18 @@
 }
 
 .admin-nav__item:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--color-surface-hover);
   color: var(--ink);
 }
 
 .admin-nav__item.is-on {
-  background: rgba(216, 178, 106, 0.12);
-  color: var(--gold);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .admin-nav__item.is-on em {
-  color: var(--gold-dim);
+  color: var(--color-primary);
+  opacity: 0.7;
 }
 
 .admin-nav__foot {
@@ -100,8 +101,8 @@
 }
 
 .admin-nav__item--danger:hover {
-  background: rgba(194, 69, 45, 0.14);
-  color: #e8836f;
+  background: rgba(201, 61, 49, 0.1);
+  color: var(--color-danger);
 }
 
 /* ---------- 主区 ---------- */
@@ -277,7 +278,7 @@
   padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-surface);
   color: var(--ink);
   font: inherit;
   font-size: 12.5px;
@@ -289,7 +290,7 @@
 
 .admin-input:focus {
   outline: none;
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
 }
 
 /* ---------- 列表 ---------- */
@@ -364,8 +365,8 @@
 
 .admin-quote {
   padding: 10px 12px;
-  border-left: 2px solid var(--gold-dim);
-  background: rgba(255, 255, 255, 0.025);
+  border-left: 2px solid var(--color-primary);
+  background: var(--color-surface-soft);
   border-radius: 0 8px 8px 0;
   display: flex;
   flex-direction: column;
@@ -394,11 +395,11 @@
   color: var(--muted);
 }
 
-.admin-badge--pending { border-color: rgba(216, 178, 106, 0.5); color: var(--gold); }
-.admin-badge--processing { border-color: rgba(120, 170, 220, 0.5); color: #8fb8dd; }
-.admin-badge--resolved { border-color: rgba(120, 190, 140, 0.45); color: #86c69a; }
-.admin-badge--rejected { border-color: rgba(255, 255, 255, 0.18); color: var(--faint); }
-.admin-badge--warn { border-color: rgba(194, 69, 45, 0.5); color: #e8836f; }
+.admin-badge--pending { border-color: rgba(185, 120, 36, 0.45); color: var(--color-warning); }
+.admin-badge--processing { border-color: rgba(83, 122, 145, 0.45); color: var(--color-info); }
+.admin-badge--resolved { border-color: rgba(82, 123, 77, 0.45); color: var(--color-success); }
+.admin-badge--rejected { border-color: var(--color-border-strong); color: var(--color-text-muted); }
+.admin-badge--warn { border-color: rgba(201, 61, 49, 0.45); color: var(--color-danger); }
 
 .admin-pager {
   display: flex;
@@ -422,14 +423,14 @@
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
 }
 
 .admin-tile__media {
   aspect-ratio: 4 / 3;
-  background: #0a0c12;
+  background: var(--color-bg-tertiary);
   overflow: hidden;
 }
 
@@ -639,7 +640,7 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
 }
 
 .admin-ai__master-state {
@@ -675,15 +676,15 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .admin-ai-profile.is-active {
-  border-color: rgba(216, 178, 106, 0.5);
-  background: rgba(216, 178, 106, 0.05);
+  border-color: rgba(217, 164, 65, 0.55);
+  background: rgba(243, 154, 56, 0.08);
 }
 
 .admin-ai-profile__head {
@@ -752,10 +753,19 @@
   padding: 14px 16px;
   border: 1px dashed var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--color-surface);
 }
 
 .admin-ai-add[hidden],
 .admin-ai-edit[hidden] {
   display: none;
+}
+
+
+/* ================= 阶段 2：暖色卡片阴影 ================= */
+.admin-nav,
+.admin-tile,
+.admin-ai__master,
+.admin-ai-profile {
+  box-shadow: var(--shadow-sm);
 }

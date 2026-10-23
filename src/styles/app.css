@@ -64,7 +64,7 @@
   overflow: hidden;
   border: 1px solid var(--line-soft);
   aspect-ratio: 4 / 5;
-  background: #0a0b10;
+  background: var(--color-bg-tertiary);
 }
 
 .chat-aside__media img {
@@ -105,7 +105,7 @@
   padding: 14px;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
 }
 
 .chat-aside__persona b {
@@ -130,9 +130,9 @@
 }
 
 .chat-main {
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.004));
+  background: var(--color-surface);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -221,14 +221,14 @@
   letter-spacing: 0.04em;
   border: 1px solid var(--line);
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-surface-soft);
   flex-shrink: 0;
 }
 
 .msg--ai .msg__avatar {
-  color: var(--gold);
-  border-color: var(--gold-dim);
-  background: rgba(216, 178, 106, 0.08);
+  color: var(--color-gold-ink);
+  border-color: rgba(217, 164, 65, 0.45);
+  background: rgba(217, 164, 65, 0.14);
 }
 
 .msg__body {
@@ -280,7 +280,7 @@
 
 .msg__actions button:hover {
   color: var(--gold);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-surface-hover);
 }
 
 /* ---------------- 对话延伸建议 ---------------- */
@@ -329,7 +329,7 @@
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
@@ -341,9 +341,9 @@
 }
 
 .suggest-chip:hover {
-  color: var(--ink);
-  border-color: var(--gold-dim);
-  background: rgba(216, 178, 106, 0.08);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .suggest-chip__text {
@@ -429,9 +429,9 @@
 }
 
 .quick:hover {
-  color: var(--ink);
-  border-color: var(--gold-dim);
-  background: rgba(216, 178, 106, 0.06);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .composer {
@@ -440,7 +440,7 @@
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  background: rgba(5, 6, 10, 0.5);
+  background: var(--color-bg-secondary);
 }
 
 .composer textarea {
@@ -450,7 +450,7 @@
   padding: 11px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(8, 9, 14, 0.9);
+  background: var(--color-surface);
   color: var(--ink);
   font: inherit;
   font-size: 13px;
@@ -461,16 +461,16 @@
 }
 
 .composer textarea:focus {
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
 }
 
 .composer__send {
   height: 42px;
   padding: 0 20px;
   border-radius: 12px;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: #0a0b10;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-size: 12px;
   letter-spacing: 0.1em;
   cursor: pointer;
@@ -479,8 +479,8 @@
 }
 
 .composer__send:hover {
-  background: var(--gold);
-  border-color: var(--gold);
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .composer__send:disabled {
@@ -534,7 +534,7 @@
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(8, 9, 14, 0.9);
+  background: var(--color-surface);
   color: var(--ink);
   font: inherit;
   font-size: 12.5px;
@@ -544,7 +544,7 @@
 }
 
 .comment-form textarea:focus {
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
 }
 
 .comment-form__side {
@@ -659,7 +659,7 @@
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(8, 9, 14, 0.9);
+  background: var(--color-surface);
   color: var(--ink);
   font: inherit;
   font-size: 12px;
@@ -687,9 +687,9 @@
   flex-direction: column;
   gap: 14px;
   padding: 20px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--color-surface);
 }
 
 .tool-form h2 {
@@ -715,7 +715,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(8, 9, 14, 0.9);
+  background: var(--color-surface);
   color: var(--ink);
   font: inherit;
   font-size: 12px;
@@ -725,7 +725,7 @@
 }
 
 .field__area:focus {
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
 }
 
 .form-row {
@@ -749,7 +749,7 @@
 .recipe-card {
   border: 1px solid var(--line-soft);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.004));
+  background: var(--color-surface);
   padding: clamp(18px, 2.6vw, 32px);
 }
 
@@ -844,7 +844,7 @@
 }
 
 .servings button:hover {
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
   color: var(--gold);
 }
 
@@ -925,9 +925,9 @@
 }
 
 .step.is-done .step__no {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: #0a0b10;
+  background: var(--color-fresh);
+  border-color: var(--color-fresh);
+  color: var(--color-text-inverse);
 }
 
 .step.is-done .step__title,
@@ -1050,7 +1050,7 @@
   padding: 22px 20px;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
@@ -1108,13 +1108,13 @@
 }
 
 .recipe-source-badge--library {
-  color: #9fd3a8;
+  color: var(--color-success);
   border-color: rgba(143, 191, 154, 0.4);
 }
 
 .recipe-source-badge--ai {
   color: var(--gold);
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
 }
 
 /* 检索不可用时的降级来源徽标 */
@@ -1141,7 +1141,7 @@
   font-size: 12px;
   line-height: 1.7;
   border: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
 }
 
 .verify-banner b {
@@ -1162,12 +1162,12 @@
 }
 
 .verify-banner--ok b {
-  color: #9fd3a8;
+  color: var(--color-success);
 }
 
 .verify-banner--warn {
-  border-color: var(--gold-dim);
-  background: rgba(216, 178, 106, 0.06);
+  border-color: rgba(185, 120, 36, 0.4);
+  background: rgba(185, 120, 36, 0.08);
 }
 
 .verify-banner--warn b {
@@ -1213,7 +1213,7 @@
   border: 1px solid var(--line-soft);
   border-radius: 12px;
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--color-surface);
 }
 
 .source-item--warn {
@@ -1305,13 +1305,13 @@
 }
 
 .source-status--ok {
-  color: #9fd3a8;
+  color: var(--color-success);
   border-color: rgba(143, 191, 154, 0.4);
 }
 
 .source-status--warn {
-  color: var(--gold);
-  border-color: var(--gold-dim);
+  color: var(--color-warning);
+  border-color: rgba(185, 120, 36, 0.4);
 }
 
 .ambiguous-list {
@@ -1378,21 +1378,21 @@
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
   gap: 18px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--color-surface);
   transition: border-color 0.4s var(--ease);
 }
 
 .pick:hover {
-  border-color: rgba(216, 178, 106, 0.3);
+  border-color: rgba(217, 75, 50, 0.3);
 }
 
 .pick__media {
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  background: #0a0b10;
+  background: var(--color-bg-tertiary);
 }
 
 .pick__media img {
@@ -1460,7 +1460,7 @@
 
 .skeleton {
   border-radius: 14px;
-  background: linear-gradient(100deg, rgba(255, 255, 255, 0.03) 20%, rgba(255, 255, 255, 0.07) 40%, rgba(255, 255, 255, 0.03) 60%);
+  background: linear-gradient(100deg, var(--color-surface-soft) 20%, var(--color-surface-hover) 40%, var(--color-surface-soft) 60%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }
@@ -1489,14 +1489,14 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  border: 1px solid rgba(216, 178, 106, 0.28);
-  background: radial-gradient(60% 60% at 50% 35%, rgba(216, 178, 106, 0.18), rgba(10, 11, 16, 0.9));
+  border: 1px solid rgba(217, 75, 50, 0.24);
+  background: radial-gradient(60% 60% at 50% 35%, rgba(243, 154, 56, 0.22), var(--color-surface));
   backdrop-filter: blur(10px);
   cursor: pointer;
   pointer-events: auto;
   display: grid;
   place-items: center;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-md);
   transition: transform 0.4s var(--ease), border-color 0.4s var(--ease);
   animation: floaty 5.5s ease-in-out infinite;
 }
@@ -1534,9 +1534,9 @@
   padding: 14px 16px;
   border-radius: 14px 14px 4px 14px;
   border: 1px solid var(--line);
-  background: rgba(10, 11, 16, 0.94);
+  background: var(--color-surface);
   backdrop-filter: blur(14px);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-md);
   opacity: 0;
   transform: translateY(8px) scale(0.97);
   transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
@@ -1552,7 +1552,7 @@
 .mascot__bubble p {
   font-size: 12px;
   line-height: 1.85;
-  color: rgba(244, 241, 234, 0.86);
+  color: var(--color-text-secondary);
   margin-bottom: 10px;
 }
 
@@ -1572,9 +1572,9 @@
   height: min(440px, 62vh);
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: rgba(8, 9, 14, 0.97);
+  background: var(--color-surface);
   backdrop-filter: blur(16px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1886,4 +1886,13 @@
   .chat-page .page-head__title {
     font-size: 20px;
   }
+}
+
+
+/* ================= 阶段 2：暖色卡片阴影 ================= */
+.chat-main,
+.tool-form,
+.pick,
+.lookup-status {
+  box-shadow: var(--shadow-sm);
 }

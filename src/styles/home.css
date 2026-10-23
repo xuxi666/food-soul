@@ -40,8 +40,8 @@
   white-space: nowrap;
 }
 .seg__btn.is-on {
-  background: rgba(244, 241, 234, 0.92);
-  color: #0a0b10;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 .board {
   display: grid;
@@ -86,15 +86,15 @@
 }
 .chip-tab:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-hover);
 }
 .chip-tab.is-on {
   color: var(--ink);
-  border-left-color: var(--gold);
-  background: linear-gradient(90deg, rgba(216, 178, 106, 0.1), rgba(216, 178, 106, 0));
+  border-left-color: var(--color-primary);
+  background: linear-gradient(90deg, var(--color-primary-soft), rgba(251, 228, 218, 0));
 }
 .chip-tab.is-on em {
-  color: var(--gold);
+  color: var(--color-primary);
 }
 .board__main {
   min-width: 0;
@@ -112,14 +112,16 @@
 .dish-card {
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008));
-  border: 1px solid var(--line-soft);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   overflow: hidden;
-  transition: border-color 0.4s var(--ease), transform 0.4s var(--ease), background 0.4s var(--ease);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.4s var(--ease), transform 0.4s var(--ease), background 0.4s var(--ease),
+    box-shadow 0.4s var(--ease);
 }
 .dish-card:hover {
-  border-color: rgba(216, 178, 106, 0.3);
+  border-color: rgba(217, 75, 50, 0.3);
   transform: translateY(-3px);
 }
 .dish-card__media {
@@ -127,7 +129,7 @@
   display: block;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  background: #0b0c11;
+  background: var(--color-bg-tertiary);
 }
 .dish-card__media img {
   width: 100%;
@@ -153,9 +155,9 @@
   letter-spacing: 0.08em;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(6, 7, 10, 0.72);
+  background: rgba(255, 251, 244, 0.92);
   backdrop-filter: blur(8px);
-  color: rgba(244, 241, 234, 0.82);
+  color: var(--color-text);
 }
 .dish-card__ai {
   position: absolute;
@@ -165,13 +167,13 @@
   letter-spacing: 0.1em;
   padding: 3px 8px;
   border-radius: 999px;
-  color: var(--gold);
-  border: 1px solid rgba(216, 178, 106, 0.42);
-  background: rgba(8, 9, 13, 0.74);
+  color: var(--color-gold-ink);
+  border: 1px solid rgba(217, 164, 65, 0.45);
+  background: rgba(255, 251, 244, 0.92);
   backdrop-filter: blur(8px);
 }
 .dish-card.is-ai {
-  border-color: rgba(216, 178, 106, 0.22);
+  border-color: rgba(217, 164, 65, 0.4);
 }
 .catalog-more {
   margin-top: 26px;
@@ -183,7 +185,7 @@
   align-items: center;
   gap: 10px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.014);
+  background: var(--color-surface-soft);
 }
 .cat-block .catalog-more {
   margin-top: 30px;
@@ -209,7 +211,7 @@
 .catalog-more__error {
   font-size: 12.5px;
   line-height: 1.7;
-  color: #e8998c;
+  color: var(--color-danger);
   max-width: 46ch;
 }
 .dish-card__body {
@@ -232,13 +234,13 @@
 .dish-card__cuisine {
   font-size: 10.5px;
   letter-spacing: 0.16em;
-  color: var(--gold);
-  opacity: 0.72;
+  color: var(--color-gold-ink);
+  opacity: 0.9;
 }
 .dish-card__line {
   font-size: 13px;
   line-height: 1.75;
-  color: rgba(244, 241, 234, 0.74);
+  color: var(--color-text-secondary);
 }
 .dish-card__sig {
   font-size: 11.5px;
@@ -272,7 +274,7 @@
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(8, 9, 14, 0.9);
+  background: var(--color-surface);
   color: var(--ink);
   font-size: 12px;
   letter-spacing: 0.06em;
@@ -282,7 +284,7 @@
 }
 .field__select:focus,
 .field__input:focus {
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
 }
 .hero-fallback {
   position: absolute;
@@ -293,7 +295,7 @@
   gap: 8px;
   padding: 130px 24px 80px;
   overflow-y: auto;
-  background: rgba(5, 6, 10, 0.6);
+  background: rgba(255, 248, 237, 0.88);
 }
 .hero-fallback__item {
   display: flex;
@@ -427,7 +429,7 @@
   text-transform: uppercase;
 }
 .wheel-modes__btn:hover {
-  border-color: var(--gold-dim);
+  border-color: var(--color-primary);
   color: var(--ink);
 }
 .wheel-modes__btn.is-on {
