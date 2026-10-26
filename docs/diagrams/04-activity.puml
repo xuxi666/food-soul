@@ -1,0 +1,73 @@
+@startuml
+' 食有灵 FOOD SOUL —— 活动图：结构化菜谱生成
+' 依据：server/api.mjs handleRecipeLookup / handleRecipe、
+'       server/recipe-lookup.mjs lookupDish、server/web-search.mjs webSearchMany（Promise.all 并行）、
+'       server/recipe-schema.mjs validateRecipe（zod）
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam NoteFontColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam classAttributeFontColor Black
+skinparam ActivityFontColor Black
+skinparam StateFontColor Black
+
+skinparam defaultFontName "Microsoft YaHei"
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+  DiamondBackgroundColor White
+  DiamondBorderColor Black
+}
+
+title 结构化菜谱生成（图鉴优先 → 联网检索 → 模型知识）
+
+start
+:用户填写菜名、人数、难度、可用食材;
+:前端 POST /api/recipe/lookup\n（不调用模型，游客可用，30 次/分钟限流）;
+:lookupDish 按菜名与别名匹配图鉴;
+
+if (图鉴命中？) then (是)
+  :dataSource = library;
+else (否)
+  fork
+    :SearXNG 检索;
+  fork again
+    :Bing RSS 检索;
+  end fork
+  :按 URL 去重合并，再按菜名做相关性过滤;
+  if (存在相关结果？) then (是)
+    :dataSource = ai-search\n附 sources 列表;
+  else (否)
+    :dataSource = ai-knowledge\n提示词禁止编造链接与人名;
+  endif
+endif
+
+:前端 POST /api/recipe;
+:resolveAIForRequest 校验配置;
+if (配置可用？) then (否)
+  :409 ai_disabled / ai_config_unavailable;
+  stop
+endif
+
+:拼装 system 提示词\n（图鉴档案或检索资料注入）;
+:chatStream 调用模型（120 秒超时）;
+if (调用成功？) then (否)
+  :SSE / JSON 返回可读错误;
+  stop
+endif
+
+:validateRecipe 做 zod 结构校验\n（字段类型、枚举、条数区间）;
+if (校验通过？) then (否)
+  :返回错误，不渲染半成品;
+  stop
+else (是)
+  :前端渲染菜谱卡片\n按 dataSource 显示来源徽标;
+  stop
+endif
+@enduml

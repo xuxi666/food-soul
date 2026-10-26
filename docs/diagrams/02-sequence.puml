@@ -1,0 +1,89 @@
+@startuml
+' 食有灵 FOOD SOUL —— 顺序图：AI 菜品对话（含配置裁决与流式输出）
+' 依据：server/api.mjs handleChat / resolveAIForRequest / sse，
+'       server/site-ai.mjs resolveAIConfig，
+'       server/ai-adapter.mjs chatStream，server/prompt.mjs buildDishSystemPrompt
+autonumber
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam NoteFontColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam classAttributeFontColor Black
+skinparam ActivityFontColor Black
+skinparam StateFontColor Black
+
+skinparam defaultFontName "Microsoft YaHei"
+skinparam sequence {
+  ArrowColor Black
+  BorderColor Black
+  LifeLineBorderColor Black
+  ParticipantBorderColor Black
+  ParticipantBackgroundColor White
+  GroupBorderColor Black
+  GroupBackgroundColor White
+}
+
+actor "用户" as U
+participant "chat 页面\n(src/views/chat.js)" as FE
+participant "api.mjs\nhandleChat" as API
+participant "site-ai.mjs\nresolveAIConfig" as SITE
+database "SQLite\ndata/foodsoul.db" as DB
+participant "prompt.mjs\nbuildDishSystemPrompt" as P
+participant "ai-adapter.mjs\nchatStream" as AD
+participant "模型服务\n/chat/completions" as LLM
+
+U -> FE : 输入问题并发送
+FE -> API : POST /api/chat { dishId, messages }
+activate API
+API -> API : sameOrigin(req)
+opt 来源不合法
+  API --> FE : 403 非法请求来源
+end
+API -> SITE : resolveAIForRequest(req, res, "chat")
+activate SITE
+SITE -> DB : 读 site_ai 总开关 + 启用的 site_ai_profiles
+DB --> SITE : enabled, provider, base_url, model, key_cipher
+alt 内置 AI 可用
+  SITE --> API : { ok, config, source: "site" }
+else 内置不可用且已登录
+  SITE -> DB : 读 ai_configs（AES-256-GCM 解密）
+  DB --> SITE : provider, base_url, model, apiKey
+  SITE --> API : { ok, config, source: "user" }
+else 无可用配置
+  SITE --> API : { ok: false, code: "ai_disabled" / "ai_config_unavailable" }
+  API --> FE : 409 { code, error }
+end
+deactivate SITE
+
+API -> API : 取最近 12 条消息，单条截断 1200 字符
+API -> P : buildDishSystemPrompt(dish, persona)
+P --> API : system（人格段 + 事实段）
+API -> AD : chatStream({ baseUrl, apiKey, model, system, messages })
+activate AD
+API --> FE : data: {"type":"meta", model, personaId, ...}
+AD -> LLM : POST /chat/completions (stream: true, timeout 120s)
+activate LLM
+loop 每个增量
+  LLM --> AD : data: {"choices":[{"delta":{"content":"..."}}]}
+  AD --> API : onDelta(text)
+  API --> FE : data: {"type":"delta","text":"..."}
+end
+LLM --> AD : data: [DONE]
+deactivate LLM
+alt 上游返回 401 / 429 / 5xx
+  AD --> API : throw AIError(code = auth / quota / server)
+  API --> FE : data: {"type":"error","message":"..."}
+else 正常结束
+  AD --> API : 流结束
+  API --> FE : data: {"type":"done"}
+end
+deactivate AD
+deactivate API
+FE --> U : 逐字追加显示，结束后可重新生成
+note right of API : 游客调用 AI 另有 20 次/分钟限流，超限返回 429
+@enduml

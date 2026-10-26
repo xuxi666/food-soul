@@ -1,0 +1,161 @@
+@startuml
+' 食有灵 FOOD SOUL —— 关系图：SQLite 实体关系（ER）
+' 依据：server/db.mjs 的 CREATE TABLE / CREATE INDEX 语句
+' 实线 = 数据库真实外键；虚线 = 仅业务逻辑关联，库中无外键约束
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam NoteFontColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam classAttributeFontColor Black
+skinparam ActivityFontColor Black
+skinparam StateFontColor Black
+
+skinparam defaultFontName "Microsoft YaHei"
+skinparam linetype ortho
+hide circle
+
+title 食有灵 FOOD SOUL 数据实体关系（SQLite，9 张表）
+
+entity "users" as users {
+  * id : TEXT <<PK>>
+  --
+  * email : TEXT <<UNIQUE>>
+  * name : TEXT
+  * password_hash : TEXT
+  * password_salt : TEXT
+  * role : TEXT
+  * created_at : INTEGER
+}
+
+entity "sessions" as sessions {
+  * token_hash : TEXT <<PK>>
+  --
+  * user_id : TEXT <<FK>>
+  * created_at : INTEGER
+  * expires_at : INTEGER
+}
+
+entity "ai_configs" as ai_configs {
+  * user_id : TEXT <<PK,FK>>
+  --
+  * provider : TEXT
+  * base_url : TEXT
+  * model : TEXT
+  * key_cipher : TEXT
+  * key_iv : TEXT
+  * key_tag : TEXT
+  * key_version : INTEGER
+  o verified_at : INTEGER
+  * last_status : TEXT
+  o last_error : TEXT
+  * updated_at : INTEGER
+}
+
+entity "reports" as reports {
+  * id : TEXT <<PK>>
+  --
+  * post_id : TEXT
+  * reason : TEXT
+  o note : TEXT
+  o reporter_id : TEXT
+  o reporter_name : TEXT
+  * source : TEXT
+  * status : TEXT
+  * created_at : INTEGER
+  o handled_by : TEXT
+  o handled_at : INTEGER
+  o handle_action : TEXT
+  o handle_note : TEXT
+}
+
+entity "site_ai" as site_ai {
+  * id : INTEGER <<PK,CHECK id=1>>
+  --
+  * provider : TEXT
+  * base_url : TEXT
+  * model : TEXT
+  * key_cipher : TEXT
+  * key_iv : TEXT
+  * key_tag : TEXT
+  * key_version : INTEGER
+  o verified_at : INTEGER
+  * last_status : TEXT
+  o last_error : TEXT
+  * enabled : INTEGER
+  o enabled_at : INTEGER
+  o updated_by : TEXT
+  * updated_at : INTEGER
+}
+
+entity "site_ai_profiles" as profiles {
+  * id : TEXT <<PK>>
+  --
+  * name : TEXT
+  * provider : TEXT
+  * base_url : TEXT
+  * model : TEXT
+  * key_cipher : TEXT
+  * key_iv : TEXT
+  * key_tag : TEXT
+  * key_version : INTEGER
+  o verified_at : INTEGER
+  * last_status : TEXT
+  o last_error : TEXT
+  * enabled : INTEGER
+  * created_at : INTEGER
+  * updated_at : INTEGER
+  o updated_by : TEXT
+}
+
+entity "card_images" as card_images {
+  * kind : TEXT <<PK>>
+  * card_id : TEXT <<PK>>
+  --
+  * url : TEXT
+  o updated_by : TEXT
+  * updated_at : INTEGER
+}
+
+entity "dish_images" as dish_images {
+  * dish_id : TEXT <<PK>>
+  --
+  * url : TEXT
+  o updated_by : TEXT
+  * updated_at : INTEGER
+}
+
+entity "audit_log" as audit_log {
+  * id : TEXT <<PK>>
+  --
+  o actor_id : TEXT
+  o actor_name : TEXT
+  * action : TEXT
+  o target_type : TEXT
+  o target_id : TEXT
+  o detail : TEXT
+  * created_at : INTEGER
+}
+
+entity "文件型存储（非数据库表）" as note_posts {
+  * community.json : 帖子 / 评论 / 点赞
+  --
+  * comments.json : 菜品评论
+  * public/uploads/ : 上传图片
+  * src/data/dishes.js : 97 道菜静态档案
+}
+
+users ||--o{ sessions : "user_id (FK)"
+users ||--o| ai_configs : "user_id (FK)"
+
+users ||..o{ reports : "reporter_id 逻辑关联"
+users ||..o{ audit_log : "actor_id 逻辑关联"
+site_ai ||..|| profiles : "总开关引用启用项"
+reports ||..|| note_posts : "post_id → community.json"
+card_images ||..|| note_assets : "card_id → 前端静态数据"
+dish_images ||..|| note_assets : "dish_id → dishes.js"
+@enduml

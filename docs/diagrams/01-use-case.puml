@@ -1,0 +1,77 @@
+@startuml
+' 食有灵 FOOD SOUL —— 用例图
+' 依据：src/views/*.js 路由、server/api.mjs 接口、server/auth.mjs 权限判定
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam NoteFontColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam classAttributeFontColor Black
+skinparam ActivityFontColor Black
+skinparam StateFontColor Black
+
+skinparam defaultFontName "Microsoft YaHei"
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam actor {
+  BackgroundColor White
+  BorderColor Black
+}
+left to right direction
+
+actor "游客" as Guest
+actor "登录用户" as User
+actor "管理员" as Admin
+
+Guest <|-- User
+User <|-- Admin
+
+rectangle "食有灵 FOOD SOUL" {
+  usecase "浏览美食图鉴与菜品详情" as UC_Browse
+  usecase "浏览做菜视频" as UC_Video
+  usecase "与菜品 AI 对话" as UC_Chat
+  usecase "生成结构化菜谱" as UC_Recipe
+  usecase "获取智能推荐" as UC_Recommend
+  usecase "注册 / 登录" as UC_Auth
+  usecase "发帖 / 评论 / 点赞" as UC_Post
+  usecase "举报违规内容" as UC_Report
+  usecase "上传社区图片" as UC_Upload
+  usecase "配置并测试个人 AI" as UC_UserAI
+  usecase "管理内置 AI 配置" as UC_SiteAI
+  usecase "审核社区内容与举报" as UC_Moderate
+  usecase "维护首页与图鉴配图" as UC_Asset
+  usecase "查看操作审计日志" as UC_Audit
+}
+
+Guest --> UC_Browse
+Guest --> UC_Video
+Guest --> UC_Chat
+Guest --> UC_Recipe
+Guest --> UC_Recommend
+Guest --> UC_Auth
+
+User --> UC_Post
+User --> UC_Report
+User --> UC_Upload
+User --> UC_UserAI
+
+Admin --> UC_SiteAI
+Admin --> UC_Moderate
+Admin --> UC_Asset
+Admin --> UC_Audit
+
+note right of UC_Chat
+  游客使用 AI 功能的前提：
+  site_ai.enabled = 1 且存在
+  已验证并启用的内置配置
+  （server/site-ai.mjs isSiteAIUsable）
+end note
+
+@enduml
