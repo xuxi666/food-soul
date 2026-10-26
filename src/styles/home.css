@@ -585,3 +585,32 @@
 .hero__title { font-size: clamp(21px, 2.9vw, 34px); }
 .hero__sub { margin-top: 8px; }
 }
+
+/* ============================================================
+   美食图鉴左侧筛选栏：字号、间距与纵向空间利用
+   仅作用于 .board--flat（图鉴页），不影响首页三栏布局与移动端横向滚动
+   ============================================================ */
+@media (min-width: 901px) {
+  .board--flat .board__chips {
+    gap: clamp(5px, 0.9vh, 12px);
+  }
+
+  .board--flat .chip-tab {
+    align-items: center;
+    min-height: clamp(40px, 5.2vh, 48px);
+    padding: clamp(9px, 1.05vh, 14px) 12px;
+    font-size: clamp(15px, 0.42vw + 10.2px, 16.5px);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+
+  .board--flat .chip-tab em {
+    font-size: clamp(10px, 0.16vw + 8.7px, 11px);
+    letter-spacing: 0.14em;
+  }
+
+  /* 选中项文字略重，配合原有左侧色条与底色 */
+  .board--flat .chip-tab.is-on {
+    font-weight: 600;
+  }
+}
