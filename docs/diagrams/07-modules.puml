@@ -1,0 +1,66 @@
+@startuml
+' 食有灵 FOOD SOUL —— 后端模块依赖（组件图，黑白）
+' 依据：server/*.mjs 的实际 import 关系
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam defaultFontName "Microsoft YaHei"
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam nodesep 20
+skinparam ranksep 34
+
+left to right direction
+title 后端模块依赖（server/*.mjs）
+
+package "请求入口" {
+  [index.mjs\n静态托管 / SPA 回退] as M_INDEX
+  [api.mjs\n路由分发 · 同源 · 限流] as M_API
+  [admin-routes.mjs\nrequireAdmin 守卫] as M_ADMIN
+  [auth.mjs\n会话与角色] as M_AUTH
+}
+
+package "业务模块" {
+  [site-ai.mjs\nresolveAIConfig()] as M_SITE
+  [ai-adapter.mjs\nchatStream / complete] as M_ADAPTER
+  [prompt.mjs\n人格 / 菜谱提示词] as M_PROMPT
+  [ai-config.mjs\n个人配置存取] as M_CFG
+  [recipe-lookup.mjs\nlookupDish()] as M_LOOKUP
+  [web-search.mjs\nwebSearchMany()] as M_SEARCH
+  [recipe-schema.mjs\nzod 校验] as M_SCHEMA
+  [dish-search.mjs / videos.mjs] as M_MISC
+}
+
+package "内容与基础" {
+  [community.mjs\n帖子 / 举报 / 图片] as M_COMM
+  [store.mjs\n菜品评论] as M_STORE
+  database "db.mjs\nnode:sqlite" as M_DB
+  [security.mjs\nscrypt / AES-GCM] as M_SEC
+  [rate-limit.mjs] as M_RL
+}
+
+package "外部服务" {
+  [模型 API（OpenAI 兼容）] as X_LLM
+  [SearXNG / Bing RSS] as X_SEARCH
+}
+
+M_INDEX --> M_API
+M_API --> M_SITE
+M_API --> M_ADAPTER
+M_API --> M_COMM
+M_ADMIN --> M_SITE
+M_ADMIN --> M_CFG
+M_SITE --> M_DB
+M_CFG --> M_DB
+M_CFG --> M_SEC
+M_API --> M_LOOKUP
+M_ADAPTER --> X_LLM : HTTPS
+M_SEARCH --> X_SEARCH : HTTP
+M_STORE --> M_DB
+M_API --> M_RL
+@enduml

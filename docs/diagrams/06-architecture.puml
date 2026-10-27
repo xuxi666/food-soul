@@ -1,0 +1,64 @@
+@startuml
+' 食有灵 FOOD SOUL —— 系统总体架构（组件图，黑白）
+' 依据：server/index.mjs（Nginx→Node:5190）、server/api.mjs（同源校验/限流）、
+'       server/site-ai.mjs（模型路由）、server/ai-adapter.mjs（协议适配）、
+'       server/db.mjs（SQLite WAL 9 表）、server/web-search.mjs（SearXNG + Bing RSS）
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam defaultFontName "Microsoft YaHei"
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam nodesep 22
+skinparam ranksep 38
+
+title 食有灵 FOOD SOUL 系统总体架构
+
+package "客户端（原生 JS 单页应用）" {
+  [路由与转场\nrouter.js] as FE_ROUTER
+  [11 个视图\nsrc/views/*.js] as FE_VIEWS
+  [3D 环形画廊\nThree.js r160] as FE_GALLERY
+  [API 封装 + SSE\nlib/api.js] as FE_API
+  [构建产物 dist/\nVite 5] as FE_DIST
+}
+
+package "接入层" {
+  [Nginx :80\n反向代理] as ACC_NGINX
+  [node:http :5190\n静态托管 + SPA 回退] as ACC_NODE
+  [同源校验 sameOrigin] as ACC_ORIGIN
+  [限流 rate-limit] as ACC_RL
+}
+
+package "业务层（server/*.mjs）" {
+  [AI 路由\nresolveAIConfig()] as BIZ_ROUTE
+  [模型适配\nchatStream()] as BIZ_ADAPTER
+  [菜谱与检索\nlookupDish / webSearchMany] as BIZ_RECIPE
+  [社区与评论\ncommunity / store] as BIZ_COMMUNITY
+  [管理接口\nrequireAdmin()] as BIZ_ADMIN
+}
+
+package "数据层" {
+  database "SQLite（WAL）\n9 张表" as DB_SQLITE
+  folder "JSON 文件\n帖子 / 评论 / 上传图" as DB_FILES
+}
+
+package "外部服务" {
+  [模型 API\n/chat/completions] as EXT_LLM
+  [SearXNG :8080 / Bing RSS] as EXT_SEARCH
+}
+
+FE_API --> ACC_NGINX : HTTPS
+ACC_NGINX --> ACC_NODE
+ACC_NODE --> ACC_ORIGIN
+ACC_NODE --> ACC_RL
+ACC_ORIGIN --> BIZ_ROUTE
+BIZ_ROUTE --> BIZ_ADAPTER
+BIZ_ROUTE --> DB_SQLITE
+BIZ_ADAPTER --> EXT_LLM : HTTPS（密钥仅服务端）
+BIZ_RECIPE --> EXT_SEARCH : HTTP
+@enduml

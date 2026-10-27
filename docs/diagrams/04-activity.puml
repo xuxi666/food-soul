@@ -28,9 +28,8 @@ skinparam activity {
 title 结构化菜谱生成（图鉴优先 → 联网检索 → 模型知识）
 
 start
-:用户填写菜名、人数、难度、可用食材;
-:前端 POST /api/recipe/lookup\n（不调用模型，游客可用，30 次/分钟限流）;
-:lookupDish 按菜名与别名匹配图鉴;
+:用户填写菜名、人数、难度、可用食材\n前端 POST /api/recipe/lookup（不调模型，游客可用）;
+:按菜名与别名匹配图鉴;
 
 if (图鉴命中？) then (是)
   :dataSource = library;
@@ -55,8 +54,7 @@ if (配置可用？) then (否)
   stop
 endif
 
-:拼装 system 提示词\n（图鉴档案或检索资料注入）;
-:chatStream 调用模型（120 秒超时）;
+:拼装提示词（档案或检索资料注入）\n调用模型，120 秒超时;
 if (调用成功？) then (否)
   :SSE / JSON 返回可读错误;
   stop

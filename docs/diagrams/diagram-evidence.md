@@ -124,3 +124,14 @@ java -jar plantuml.jar -tsvg -tpng -charset UTF-8 docs/diagrams/*.puml
 ```
 
 所有图使用 `skinparam monochrome true`，实测 SVG 中不存在任何非灰度色值（R=G=B）。
+
+---
+
+## 六、补充：架构图与模块依赖图（黑白版，替换文档中的彩色版）
+
+| 文件 | 内容 | 依据 |
+|---|---|---|
+| `06-architecture.puml` | 五层组件图：客户端 / 接入层 / 业务层 / 数据层 / 外部服务 | `server/index.mjs`（Nginx:80 → Node:5190）、`api.mjs`（sameOrigin、rate-limit）、`site-ai.mjs`（模型路由）、`ai-adapter.mjs`（协议适配）、`db.mjs`（SQLite WAL）、`web-search.mjs`（SearXNG + Bing RSS） |
+| `07-modules.puml` | 后端模块依赖（请求入口 / 业务模块 / 内容与基础 / 外部服务） | `server/*.mjs` 的实际 import 关系 |
+
+这两张图与 01–05 使用同一套 `skinparam monochrome`，SVG/PNG 均为灰度，无彩色。
