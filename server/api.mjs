@@ -5,6 +5,7 @@ import { PERSONALITY_BY_ID } from '../src/data/personalities.js';
 import { TASTE_BY_ID, CUISINE_BY_ID, TASTES } from '../src/data/cuisines.js';
 import { buildDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildRecommendPrompt, buildSuggestionPrompt } from './prompt.mjs';
 import { validateRecipe } from './recipe-schema.mjs';
+import { getRecipeImage } from './recipe-image.mjs';
 import { demoGreeting, demoCategoryGreeting } from './demo.mjs';
 import { listComments, addComment, toggleLike, reportComment, deleteComment, commentCountByDish } from './store.mjs';
 import { listPosts, addPost, toggleLike as togglePostLike, addComment as addPostComment, reportPost, removePost, saveImage, postStats, findPost, aiReplyStats, KINDS } from './community.mjs';
@@ -649,6 +650,9 @@ async function handleRecipe(req, res) {
     }
   }
 
+  // 图鉴未收录：与模型调用并行去公开图片检索找一张配图，失败不影响菜谱
+  const imageTask = dish ? null : getRecipeImage(input.dishName, { budget: 7000 });
+
   const searchSources = !knowledgeOnly && lookup?.status === 'ok' ? lookup.sources : [];
   const isAiSearch = !knowledgeOnly && Boolean(lookup);
   const system = buildRecipePrompt(input, dish, searchSources, {
@@ -728,6 +732,8 @@ async function handleRecipe(req, res) {
           valid: true,
           issues: [],
           recipe: check.recipe,
+          // 图鉴已收录时前端用站内图，这里只给未收录菜品补图
+          image: imageTask ? await imageTask : null,
         });
       }
       console.warn(

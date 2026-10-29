@@ -1131,8 +1131,11 @@
   background: linear-gradient(160deg, rgba(216, 178, 106, 0.16), rgba(216, 178, 106, 0.03));
   border: 1px solid var(--line-soft);
   color: var(--gold);
-  font-size: 18px;
-  letter-spacing: 0.18em;
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 0 4px;
 }
 
 .verify-banner {

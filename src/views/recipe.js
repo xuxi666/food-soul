@@ -157,6 +157,31 @@ function sourcesBlock(meta) {
   );
 }
 
+/* 结果卡片左上角的缩略图：图鉴菜品用站内图，未收录菜品用检索到的真实图，都没有则显示菜名占位 */
+function thumbPlaceholder(name) {
+  const label = String(name || '').trim().slice(0, 3) || '菜谱';
+  return h('div', { class: 'recipe-head__thumb recipe-head__thumb--ph', 'aria-hidden': 'true', text: label });
+}
+
+function thumbFor(dish, dishName, image) {
+  if (dish && dish.image) {
+    return h('img', { class: 'recipe-head__thumb', src: dish.image, alt: dish.alt || dish.name, loading: 'lazy' });
+  }
+  if (image && image.url) {
+    const img = h('img', {
+      class: 'recipe-head__thumb',
+      src: image.url,
+      alt: `${dishName} 的成品图`,
+      loading: 'lazy',
+      title: image.source ? `图片来源：${image.source}` : '',
+    });
+    // 链接失效时不显示破图，直接换成菜名占位
+    img.addEventListener('error', () => img.replaceWith(thumbPlaceholder(dishName)), { once: true });
+    return img;
+  }
+  return thumbPlaceholder(dishName);
+}
+
 export default {
   async mount(root) {
     const search = new URLSearchParams(location.search);
@@ -426,9 +451,7 @@ export default {
         'article',
         { class: 'recipe-card' },
         h('div', { class: 'recipe-head' },
-          dish
-            ? h('img', { class: 'recipe-head__thumb', src: dish.image, alt: dish.alt || dish.name })
-            : h('div', { class: 'recipe-head__thumb recipe-head__thumb--ph', 'aria-hidden': 'true', text: 'AI' }),
+          thumbFor(dish, recipe.dish_name, meta.image),
           h('div', { class: 'recipe-head__main' },
             h('div', { class: 'recipe-head__title' },
               h('h2', { text: recipe.dish_name }),

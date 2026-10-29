@@ -17,3 +17,4 @@ shots
 *.log
 *.bak
 .DS_Store
+public/dishes/recipe
