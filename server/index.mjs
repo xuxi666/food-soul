@@ -40,8 +40,10 @@ function handleStatic(req, res) {
     return res.end('Bad Request');
   }
 
-  // 用户上传图片：生产环境也要能访问（dist 不包含 uploads）
-  if (decoded.startsWith('/uploads/')) {
+  // 运行时写入 public/ 的资源：上传图、AI 补全菜品图、菜谱配图
+  // 这些目录在构建之后才会产生文件，dist 里没有，必须直接读 public/
+  const RUNTIME_PREFIXES = ['/uploads/', '/dishes/'];
+  if (RUNTIME_PREFIXES.some((p) => decoded.startsWith(p))) {
     const up = path.resolve(publicDir, '.' + decoded);
     if (up !== publicDir && !up.startsWith(publicDir + path.sep)) {
       res.statusCode = 403;
