@@ -1,0 +1,65 @@
+@startuml
+' 食有灵 FOOD SOUL —— 用例图：AI 配置与权限（4.6 配置与权限）
+' 依据：server/auth.mjs requireUser():95 / requireAdmin():105
+'       server/ai-config.mjs（个人配置保存与测试）
+'       server/site-ai.mjs enableSiteProfile():418 / removeSiteProfile():451
+'       server/admin-routes.mjs:385-490（/api/admin/site-ai/*）
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam defaultFontName "Microsoft YaHei"
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam actor {
+  BackgroundColor White
+  BorderColor Black
+}
+left to right direction
+
+title AI 配置与权限用例
+
+actor "游客" as Guest
+actor "登录用户" as User
+actor "管理员" as Admin
+
+Guest <|-- User
+User <|-- Admin
+
+rectangle "食有灵 · AI 配置与使用" {
+  usecase "使用内置 AI\n（对话 / 菜谱 / 推荐）" as UC_USE_SITE
+  usecase "使用个人 AI" as UC_USE_OWN
+  usecase "配置个人模型" as UC_CFG_OWN
+  usecase "测试个人连接" as UC_TEST_OWN
+  usecase "开关全站 AI" as UC_MASTER
+  usecase "新增 / 编辑内置配置" as UC_CFG_SITE
+  usecase "测试内置连接" as UC_TEST_SITE
+  usecase "启用 / 停用配置" as UC_ENABLE
+  usecase "处理举报与内容审核" as UC_MOD
+}
+
+Guest --> UC_USE_SITE
+User --> UC_USE_OWN
+User --> UC_CFG_OWN
+UC_CFG_OWN ..> UC_TEST_OWN : <<include>>
+
+Admin --> UC_MASTER
+Admin --> UC_CFG_SITE
+Admin --> UC_ENABLE
+Admin --> UC_MOD
+
+UC_ENABLE ..> UC_TEST_SITE : <<include>>
+
+legend bottom
+  前置条件：总开关打开且存在“已验证并启用”的内置配置时，游客与登录用户都用内置 AI；
+  总开关关闭后，只有登录用户可用自己配置的模型，游客不可用。
+  启用配置前系统会再真实测一次连接，未通过则清空 verified_at，不允许启用。
+endlegend
+@enduml

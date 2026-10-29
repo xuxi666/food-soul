@@ -1,0 +1,63 @@
+@startuml
+' 食有灵 FOOD SOUL —— 图：AI 配置的裁决顺序（4.6 配置与权限）
+' 依据：server/site-ai.mjs resolveAIConfig():177、server/api.mjs resolveAIForRequest():132
+skinparam monochrome true
+skinparam shadowing false
+skinparam NoteBackgroundColor White
+skinparam NoteBorderColor Black
+skinparam DefaultFontColor Black
+skinparam ArrowFontColor Black
+skinparam ArrowFontName "Microsoft YaHei"
+skinparam ArrowFontSize 12
+skinparam defaultFontName "Microsoft YaHei"
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+  DiamondBackgroundColor White
+  DiamondBorderColor Black
+}
+
+title 一次 AI 请求的配置裁决顺序
+
+start
+:请求进入（聊天 / 菜谱 / 推荐 / 社区 AI 回复）;
+if (游客？) then (是)
+  :按 IP 限流 20 次/分钟;
+  if (超限？) then (是)
+    :429 rate_limited;
+    stop
+  endif
+endif
+
+:读总开关 site_ai.enabled;
+if (总开关打开？) then (是)
+  if (存在已启用配置\n且已验证、密钥可解密？) then (是)
+    :使用内置配置\nsource = site\n（游客同样可用）;
+    stop
+  else (否)
+    :409 ai_config_unavailable\n（提示联系管理员）;
+    stop
+  endif
+else (否)
+  if (已登录？) then (是)
+    if (个人配置可用？) then (是)
+      :使用个人配置\nsource = user;
+      stop
+    else (否)
+      :409 ai_disabled（未配置）\n409 ai_config_error（密钥异常）;
+      stop
+    endif
+  else (否)
+    :409 ai_disabled\n（提示登录后可接入自己的模型）;
+    stop
+  endif
+endif
+
+legend bottom
+  两条硬规则
+  1. 总开关打开时，一律使用内置配置，不会回落到个人配置；
+  2. 只有总开关关闭，才读登录用户自己的配置；此时游客不可用。
+  3. 内置配置必须同时满足：enabled = 1、verified_at 非空、last_status = 'ok'、服务端加密密钥就绪。
+endlegend
+@enduml
