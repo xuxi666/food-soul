@@ -196,9 +196,9 @@ check('游客：流式输出正常', /"delta"|delta/.test(chatText) || chatText.
 const recipe = await req('/api/recipe', { method: 'POST', body: { dishName: '番茄炒蛋', servings: 2, difficulty: 'easy' }, ...guest });
 check('游客：可生成菜谱', recipe.status === 200 && Boolean(recipe.data?.recipe), `HTTP ${recipe.status} ${recipe.data?.message || ''}`);
 
-// 推荐
-const recommend = await req('/api/recommend', { method: 'POST', body: { taste: '麻辣鲜香', servings: 2, budget: 60, avoid: [] }, ...guest });
-check('游客：可使用智能推荐', recommend.status === 200 && Array.isArray(recommend.data?.picks), `HTTP ${recommend.status}`);
+// Epicure 厨房（原智能推荐已下线，入口统一为 /kitchen）
+const kitchen = await req('/api/epicure/ingredients', { method: 'GET' }, guest);
+check('游客：可加载 Epicure 食材库', kitchen.status === 200 && Array.isArray(kitchen.data?.items), `HTTP ${kitchen.status}`);
 
 // 社区只读
 const posts = await req('/api/posts?page=1', guest);
@@ -251,8 +251,8 @@ check('关闭后：游客聊天被拒（ai_disabled）', chatOff.status === 409 
 const recipeOff = await req('/api/recipe', { method: 'POST', body: { dishName: '番茄炒蛋' }, ...guest });
 check('关闭后：游客生成菜谱被拒', recipeOff.status === 409 && recipeOff.data?.code === 'ai_disabled', `HTTP ${recipeOff.status}`);
 
-const recOff = await req('/api/recommend', { method: 'POST', body: { taste: '麻辣鲜香' }, ...guest });
-check('关闭后：游客推荐被拒', recOff.status === 409 && recOff.data?.code === 'ai_disabled', `HTTP ${recOff.status}`);
+const legacyRec = await req('/api/recommend', { method: 'POST', body: { taste: '麻辣鲜香' }, ...guest });
+check('旧推荐接口已下线', legacyRec.status === 404, `HTTP ${legacyRec.status}`);
 
 const greetOff = await req('/api/greeting?dishId=mapo-tofu', guest);
 check('关闭后：欢迎语标记 AI 不可用', greetOff.data?.aiConfigured === false && /暂未开启/.test(greetOff.data?.aiMessage || ''),

@@ -814,6 +814,65 @@ export default {
       const publishBtn = h('button', { class: 'btn btn--solid btn--sm', type: 'button' }, '发布');
       const cancelBtn = h('button', { class: 'btn btn--sm', type: 'button' }, '取消');
 
+      /* 成品图：可选上传，服务端落盘后只存路径 */
+      let uploadedUrl = '';
+      const fileIn = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif', style: 'display:none' });
+      const thumb = h('img', { class: 'ek-thumb', alt: '成品图预览' });
+      const thumbWrap = h('div', { class: 'ek-thumbwrap', hidden: true }, thumb);
+      const pickBtn = h('button', { class: 'ek-tool', type: 'button' }, '上传图片');
+      const clearBtn = h('button', { class: 'ek-tool', type: 'button', hidden: true }, '移除');
+      const imgStatus = h('span', { class: 'ek-hint', text: '可选，支持 JPG / PNG / WebP，≤3MB' });
+
+      pickBtn.addEventListener('click', () => fileIn.click());
+      clearBtn.addEventListener('click', () => {
+        uploadedUrl = '';
+        fileIn.value = '';
+        thumbWrap.hidden = true;
+        clearBtn.hidden = true;
+        pickBtn.textContent = '上传图片';
+        imgStatus.textContent = '可选，支持 JPG / PNG / WebP，≤3MB';
+      });
+
+      fileIn.addEventListener('change', async () => {
+        const file = fileIn.files?.[0];
+        if (!file) return;
+        if (file.size > 3 * 1024 * 1024) {
+          imgStatus.textContent = '图片超过 3MB，请压缩后再传';
+          return;
+        }
+        pickBtn.disabled = true;
+        imgStatus.textContent = '上传中…';
+        try {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(String(fr.result));
+            fr.onerror = reject;
+            fr.readAsDataURL(file);
+          });
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl }),
+          });
+          const out = await res.json();
+          if (res.status === 401) {
+            imgStatus.textContent = '请先登录后再上传图片';
+            return;
+          }
+          if (!res.ok || !out.ok) throw new Error(out.error || '上传失败');
+          uploadedUrl = out.url || '';
+          thumb.src = uploadedUrl;
+          thumbWrap.hidden = false;
+          clearBtn.hidden = false;
+          pickBtn.textContent = '更换图片';
+          imgStatus.textContent = '图片已上传，发布时一并提交';
+        } catch (err) {
+          imgStatus.textContent = String(err.message || err).slice(0, 30);
+        } finally {
+          pickBtn.disabled = false;
+        }
+      });
+
       const modal = h(
         'div',
         { class: 'ek-modal', role: 'dialog', 'aria-modal': 'true' },
@@ -824,6 +883,13 @@ export default {
           tip,
           h('div', { class: 'ek-field' }, h('span', { class: 'ek-label', text: '菜名' }), titleIn),
           h('div', { class: 'ek-field' }, h('span', { class: 'ek-label', text: '简介' }), introIn),
+          h(
+            'div',
+            { class: 'ek-field' },
+            h('span', { class: 'ek-label', text: '成品图' }),
+            h('div', { class: 'ek-imgrow' }, pickBtn, clearBtn, fileIn, imgStatus),
+            thumbWrap
+          ),
           h('div', { class: 'ek-field' }, h('span', { class: 'ek-label', text: '口味标签' }), tasteIn),
           h('div', { class: 'ek-field' }, h('span', { class: 'ek-label', text: '食材（每行一个：名称 用量）' }), ingIn),
           h('div', { class: 'ek-field' }, h('span', { class: 'ek-label', text: '步骤（每行一步）' }), stepIn),
@@ -866,6 +932,7 @@ export default {
             body: JSON.stringify({
               content: `${introIn.value.trim() || title}\n\n（Epicure 厨房生成，食材与步骤见下方菜谱）`.slice(0, 800),
               kind: '菜谱分享',
+              images: uploadedUrl ? [uploadedUrl] : [],
               recipe: {
                 title,
                 intro: introIn.value.trim(),

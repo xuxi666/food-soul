@@ -211,34 +211,6 @@ export function buildRecipePrompt(input, dish, sources = [], opts = {}) {
   ].join('\n');
 }
 
-export function buildRecommendPrompt(input, candidates) {
-  const list = candidates
-    .map(
-      (d) =>
-        `- id:${d.id}｜${d.name}（${CUISINE_BY_ID[d.cuisine]?.name}）｜味型:${d.tastes
-          .map((t) => TASTE_BY_ID[t]?.name)
-          .join('/')}｜${d.oneLiner}｜约${d.prep + d.cook}分钟｜${d.price}元/人`
-    )
-    .join('\n');
-
-  return [
-    `你是中国美食推荐助手。下面是系统中真实存在的候选菜品（只能从中选择，不得虚构 id）：`,
-    list,
-    ``,
-    `用户条件：`,
-    `- 想吃的口味：${input.taste || '不限'}`,
-    `- 人均预算：${input.budget ? input.budget + ' 元' : '不限'}`,
-    `- 用餐人数：${input.people || 2}`,
-    `- 可用食材：${input.ingredients || '不限'}`,
-    `- 可用时间：${input.minutes ? input.minutes + ' 分钟' : '不限'}`,
-    `- 烹饪难度：${input.difficulty || '不限'}`,
-    `- 忌口/限制：${input.avoid || '无'}`,
-    ``,
-    `从候选中选 3 道最合适的菜。只输出 JSON：`,
-    `{"picks":[{"id":"菜品id","reason":"40-70字推荐理由，具体、口语化、提到口味或做法"}]}`,
-    `不要输出解释文字，不要 markdown 围栏。`,
-  ].join('\n');
-}
 
 /**
  * 对话延伸建议提示词。

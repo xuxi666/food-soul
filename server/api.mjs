@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { DISHES } from '../src/data/dishes.js';
 import { PERSONALITY_BY_ID } from '../src/data/personalities.js';
 import { TASTE_BY_ID, CUISINE_BY_ID, TASTES } from '../src/data/cuisines.js';
-import { buildDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildRecommendPrompt, buildSuggestionPrompt } from './prompt.mjs';
+import { buildDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildSuggestionPrompt } from './prompt.mjs';
 import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
@@ -1021,158 +1021,7 @@ async function handleRecipe(req, res) {
 
 const DIFF_RANK = { easy: 1, medium: 2, hard: 3 };
 
-function filterCandidates(input) {
-  const relaxed = [];
-  let pool = DISHES.slice();
 
-  const avoid = String(input.avoid || '');
-  if (/辣/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('spicy'));
-  if (/海鲜|水产/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('seafood') && !d.tags.includes('fish'));
-  if (/猪肉/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('pork'));
-  if (/牛肉/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('beef'));
-  if (/蛋/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('egg'));
-  if (/坚果/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('nuts'));
-  if (/酒/.test(avoid)) pool = pool.filter((d) => !d.tags.includes('alcohol'));
-  if (/素|斋/.test(avoid)) {
-    pool = pool.filter(
-      (d) => !d.tags.some((t) => ['fish', 'seafood', 'pork', 'beef', 'poultry', 'egg'].includes(t))
-    );
-  }
-
-  if (input.taste && TASTE_BY_ID[input.taste]) {
-    const byTaste = pool.filter((d) => d.tastes.includes(input.taste));
-    if (byTaste.length >= 3) pool = byTaste;
-    else relaxed.push('taste');
-  }
-
-  if (input.difficulty && DIFF_RANK[input.difficulty]) {
-    const max = DIFF_RANK[input.difficulty];
-    const byDiff = pool.filter((d) => DIFF_RANK[d.difficulty] <= max);
-    if (byDiff.length >= 3) pool = byDiff;
-    else relaxed.push('difficulty');
-  }
-
-  if (input.minutes) {
-    const byTime = pool.filter((d) => d.prep + d.cook <= input.minutes);
-    if (byTime.length >= 3) pool = byTime;
-    else relaxed.push('minutes');
-  }
-
-  if (input.budget) {
-    const byBudget = pool.filter((d) => d.price <= input.budget);
-    if (byBudget.length >= 3) pool = byBudget;
-    else relaxed.push('budget');
-  }
-
-  if (input.ingredients) {
-    const words = String(input.ingredients)
-      .split(/[，,、\s]+/)
-      .filter((w) => w.length >= 1);
-    if (words.length) {
-      const scored = pool.map((d) => ({
-        dish: d,
-        score: words.reduce((acc, w) => acc + (d.ingredients.some((i) => i.includes(w) || w.includes(i)) ? 1 : 0), 0),
-      }));
-      const hit = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
-      if (hit.length >= 3) pool = hit.map((s) => s.dish);
-      else relaxed.push('ingredients');
-    }
-  }
-
-  return { pool, relaxed };
-}
-
-async function handleRecommend(req, res) {
-  if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const ctx = resolveAIForRequest(req, res, 'recommend');
-  if (!ctx) return;
-  const { user, ai } = ctx;
-
-  const body = await readJson(req);
-  const input = {
-    taste: body.taste || '',
-    budget: Number(body.budget) || 0,
-    people: Math.min(12, Math.max(1, Number(body.people) || 2)),
-    ingredients: String(body.ingredients || '').slice(0, 120),
-    minutes: Number(body.minutes) || 0,
-    difficulty: body.difficulty || '',
-    avoid: String(body.avoid || '').slice(0, 80),
-  };
-
-  const { pool, relaxed } = filterCandidates(input);
-  const base = pool.length ? pool : DISHES;
-  const offset = Math.abs(Number(body.offset) || 0) % Math.max(1, base.length);
-  const rotated = base.slice(offset).concat(base.slice(0, offset));
-  const candidates = rotated.slice(0, 8);
-
-  let picks = [];
-  try {
-    const raw = await complete({
-      baseUrl: ai.config.baseUrl,
-      apiKey: ai.config.apiKey,
-      model: ai.config.model,
-      system: buildRecommendPrompt(input, candidates),
-      messages: [{ role: 'user', content: '请给出推荐 JSON。' }],
-      temperature: 0.7,
-      maxTokens: 800,
-      timeout: 45000,
-    });
-    const parsed = extractJSON(raw);
-    if (parsed?.picks?.length) {
-      const valid = parsed.picks
-        .map((p) => ({ dish: candidates.find((c) => c.id === p.id), reason: String(p.reason || '').slice(0, 160) }))
-        .filter((p) => p.dish);
-      if (valid.length) picks = valid.slice(0, 3);
-    }
-  } catch (err) {
-    noteAIStatus(user, err?.code || 'network', err?.message || String(err));
-    return send(res, 503, { error: '模型暂时不可用，请稍后重试', code: 'ai_failed' });
-  }
-
-  if (!picks.length) {
-    return send(res, 200, { source: 'ai', demo: false, relaxed, picks: [], message: '模型没有给出可用推荐，请重试。' });
-  }
-
-  // Epicure 辅助评分：只在有真实食材映射时计算，失败不影响推荐结果
-  let epicureScores = [];
-  try {
-    epicureScores = await Promise.race([
-      scoreDishes(picks.map((p) => p.dish), { userIngredient: input.ingredients.split(/[、,，\s]+/)[0] || '' }),
-      new Promise((r) => setTimeout(() => r([]), 6000)),
-    ]);
-  } catch {
-    epicureScores = [];
-  }
-  const scoreOf = (id) => epicureScores.find((x) => x.id === id && x.ok) || null;
-  const anyPairing = epicureScores.some((x) => x.ok && x.basis === 'pairing');
-  if (anyPairing) {
-    // 只按搭配分做同档微调，不推翻用户已设定的筛选
-    picks = picks
-      .map((p, i) => ({ p, i, s: scoreOf(p.dish.id)?.score ?? -1 }))
-      .sort((a, b) => (b.s - a.s) || (a.i - b.i))
-      .map((x) => x.p);
-  }
-
-  noteAIStatus(user, 'ok', null);
-  send(res, 200, {
-    source: 'ai',
-    demo: false,
-    relaxed,
-    epicure: anyPairing ? { used: true, basis: 'pairing' } : { used: epicureScores.some((x) => x.ok), basis: 'neighbors' },
-    picks: picks.map((p) => ({
-      id: p.dish.id,
-      name: p.dish.name,
-      cuisine: p.dish.cuisine,
-      tastes: p.dish.tastes,
-      image: p.dish.image,
-      reason: p.reason,
-      epicure: scoreOf(p.dish.id),
-      minutes: p.dish.prep + p.dish.cook,
-      difficulty: p.dish.difficulty,
-      price: p.dish.price,
-    })),
-  });
-}
 
 /* ------------------------------------------------------------------ *
  * 评论
@@ -1569,7 +1418,6 @@ export async function handleApi(req, res) {
     if (req.method === 'POST' && path === '/api/suggest') return await handleSuggest(req, res);
     if (req.method === 'POST' && path === '/api/recipe/lookup') return await handleRecipeLookup(req, res);
     if (req.method === 'POST' && path === '/api/recipe') return await handleRecipe(req, res);
-    if (req.method === 'POST' && path === '/api/recommend') return await handleRecommend(req, res);
 
     /* ---------------- Epicure 厨房 ---------------- */
     if (req.method === 'GET' && path === '/api/epicure/status') {

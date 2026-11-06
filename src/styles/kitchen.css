@@ -1079,3 +1079,47 @@
     flex-wrap: wrap;
   }
 }
+
+/* 分享弹窗里的成品图 */
+.ek-imgrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ek-thumbwrap {
+  margin-top: 8px;
+}
+
+.ek-thumb {
+  display: block;
+  width: 132px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+}
+
+/* 分享弹窗里的成品图 */
+.ek-imgrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ek-thumbwrap {
+  margin-top: 8px;
+}
+
+.ek-thumb {
+  display: block;
+  width: 132px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+}
