@@ -99,7 +99,8 @@ export function resolveDisplay(name) {
   const mcp = loadMcpMap().get(key);
   if (mcp) return { name: raw, display: mcp, translated: true, source: 'mcp-map' };
 
-  return { name: raw, display: prettify(raw), translated: false, source: 'raw' };
+  // 兜底：界面上不出现英文，统一显示「未收录」，原文放到 original 供 tooltip 使用
+  return { name: raw, display: '未收录', translated: false, source: 'raw', original: prettify(raw) };
 }
 
 /** 只取显示名 */

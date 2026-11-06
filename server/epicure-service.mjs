@@ -155,6 +155,7 @@ export async function neighborsOf(entry, topK = 8) {
         epicure: n.name, // 原始名，传给 Epicure 的参数不变
         cn: shown.display,
         display: shown.display,
+        original: shown.original || null,
         nameSource: shown.source,
         cat: known?.cat || null,
         known: shown.translated,

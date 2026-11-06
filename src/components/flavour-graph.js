@@ -278,8 +278,10 @@ function createGraph(host) {
 
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
       const sim = n.level === 0 ? '当前中心' : `相似度 ${Number(n.sim).toFixed(3)}`;
-      const untranslated = n.translated === false ? ' · 暂无中文名' : '';
-      title.textContent = `${n.cn} · ${CAT_LABEL[n.cat] || n.foodGroup || '食材'} · ${sim}${untranslated}`;
+      title.textContent =
+        n.translated === false
+          ? `${n.original || n.epicure} · 未收录中文名`
+          : `${n.cn} · ${CAT_LABEL[n.cat] || n.foodGroup || '食材'} · ${sim}`;
       g.append(title);
 
       nodeLayer.append(g);

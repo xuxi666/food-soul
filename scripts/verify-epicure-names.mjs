@@ -50,7 +50,8 @@ for (const [name, expect] of [
 console.log('\n【3】未知名不瞎翻');
 const unknown = resolveDisplay('totally_unknown_xyz');
 check('标记为未翻译', unknown.translated === false, unknown.display);
-check('不做中文猜测', !/[\u4e00-\u9fa5]/.test(unknown.display), unknown.display);
+check('界面占位为中文「未收录」', unknown.display === '未收录', unknown.display);
+check('原文保留在 original 供提示使用', Boolean(unknown.original), unknown.original || '无');
 
 console.log('\n【4】原始名不被改写');
 const ing = resolveIngredient('yu_choy');
@@ -80,6 +81,13 @@ check(
   totalUntranslated / totalNodes < 0.15,
   `未翻译 ${totalUntranslated} 个`
 );
+
+console.log('\n【6】节点标签不出现非中文');
+for (const seed of ['egg', 'tofu', 'shrimp']) {
+  const net = await buildNetwork([seed], { topK: 8, depth: 2, expand: 2 });
+  const latin = net.nodes.filter((n) => /[a-z]/i.test(n.cn || ''));
+  check(`${seed} 的 ${net.nodes.length} 个标签均为中文`, latin.length === 0, latin.map((n) => n.cn).join(',') || '');
+}
 
 console.log(`\n${'─'.repeat(46)}`);
 console.log(`名称解析验收：${pass} 通过 / ${fail} 失败`);
