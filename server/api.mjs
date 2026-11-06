@@ -8,6 +8,10 @@ import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
+import { resolveIngredient } from './epicure-service.mjs';
+import { buildCreativePrompt } from './epicure-prompts.mjs';
+import { validateCreative } from './epicure-recipe-schema.mjs';
+import { callTool as epicureCall } from './epicure-client.mjs';
 import { demoGreeting, demoCategoryGreeting } from './demo.mjs';
 import { listComments, addComment, toggleLike, reportComment, deleteComment, commentCountByDish } from './store.mjs';
 import { listPosts, addPost, toggleLike as togglePostLike, addComment as addPostComment, reportPost, removePost, saveImage, postStats, findPost, aiReplyStats, KINDS } from './community.mjs';
@@ -611,6 +615,169 @@ async function handleRecipeLookup(req, res) {
 
   const lookupId = rememberLookup(result, actorKey(req, user));
   return send(res, 200, { ...result, lookupId });
+}
+
+/**
+ * Epicure 创意厨房：真实风味分析 + 中国菜创作。
+ * 流程：词表映射 → Epicure 搭配/文化分析 → 拼提示词 → 模型生成 → 结构校验
+ */
+async function handleEpicureCreate(req, res) {
+  if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+  const ctx = resolveAIForRequest(req, res, 'epicure');
+  if (!ctx) return;
+  const { user, ai } = ctx;
+
+  const rl = rateLimit(req, `epicure-create:${actorKey(req, user)}`, 8, 60_000);
+  if (!rl.ok) return send(res, 429, { error: `生成过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
+
+  const body = await readJson(req);
+  const rawList = Array.isArray(body.ingredients) ? body.ingredients.slice(0, 8) : [];
+  const picked = [];
+  const unresolved = [];
+  for (const it of rawList) {
+    const entry = resolveIngredient(it.id || it.cn || it);
+    if (entry) {
+      picked.push({
+        cn: entry.cn,
+        epicure: entry.epicure,
+        amount: Number(it.amount) > 0 ? Number(it.amount) : null,
+        unit: String(it.unit || 'g').slice(0, 6),
+        role: it.role === 'aux' ? 'aux' : 'main',
+        required: Boolean(it.required),
+      });
+    } else if (it.cn || typeof it === 'string') {
+      unresolved.push(String(it.cn || it).slice(0, 20));
+    }
+  }
+
+  const input = {
+    ingredients: picked,
+    allowAdd: body.allowAdd !== false,
+    style: ['home', 'refined', 'fusion', 'regional', 'snack', 'healthy', 'random'].includes(body.style) ? body.style : 'home',
+    cuisine: String(body.cuisine || '').slice(0, 20),
+    taste: String(body.taste || '').slice(0, 20),
+    technique: String(body.technique || '').slice(0, 20),
+    scene: String(body.scene || '').slice(0, 20),
+    difficulty: ['easy', 'medium', 'hard'].includes(body.difficulty) ? body.difficulty : 'medium',
+    innovation: ['low', 'mid', 'high'].includes(body.innovation) ? body.innovation : 'mid',
+    servings: Math.min(12, Math.max(1, Number(body.servings) || 2)),
+    dishName: String(body.dishName || '').slice(0, 24),
+    extra: String(body.extra || '').slice(0, 200),
+    advanced: {
+      avoidIngredients: String(body.advanced?.avoidIngredients || '').slice(0, 60),
+      highlightFlavor: String(body.advanced?.highlightFlavor || '').slice(0, 30),
+      avoidFlavor: String(body.advanced?.avoidFlavor || '').slice(0, 30),
+      allowSubstitute: body.advanced?.allowSubstitute !== false,
+      allowAux: body.advanced?.allowAux !== false,
+      budget: String(body.advanced?.budget || '').slice(0, 10),
+      maxMinutes: Number(body.advanced?.maxMinutes) || 0,
+      maxIngredients: Number(body.advanced?.maxIngredients) || 0,
+    },
+  };
+
+  if (!picked.length && !input.allowAdd) {
+    return send(res, 400, { error: '请至少选择一种食材，或允许系统自行搭配' });
+  }
+
+  /* ---- 第一步：Epicure 真实分析 ---- */
+  const startedAt = Date.now();
+  const analysis = { used: false, pairs: [], pairingText: '', cultural: '', unresolved, calls: 0 };
+
+  if (picked.length) {
+    const pairJobs = [];
+    for (let i = 0; i < picked.length && pairJobs.length < 3; i += 1) {
+      for (let j = i + 1; j < picked.length && pairJobs.length < 3; j += 1) {
+        pairJobs.push([picked[i], picked[j]]);
+      }
+    }
+    const pairResults = await Promise.all(
+      pairJobs.map(async ([a, b]) => {
+        const r = await epicureCall('pairing_score', { ingredient_a: a.epicure, ingredient_b: b.epicure }, { timeout: 10000 });
+        analysis.calls += 1;
+        if (!r.ok || !r.data) return null;
+        const score = Number(r.data.pairing_score);
+        if (!Number.isFinite(score)) return null;
+        return { a: a.cn, b: b.cn, score, label: r.data.percentile_label || '' };
+      })
+    );
+    analysis.pairs = pairResults.filter(Boolean);
+
+    const [pairingGraph, cultural] = await Promise.all([
+      epicureCall('find_pairings', { ingredients: picked.map((p) => p.epicure) }, { timeout: 12000 }),
+      epicureCall('cultural_profile', { ingredient: picked[0].epicure }, { timeout: 10000 }),
+    ]);
+    analysis.calls += 2;
+    if (pairingGraph.ok && pairingGraph.text) analysis.pairingText = pairingGraph.text;
+    if (cultural.ok && cultural.text) analysis.cultural = cultural.text;
+    analysis.used = analysis.pairs.length > 0 || Boolean(analysis.pairingText);
+  }
+
+  /* ---- 第二步：模型生成 ---- */
+  const system = buildCreativePrompt(input, analysis);
+  const temperature = input.innovation === 'high' ? 0.95 : input.innovation === 'low' ? 0.55 : 0.75;
+  let lastIssues = [];
+  let recipe = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const raw = await complete({
+        baseUrl: ai.config.baseUrl,
+        apiKey: ai.config.apiKey,
+        model: ai.config.model,
+        system,
+        messages: [
+          {
+            role: 'user',
+            content:
+              attempt === 0
+                ? '请按上面的要求设计这道中国菜，只输出 JSON。'
+                : `上一次输出未通过校验（${lastIssues.join('; ')}）。请严格按结构重新输出纯 JSON。`,
+          },
+        ],
+        temperature: attempt === 0 ? temperature : 0.4,
+        maxTokens: 2200,
+        stream: true,
+        timeout: 90000,
+      });
+      const parsed = extractJSON(raw);
+      const check = validateCreative(parsed, input.servings);
+      if (check.ok) {
+        noteAIStatus(user, 'ok', null);
+        recipe = check.recipe;
+        break;
+      }
+      lastIssues = check.issues;
+    } catch (err) {
+      console.warn(`[epicure] 生成失败 attempt=${attempt}：${String(err.message || err).slice(0, 160)}`);
+      noteAIStatus(user, err?.code || 'network', err?.message || String(err));
+      lastIssues = [String(err.message || err).slice(0, 160)];
+    }
+  }
+
+  if (!recipe) {
+    return send(res, 200, {
+      ok: false,
+      error: '生成未通过结构校验，请重试或调整要求',
+      issues: lastIssues,
+      analysis: { used: analysis.used, pairs: analysis.pairs, unresolved },
+    });
+  }
+
+  return send(res, 200, {
+    ok: true,
+    recipe,
+    analysis: {
+      used: analysis.used,
+      pairs: analysis.pairs,
+      pairingText: analysis.pairingText ? analysis.pairingText.slice(0, 1200) : '',
+      cultural: analysis.cultural ? analysis.cultural.slice(0, 600) : '',
+      unresolved,
+      calls: analysis.calls,
+    },
+    model: ai.config.model,
+    provider: ai.config.provider,
+    ms: Date.now() - startedAt,
+  });
 }
 
 async function handleRecipe(req, res) {
@@ -1333,6 +1500,7 @@ export async function handleApi(req, res) {
       if (!net.ok) return send(res, 200, { ok: false, error: net.error, unresolved: net.unresolved || [] });
       return send(res, 200, net);
     }
+    if (req.method === 'POST' && path === '/api/epicure/create') return await handleEpicureCreate(req, res);
     if (req.method === 'POST' && path === '/api/epicure/pair') {
       if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
       const rl = rateLimit(req, `epicure-pair:${actorKey(req, getCurrentUser(req))}`, 40, 60_000);

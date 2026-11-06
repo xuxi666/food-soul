@@ -283,7 +283,7 @@ export default {
             h('p', { class: 'page-head__sub', text: 'RECIPE GENERATOR · LIBRARY FIRST, THEN REAL WEB SEARCH' })
           ),
           h('div', { class: 'page-head__spacer' }),
-          h('a', { class: 'btn btn--sm', href: '/recommend', 'data-link': '' }, '不知道做什么？')
+          h('a', { class: 'btn btn--sm', href: '/kitchen', 'data-link': '' }, '不知道做什么？')
         ),
         h('div', { class: 'tool-grid' }, form, result)
       )

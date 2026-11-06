@@ -292,14 +292,70 @@ function createGraph(host) {
 }
 
 /* ---------------- 页面 ---------------- */
+
+/* ---------------- 页面 ---------------- */
+
+const STYLES = [
+  { id: 'home', name: '家常菜', desc: '步骤少、火候宽容，工作日晚餐' },
+  { id: 'refined', name: '精致料理', desc: '讲究刀工、层次与摆盘' },
+  { id: 'fusion', name: '创意融合', desc: '中式底子，跨风味组合' },
+  { id: 'regional', name: '地方风味', desc: '贴近某个地区的家常做法' },
+  { id: 'snack', name: '休闲小食', desc: '小吃、点心、下酒菜' },
+  { id: 'healthy', name: '健康轻食', desc: '少油少盐，蒸煮炖拌为主' },
+  { id: 'random', name: '随机创作', desc: '交给 AI 自由发挥' },
+];
+
+const CUISINES = ['不限', '川菜', '粤菜', '鲁菜', '苏菜', '闽菜', '浙菜', '湘菜', '徽菜', '地方风味', '创新融合'];
+const TASTES = ['不限', '咸鲜', '麻辣', '酸辣', '甜鲜', '酱香', '清鲜', '浓香'];
+const TECHNIQUES = ['不限', '炒', '煎', '炸', '蒸', '煮', '炖', '焖', '烤', '凉拌'];
+const SCENES = ['不限', '家常', '宴客', '早餐', '夜宵', '小吃'];
+const DIFFS = [
+  { id: 'easy', name: '简单' },
+  { id: 'medium', name: '中等' },
+  { id: 'hard', name: '复杂' },
+];
+const INNOVS = [
+  { id: 'low', name: '传统改良' },
+  { id: 'mid', name: '适度创新' },
+  { id: 'high', name: '大胆创新' },
+];
+
 export default {
   async mount(root) {
     let tab = 'explore';
     let library = null;
-    const selected = [];          // [{id, cn, epicure}]
+    const selected = [];          // { id, cn, epicure, amount, unit, role, required }
     let lastNet = null;
-    let loading = false;
 
+    const form = {
+      style: 'home',
+      cuisine: '',
+      taste: '',
+      technique: '',
+      scene: '',
+      difficulty: 'medium',
+      innovation: 'mid',
+      servings: 2,
+      dishName: '',
+      extra: '',
+      allowAdd: true,
+    };
+    const advanced = {
+      avoidIngredients: '',
+      highlightFlavor: '',
+      avoidFlavor: '',
+      allowSubstitute: true,
+      allowAux: true,
+      budget: '',
+      maxMinutes: '',
+      maxIngredients: '',
+    };
+    let advOpen = false;
+    let result = null;
+    let generating = false;
+    let genError = '';
+
+    /* ---------------- 风味探索 ---------------- */
     const graphHost = h('div', { class: 'egraph' });
     const graph = createGraph(graphHost);
 
@@ -313,6 +369,7 @@ export default {
       'aria-label': '搜索食材',
     });
     const countLabel = h('span', { class: 'ek-count', text: '已选 0' });
+    const catBar = h('div', { class: 'ek-cats' });
 
     let activeCat = 'all';
 
@@ -335,6 +392,8 @@ export default {
                 const i = selected.findIndex((x) => x.id === s.id);
                 if (i >= 0) selected.splice(i, 1);
                 paintSelected();
+                paintList();
+                if (tab === 'create') paintCreate();
                 void loadNetwork();
               },
             },
@@ -343,6 +402,21 @@ export default {
           )
         );
       }
+      selectedBox.append(
+        h(
+          'button',
+          {
+            class: 'btn btn--sm ek-goto',
+            type: 'button',
+            onclick: () => {
+              tab = 'create';
+              paintTabs();
+              paintPanels();
+            },
+          },
+          `带着 ${selected.length} 种食材去创意厨房 →`
+        )
+      );
     }
 
     function paintList() {
@@ -372,10 +446,11 @@ export default {
                   if (i >= 0) selected.splice(i, 1);
                 } else {
                   if (selected.length >= 4) return toast('最多同时选 4 种食材', 'err');
-                  selected.push({ id: it.id, cn: it.cn, epicure: it.epicure });
+                  selected.push({ id: it.id, cn: it.cn, epicure: it.epicure, amount: '', unit: 'g', role: 'main', required: true });
                 }
                 paintSelected();
                 paintList();
+                if (tab === 'create') paintCreate();
                 void loadNetwork();
               },
             },
@@ -392,7 +467,6 @@ export default {
         statusLine.textContent = '选择食材后，这里会显示 Epicure 计算的真实风味关联。';
         return;
       }
-      loading = true;
       statusLine.textContent = '正在向 Epicure 请求风味关联…';
       try {
         const res = await fetch('/api/epicure/network', {
@@ -412,28 +486,25 @@ export default {
         }`;
       } catch (err) {
         statusLine.textContent = `请求失败：${String(err.message || err).slice(0, 60)}`;
-      } finally {
-        loading = false;
       }
     }
 
     graph.onPick((n) => {
-      // 点击节点 → 以它为中心重新探索
       const hit = library?.items.find((i) => i.epicure === n.epicure);
       if (!hit) {
         toast(`「${n.cn}」未收录进中文食材库，暂不能作为中心`, 'err');
         return;
       }
       selected.length = 0;
-      selected.push({ id: hit.id, cn: hit.cn, epicure: hit.epicure });
+      selected.push({ id: hit.id, cn: hit.cn, epicure: hit.epicure, amount: '', unit: 'g', role: 'main', required: true });
       paintSelected();
       paintList();
+      if (tab === 'create') paintCreate();
       void loadNetwork();
     });
 
     searchInput.addEventListener('input', () => paintList());
 
-    const catBar = h('div', { class: 'ek-cats' });
     function paintCats() {
       clear(catBar);
       const all = [{ id: 'all', name: '全部' }, ...(library?.categories || [])];
@@ -451,29 +522,6 @@ export default {
               },
             },
             c.name
-          )
-        );
-      }
-    }
-
-    const tabsBar = h('div', { class: 'seg ek-tabs' });
-    function paintTabs() {
-      clear(tabsBar);
-      for (const t of TABS) {
-        tabsBar.append(
-          h(
-            'button',
-            {
-              class: `seg__btn${tab === t.id ? ' is-on' : ''}`,
-              type: 'button',
-              onclick: () => {
-                if (tab === t.id) return;
-                tab = t.id;
-                paintTabs();
-                paintPanels();
-              },
-            },
-            t.label
           )
         );
       }
@@ -505,6 +553,7 @@ export default {
                   selected.length = 0;
                   paintSelected();
                   paintList();
+                  if (tab === 'create') paintCreate();
                   void loadNetwork();
                 },
               },
@@ -526,21 +575,503 @@ export default {
       )
     );
 
-    const createPanel = h(
-      'div',
-      { class: 'ek-create' },
-      h('div', { class: 'ek-card' },
-        h('h3', { text: '创意厨房' }),
-        h('p', { class: 'ek-hint', text: '把风味探索里选好的食材带进来，按中国菜的烹饪逻辑创作。生成流程正在接入。' }),
-        h('p', { class: 'ek-hint', text: '当前选择会显示在「风味探索」右侧底部。' })
-      )
-    );
+    /* ---------------- 创意厨房 ---------------- */
+    const createRoot = h('div', { class: 'ek-create' });
+    const leftCol = h('div', {});
+    const rightCol = h('aside', {});
+    const resultHost = h('div', { class: 'ek-result' });
+    createRoot.append(leftCol, rightCol);
+
+    const createPanel = h('div', {}, createRoot, resultHost);
+
+    function field(label, control) {
+      return h('div', { class: 'ek-field' }, h('span', { class: 'ek-label', text: label }), control);
+    }
+
+    function selectOf(options, value, onChange) {
+      const sel = h('select', { class: 'ek-select', onchange: (e) => onChange(e.target.value) });
+      for (const o of options) {
+        const opt = h('option', { value: o, text: o });
+        if (o === value) opt.selected = true;
+        sel.append(opt);
+      }
+      return sel;
+    }
+
+    function paintCreate() {
+      /* --- 食材清单 --- */
+      const ingCard = h('div', { class: 'ek-card' }, h('h3', {}, '食材清单', h('em', { text: `${selected.length} 种` })));
+      if (!selected.length) {
+        ingCard.append(
+          h('div', { class: 'ek-empty', text: '还没有食材。去「风味探索」选几种，或直接生成让系统搭配。' })
+        );
+      } else {
+        for (const s of selected) {
+          const qty = h('input', {
+            class: 'ek-ing__qty',
+            type: 'text',
+            placeholder: '用量',
+            value: s.amount || '',
+            oninput: (e) => {
+              s.amount = e.target.value.replace(/[^\d.]/g, '').slice(0, 5);
+            },
+          });
+          const role = h(
+            'select',
+            {
+              class: 'ek-ing__role',
+              onchange: (e) => {
+                s.role = e.target.value;
+              },
+            },
+            h('option', { value: 'main', text: '主要' }),
+            h('option', { value: 'aux', text: '辅助' })
+          );
+          role.value = s.role;
+          ingCard.append(
+            h(
+              'div',
+              { class: 'ek-ing' },
+              h('span', { class: 'ek-ing__name', text: s.cn }),
+              qty,
+              role,
+              h(
+                'button',
+                {
+                  class: 'ek-ing__del',
+                  type: 'button',
+                  title: '移除',
+                  onclick: () => {
+                    const i = selected.findIndex((x) => x.id === s.id);
+                    if (i >= 0) selected.splice(i, 1);
+                    paintSelected();
+                    paintList();
+                    paintCreate();
+                    void loadNetwork();
+                  },
+                },
+                '×'
+              )
+            )
+          );
+        }
+        ingCard.append(
+          h('p', { class: 'ek-hint', text: '用量可留空，由 AI 按人数估算；「主要」会作为菜品主体。' })
+        );
+      }
+      ingCard.append(
+        h(
+          'label',
+          { class: 'ek-switch' },
+          h('input', {
+            type: 'checkbox',
+            checked: form.allowAdd,
+            onchange: (e) => {
+              form.allowAdd = e.target.checked;
+            },
+          }),
+          '允许 AI 补充其他食材'
+        )
+      );
+
+      /* --- 快速创作 --- */
+      const styleCard = h('div', { class: 'ek-card' }, h('h3', {}, '快速创作', h('em', { text: '创作风格，不是固定模板' })));
+      const styleGrid = h('div', { class: 'ek-styles' });
+      for (const s of STYLES) {
+        styleGrid.append(
+          h(
+            'button',
+            {
+              class: `ek-style${form.style === s.id ? ' is-on' : ''}`,
+              type: 'button',
+              onclick: () => {
+                form.style = s.id;
+                paintCreate();
+              },
+            },
+            h('b', { text: s.name }),
+            h('span', { text: s.desc })
+          )
+        );
+      }
+      styleCard.append(styleGrid);
+
+      /* --- 创意参数 --- */
+      const paramCard = h('div', { class: 'ek-card' }, h('h3', {}, '创意参数', h('em', { text: '全部可选' })));
+      const row1 = h(
+        'div',
+        { class: 'ek-field__row' },
+        field('菜系方向', selectOf(CUISINES, form.cuisine || '不限', (v) => (form.cuisine = v === '不限' ? '' : v))),
+        field('口味倾向', selectOf(TASTES, form.taste || '不限', (v) => (form.taste = v === '不限' ? '' : v)))
+      );
+      const row2 = h(
+        'div',
+        { class: 'ek-field__row' },
+        field('烹饪方式', selectOf(TECHNIQUES, form.technique || '不限', (v) => (form.technique = v === '不限' ? '' : v))),
+        field('用餐场景', selectOf(SCENES, form.scene || '不限', (v) => (form.scene = v === '不限' ? '' : v)))
+      );
+      const row3 = h(
+        'div',
+        { class: 'ek-field__row' },
+        field(
+          '创作难度',
+          selectOf(
+            DIFFS.map((d) => d.name),
+            DIFFS.find((d) => d.id === form.difficulty)?.name || '中等',
+            (v) => (form.difficulty = DIFFS.find((d) => d.name === v)?.id || 'medium')
+          )
+        ),
+        field(
+          '创新程度',
+          selectOf(
+            INNOVS.map((d) => d.name),
+            INNOVS.find((d) => d.id === form.innovation)?.name || '适度创新',
+            (v) => (form.innovation = INNOVS.find((d) => d.name === v)?.id || 'mid')
+          )
+        )
+      );
+      const nameInput = h('input', {
+        class: 'ek-input',
+        type: 'text',
+        maxlength: '24',
+        placeholder: '留空则由 AI 命名',
+        value: form.dishName,
+        oninput: (e) => (form.dishName = e.target.value),
+      });
+      const extraInput = h('textarea', {
+        class: 'ek-textarea',
+        maxlength: '200',
+        placeholder: '例如：用香菇、鸡肉、番茄和花椒做一道从未出现过的川味创新菜',
+        oninput: (e) => (form.extra = e.target.value),
+      });
+      extraInput.value = form.extra;
+      const servingsInput = h('input', {
+        class: 'ek-input',
+        type: 'number',
+        min: '1',
+        max: '12',
+        value: String(form.servings),
+        oninput: (e) => (form.servings = Math.min(12, Math.max(1, Number(e.target.value) || 2))),
+      });
+
+      paramCard.append(
+        row1,
+        row2,
+        row3,
+        h('div', { class: 'ek-field__row' }, field('美食名称', nameInput), field('份量（人）', servingsInput)),
+        field('额外要求', extraInput)
+      );
+
+      /* --- 高级参数 --- */
+      const advCard = h('div', { class: `ek-card ek-adv${advOpen ? ' is-open' : ''}` });
+      advCard.append(
+        h(
+          'button',
+          {
+            class: 'ek-adv__toggle',
+            type: 'button',
+            onclick: () => {
+              advOpen = !advOpen;
+              paintCreate();
+            },
+          },
+          h('em', { text: '▸' }),
+          '高级配方参数'
+        )
+      );
+      const advBody = h('div', { class: 'ek-adv__body' });
+      const mkInput = (key, placeholder, cls = 'ek-input') =>
+        h('input', {
+          class: cls,
+          type: 'text',
+          placeholder,
+          value: advanced[key],
+          oninput: (e) => (advanced[key] = e.target.value),
+        });
+      advBody.append(
+        h(
+          'div',
+          { class: 'ek-field__row' },
+          field('不使用的食材', mkInput('avoidIngredients', '如：香菜、内脏')),
+          field('希望突出的风味', mkInput('highlightFlavor', '如：椒麻、菌香'))
+        ),
+        h(
+          'div',
+          { class: 'ek-field__row' },
+          field('希望避免的风味', mkInput('avoidFlavor', '如：过甜、腥味')),
+          field('预算范围', selectOf(['不限', '经济', '适中', '宽裕'], advanced.budget || '不限', (v) => (advanced.budget = v === '不限' ? '' : v)))
+        ),
+        h(
+          'div',
+          { class: 'ek-field__row' },
+          field(
+            '总时长上限（分钟）',
+            h('input', {
+              class: 'ek-input',
+              type: 'number',
+              min: '0',
+              max: '600',
+              placeholder: '不限',
+              value: advanced.maxMinutes,
+              oninput: (e) => (advanced.maxMinutes = e.target.value),
+            })
+          ),
+          field(
+            '食材种类上限',
+            h('input', {
+              class: 'ek-input',
+              type: 'number',
+              min: '0',
+              max: '24',
+              placeholder: '不限',
+              value: advanced.maxIngredients,
+              oninput: (e) => (advanced.maxIngredients = e.target.value),
+            })
+          )
+        ),
+        h(
+          'label',
+          { class: 'ek-switch' },
+          h('input', {
+            type: 'checkbox',
+            checked: advanced.allowSubstitute,
+            onchange: (e) => (advanced.allowSubstitute = e.target.checked),
+          }),
+          '允许替代食材'
+        ),
+        h(
+          'label',
+          { class: 'ek-switch' },
+          h('input', {
+            type: 'checkbox',
+            checked: advanced.allowAux,
+            onchange: (e) => (advanced.allowAux = e.target.checked),
+          }),
+          '允许添加辅助食材'
+        )
+      );
+      advCard.append(advBody);
+
+      clear(leftCol);
+      leftCol.append(ingCard, styleCard, paramCard, advCard);
+
+      /* --- 右侧：生成 --- */
+      const submitBtn = h(
+        'button',
+        {
+          class: 'btn btn--solid ek-submit',
+          type: 'button',
+          disabled: generating,
+          onclick: () => void submit(),
+        },
+        generating ? '正在生成…' : '生成配方'
+      );
+      const statusBox = h('p', {
+        class: 'ek-hint',
+        text: generating
+          ? '先做 Epicure 风味分析，再交给模型写菜谱，通常 30–60 秒。'
+          : genError || '生成结果会显示在下方，可复制或继续调整。',
+      });
+      clear(rightCol);
+      rightCol.append(
+        h(
+          'div',
+          { class: 'ek-card' },
+          h('h3', {}, '开始创作', h('em', { text: selected.length ? `${selected.length} 种食材` : 'AI 自由搭配' })),
+          submitBtn,
+          statusBox
+        )
+      );
+    }
+
+    function renderResult(data) {
+      clear(resultHost);
+      if (!data) return;
+      const r = data.recipe;
+      const a = data.analysis || {};
+      const tags = h('div', {});
+      tags.append(
+        h('span', { class: `ek-tag ${r.dish_type === 'original' ? 'ek-tag--origin' : ''}`, text: r.dish_type === 'original' ? 'AI 原创' : '传统菜式' }),
+        h('span', { class: 'ek-tag', text: r.cuisine_style }),
+        h('span', { class: 'ek-tag', text: `${r.prep_minutes + r.cook_minutes} 分钟` }),
+        h('span', { class: 'ek-tag', text: `难度 ${DIFFS.find((d) => d.id === r.difficulty)?.name || r.difficulty}` }),
+        h('span', {
+          class: `ek-tag ${a.used ? 'ek-tag--epicure' : 'ek-tag--plain'}`,
+          text: a.used ? 'Epicure 风味计算' : '普通 AI 创意生成',
+        })
+      );
+
+      const analysisRows = h('div', { class: 'ek-analysis' });
+      if (a.used) {
+        if (a.pairs?.length) {
+          analysisRows.append(
+            h(
+              'div',
+              { class: 'ek-analysis__row' },
+              h('b', { text: '搭配分' }),
+              h('span', { text: a.pairs.map((p) => `${p.a}×${p.b} ${p.score.toFixed(3)}${p.label ? `（${p.label}）` : ''}`).join('；') })
+            )
+          );
+        }
+        if (r.flavor_design?.pairing_notes) {
+          analysisRows.append(
+            h('div', { class: 'ek-analysis__row' }, h('b', { text: '搭配思路' }), h('span', { text: r.flavor_design.pairing_notes }))
+          );
+        }
+        if (r.flavor_design?.risk) {
+          analysisRows.append(
+            h('div', { class: 'ek-analysis__row' }, h('b', { text: '风险提示' }), h('span', { text: r.flavor_design.risk }))
+          );
+        }
+      } else {
+        analysisRows.append(
+          h('div', {
+            class: 'ek-analysis__row',
+            text: '本次未取得 Epicure 计算结果，菜谱由模型按中国菜常识生成，未做风味数据校验。',
+          })
+        );
+      }
+      if (a.unresolved?.length) {
+        analysisRows.append(
+          h('div', { class: 'ek-analysis__row' }, h('b', { text: '未识别食材' }), h('span', { text: a.unresolved.join('、') }))
+        );
+      }
+
+      const ings = h('div', { class: 'ek-ings' });
+      for (const it of r.ingredients) {
+        ings.append(
+          h(
+            'div',
+            { class: 'ek-ings__row' },
+            h('span', { text: it.name }),
+            h('span', { text: `${it.amount}${it.unit}` }),
+            h('em', { text: it.role === 'main' ? '主料' : '辅料' }),
+            it.substitutable ? h('em', { text: '可替代' }) : null
+          )
+        );
+      }
+
+      const steps = h('ol', { class: 'ek-steps' });
+      for (const s of r.steps) {
+        steps.append(
+          h(
+            'li',
+            {},
+            h('b', {}, `${s.step}. ${s.action.slice(0, 18)}${s.action.length > 18 ? '…' : ''}`),
+            h('div', { text: s.action }),
+            s.heat || s.minutes || s.note
+              ? h('div', {}, h('i', { text: [s.heat, s.minutes ? `${s.minutes} 分钟` : '', s.note].filter(Boolean).join(' · ') }))
+              : null
+          )
+        );
+      }
+
+      resultHost.append(
+        h(
+          'div',
+          { class: 'ek-card' },
+          h('div', { class: 'ek-result__head' }, h('div', {}, h('h2', { class: 'ek-result__title', text: r.dish_name }), tags)),
+          h('p', { class: 'ek-hint', text: r.intro }),
+          analysisRows,
+          h('h3', { style: 'margin-top:16px' }, '食材'),
+          ings,
+          h('h3', { style: 'margin-top:16px' }, '步骤'),
+          steps,
+          r.creation_notes ? h('h3', { style: 'margin-top:16px' }, '创作说明') : null,
+          r.creation_notes ? h('p', { class: 'ek-hint', text: r.creation_notes }) : null,
+          h(
+            'div',
+            { class: 'ek-result__actions' },
+            h('button', { class: 'btn btn--sm', type: 'button', onclick: () => void submit() }, '再生成一次'),
+            h('span', { class: 'ek-hint', text: `${data.provider || ''} ${data.model || ''} · ${Math.round((data.ms || 0) / 1000)} 秒` })
+          )
+        )
+      );
+    }
+
+    async function submit() {
+      if (generating) return;
+      generating = true;
+      genError = '';
+      paintCreate();
+      try {
+        const res = await fetch('/api/epicure/create', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ingredients: selected.map((s) => ({ id: s.id, cn: s.cn, amount: s.amount, unit: s.unit, role: s.role })),
+            allowAdd: form.allowAdd,
+            style: form.style,
+            cuisine: form.cuisine,
+            taste: form.taste,
+            technique: form.technique,
+            scene: form.scene,
+            difficulty: form.difficulty,
+            innovation: form.innovation,
+            servings: form.servings,
+            dishName: form.dishName,
+            extra: form.extra,
+            advanced,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          genError = data.error || `请求失败（${res.status}）`;
+          result = null;
+        } else if (!data.ok) {
+          genError = data.error || '生成失败';
+          result = null;
+        } else {
+          result = data;
+          renderResult(data);
+          // 生成后把结果滚进视野
+          requestAnimationFrame(() => resultHost.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
+      } catch (err) {
+        genError = `请求失败：${String(err.message || err).slice(0, 60)}`;
+        result = null;
+      } finally {
+        generating = false;
+        paintCreate();
+      }
+    }
+
+    /* ---------------- 切换 ---------------- */
+    const tabsBar = h('div', { class: 'seg ek-tabs' });
+    function paintTabs() {
+      clear(tabsBar);
+      for (const t of TABS) {
+        tabsBar.append(
+          h(
+            'button',
+            {
+              class: `seg__btn${tab === t.id ? ' is-on' : ''}`,
+              type: 'button',
+              onclick: () => {
+                if (tab === t.id) return;
+                tab = t.id;
+                paintTabs();
+                paintPanels();
+              },
+            },
+            t.label
+          )
+        );
+      }
+    }
 
     const panels = h('div', { class: 'ek-panels' });
     function paintPanels() {
       clear(panels);
-      panels.append(tab === 'explore' ? explorePanel : createPanel);
-      if (tab === 'explore') requestAnimationFrame(() => graph.resize());
+      if (tab === 'explore') {
+        panels.append(explorePanel);
+        requestAnimationFrame(() => graph.resize());
+      } else {
+        panels.append(createPanel);
+        paintCreate();
+        if (result) renderResult(result);
+        else clear(resultHost);
+      }
     }
 
     const page = h(
@@ -572,7 +1103,6 @@ export default {
     paintPanels();
     paintSelected();
 
-    // 加载食材库
     try {
       const res = await fetch('/api/epicure/ingredients');
       library = await res.json();

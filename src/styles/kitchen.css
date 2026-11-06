@@ -1,4 +1,4 @@
-/* Epicure 厨房：风味探索 + 创意厨房 */
+/* Epicure 厨房：风味探索 + 创意厨房（与站点主体配色一致） */
 
 .ek-page .wrap {
   padding-bottom: 64px;
@@ -8,10 +8,6 @@
   display: flex;
   justify-content: center;
   margin: 6px 0 18px;
-}
-
-.ek-tabs .seg__btn {
-  letter-spacing: 0.06em;
 }
 
 .ek-panels {
@@ -32,10 +28,11 @@
   flex-direction: column;
   min-height: 580px;
   border-radius: 16px;
-  border: 1px solid rgba(24, 32, 26, 0.9);
+  border: 1px solid var(--color-border);
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(122, 176, 138, 0.1), transparent 60%),
-    #101412;
+    radial-gradient(120% 90% at 50% 0%, rgba(217, 164, 65, 0.07), transparent 62%),
+    var(--color-surface);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -44,15 +41,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  color: #d7e6da;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .ek-graphpane__title {
-  font-size: 13px;
+  font-size: 12.5px;
   letter-spacing: 0.14em;
-  color: #cfe3d4;
+  color: var(--color-text-secondary);
 }
 
 .ek-tools {
@@ -65,17 +61,18 @@
   height: 28px;
   padding: 0 9px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: #cfe3d4;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
 }
 
 .ek-tool:hover {
-  background: rgba(160, 214, 173, 0.16);
-  border-color: rgba(160, 214, 173, 0.5);
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .egraph {
@@ -83,6 +80,8 @@
   flex: 1;
   min-height: 460px;
   cursor: grab;
+  background-image: radial-gradient(rgba(180, 150, 115, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
 .egraph:active {
@@ -98,49 +97,56 @@
 }
 
 .egraph__edge {
-  stroke: rgba(150, 196, 162, 0.5);
+  stroke: rgba(160, 130, 95, 0.45);
   stroke-width: 1;
 }
 
 .egraph__edge.is-main {
-  stroke: rgba(190, 226, 198, 0.7);
+  stroke: rgba(217, 75, 50, 0.5);
   stroke-width: 1.4;
 }
 
 .egraph__node circle {
-  fill: #1d2a23;
-  stroke: rgba(150, 196, 162, 0.55);
-  stroke-width: 1.2;
+  fill: #fffdf9;
+  stroke: var(--color-border-strong);
+  stroke-width: 1.3;
   transition: fill 0.2s var(--ease), stroke 0.2s var(--ease);
 }
 
 .egraph__node text {
-  fill: #dfeee2;
+  fill: var(--color-text);
   font-size: 11.5px;
   letter-spacing: 0.02em;
   pointer-events: none;
   paint-order: stroke;
-  stroke: rgba(8, 12, 10, 0.85);
-  stroke-width: 2.5px;
+  stroke: #fffdf9;
+  stroke-width: 3px;
 }
 
 .egraph__node.lv0 circle {
-  fill: #cfe8c9;
-  stroke: #eaf6e6;
-  stroke-width: 1.6;
+  fill: var(--color-primary-soft);
+  stroke: var(--color-primary);
+  stroke-width: 1.8;
 }
 
 .egraph__node.lv0 text {
-  fill: #ffffff;
+  fill: var(--color-primary);
   font-size: 13px;
+  font-weight: 600;
 }
 
 .egraph__node.lv1 circle {
-  fill: #2a3a30;
+  fill: #f4f7ef;
+  stroke: #a8bb92;
+}
+
+.egraph__node.lv2 circle {
+  fill: #fbfaf6;
+  stroke: var(--color-border);
 }
 
 .egraph__node.is-unknown {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .egraph__node.is-foreign circle {
@@ -148,8 +154,8 @@
 }
 
 .egraph__node:hover circle {
-  stroke: #b8e6c2;
-  fill: #2f4a3a;
+  fill: var(--color-surface-hover);
+  stroke: var(--color-primary);
 }
 
 .ek-status {
@@ -157,7 +163,8 @@
   padding: 9px 14px 12px;
   font-size: 11.5px;
   letter-spacing: 0.04em;
-  color: rgba(198, 220, 204, 0.75);
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border-soft);
 }
 
 /* ---------- 右侧食材库 ---------- */
@@ -168,8 +175,9 @@
   max-height: 640px;
   padding: 14px;
   border-radius: 16px;
-  border: 1px solid var(--line-soft);
-  background: var(--color-surface, #fffaf3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .ek-side__head {
@@ -178,13 +186,13 @@
   justify-content: space-between;
   font-size: 13px;
   letter-spacing: 0.12em;
-  color: var(--ink);
+  color: var(--color-text);
   margin-bottom: 10px;
 }
 
 .ek-count {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--color-text-muted);
   letter-spacing: 0.06em;
 }
 
@@ -203,11 +211,16 @@
 .ek-cat {
   padding: 4px 9px;
   border-radius: 999px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--color-border);
   background: transparent;
-  color: var(--muted);
+  color: var(--color-text-secondary);
   font-size: 11.5px;
   cursor: pointer;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.ek-cat:hover {
+  border-color: var(--color-border-strong);
 }
 
 .ek-cat.is-on {
@@ -233,17 +246,18 @@
   gap: 6px;
   padding: 7px 9px;
   border-radius: 9px;
-  border: 1px solid var(--line-soft);
-  background: transparent;
-  color: var(--ink);
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 12.5px;
   cursor: pointer;
   text-align: left;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
 .ek-item:hover {
-  border-color: rgba(120, 150, 120, 0.5);
-  background: rgba(160, 200, 160, 0.08);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-soft);
 }
 
 .ek-item.is-on {
@@ -254,14 +268,14 @@
 
 .ek-item__meta {
   font-size: 10px;
-  color: var(--faint);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .ek-side__foot {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed var(--line-soft);
+  border-top: 1px dashed var(--color-border);
 }
 
 .ek-selected {
@@ -292,29 +306,404 @@
   margin: 0;
   font-size: 11.5px;
   line-height: 1.7;
-  color: var(--faint);
+  color: var(--color-text-muted);
 }
 
-/* ---------- 创意厨房（占位骨架） ---------- */
+.ek-goto {
+  margin-top: 10px;
+  width: 100%;
+}
+
+/* ---------- 创意厨房 ---------- */
+.ek-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: clamp(14px, 1.6vw, 22px);
+  align-items: start;
+}
+
 .ek-card {
-  padding: 20px;
+  padding: 18px;
   border-radius: 16px;
-  border: 1px solid var(--line-soft);
-  background: var(--color-surface, #fffaf3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ek-card + .ek-card {
+  margin-top: 14px;
 }
 
 .ek-card h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
+  color: var(--color-text);
 }
 
-.ek-create .ek-selected {
-  margin-top: 12px;
+.ek-card h3 em {
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.ek-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ek-field > label,
+.ek-field > span.ek-label {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+}
+
+.ek-field__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ek-input,
+.ek-select,
+.ek-textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.ek-input:focus,
+.ek-select:focus,
+.ek-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(217, 75, 50, 0.08);
+}
+
+.ek-textarea {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.ek-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.ek-style {
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.ek-style b {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 3px;
+}
+
+.ek-style span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.ek-style:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-soft);
+}
+
+.ek-style.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-style.is-on b {
+  color: var(--color-primary);
+}
+
+/* 已选食材清单 */
+.ek-ing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface-soft);
+  margin-bottom: 7px;
+}
+
+.ek-ing__name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.ek-ing__qty {
+  width: 74px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.ek-ing__role {
+  padding: 5px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+
+.ek-ing__del {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.ek-ing__del:hover {
+  color: var(--color-danger);
+}
+
+.ek-empty {
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* 高级参数折叠 */
+.ek-adv {
+  border-top: 1px dashed var(--color-border);
+  margin-top: 4px;
+  padding-top: 10px;
+}
+
+.ek-adv__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.ek-adv__toggle em {
+  font-style: normal;
+  transition: transform 0.2s var(--ease);
+}
+
+.ek-adv.is-open .ek-adv__toggle em {
+  transform: rotate(90deg);
+}
+
+.ek-adv__body {
+  display: none;
+  padding-top: 12px;
+}
+
+.ek-adv.is-open .ek-adv__body {
+  display: block;
+}
+
+.ek-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.ek-submit {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.ek-submit[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 生成结果 */
+.ek-result {
+  margin-top: 16px;
+}
+
+.ek-result__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.ek-result__title {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+  margin: 0 0 6px;
+}
+
+.ek-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  margin-right: 6px;
+}
+
+.ek-tag--origin {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-tag--epicure {
+  border-color: #a8bb92;
+  color: #5d7449;
+  background: #f3f7ee;
+}
+
+.ek-tag--plain {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-muted);
+  background: var(--color-surface-soft);
+}
+
+.ek-analysis {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ek-analysis__row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.ek-analysis__row b {
+  flex: 0 0 88px;
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+.ek-ings {
+  display: grid;
+  gap: 6px;
+}
+
+.ek-ings__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-text);
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--color-border-soft);
+}
+
+.ek-ings__row span:first-child {
+  flex: 0 0 auto;
+}
+
+.ek-ings__row em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.ek-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.ek-steps li {
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface-soft);
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--color-text);
+}
+
+.ek-steps b {
+  display: block;
+  font-size: 12.5px;
+  margin-bottom: 3px;
+  color: var(--color-text);
+}
+
+.ek-steps i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-left: 8px;
+}
+
+.ek-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 /* ---------- 响应式 ---------- */
+@media (max-width: 1080px) {
+  .ek-create {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 980px) {
   .ek-explore {
     grid-template-columns: minmax(0, 1fr);
@@ -348,5 +737,21 @@
 
   .egraph__node text {
     font-size: 10.5px;
+  }
+
+  .ek-field__row {
+    grid-template-columns: 1fr;
+  }
+
+  .ek-styles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* 桌面端：生成卡片吸顶，滚动时始终可点 */
+@media (min-width: 1081px) {
+  .ek-create > aside {
+    position: sticky;
+    top: 88px;
   }
 }

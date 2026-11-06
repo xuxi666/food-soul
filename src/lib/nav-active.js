@@ -8,7 +8,7 @@
  *   /                     → 首页
  *   /dishes, /dishes/:id  → 美食图鉴
  *   /recipe               → 菜谱工作台
- *   /recommend            → 智能推荐
+ *   /kitchen              → Epicure 厨房
  *   /community            → 美食社区
  *   其他（/cuisines/:id、/tastes/:id、/chat/:id、/videos、/explore、/admin）
  *   → 不属于任何顶部导航入口，全部不激活，避免归错栏目
@@ -19,7 +19,8 @@ const NAV_MAP = [
   { path: '/', label: '首页', exact: true },
   { path: '/dishes', label: '美食图鉴', prefix: true },
   { path: '/recipe', label: '菜谱工作台', exact: true },
-  { path: '/recommend', label: '智能推荐', exact: true },
+  { path: '/kitchen', label: 'Epicure 厨房', exact: true },
+  { path: '/recommend', label: 'Epicure 厨房', exact: true },
   { path: '/community', label: '美食社区', exact: true },
 ];
 
