@@ -4,7 +4,6 @@ import home from './views/home.js';
 import chat from './views/chat.js';
 import recipe from './views/recipe.js';
 import kitchen from './views/kitchen.js';
-import recommend from './views/recommend.js';
 import cuisine from './views/cuisine.js';
 import taste from './views/taste.js';
 import dishes from './views/dishes.js';
@@ -35,7 +34,8 @@ const ROUTES = [
   { name: 'community', re: /^\/community$/, mod: community },
   { name: 'recipe', re: /^\/recipe$/, mod: recipe },
   { name: 'kitchen', re: /^\/kitchen$/, mod: kitchen },
-  { name: 'recommend', re: /^\/recommend$/, mod: recommend },
+  // 旧入口 /recommend 统一交给 Epicure 厨房，避免老链接 404
+  { name: 'recommendLegacy', re: /^\/recommend$/, mod: kitchen },
   { name: 'videos', re: /^\/videos$/, mod: videos },
   { name: 'admin', re: /^\/admin$/, mod: admin },
 ];

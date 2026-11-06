@@ -102,9 +102,6 @@ export const api = {
   recipe: (payload) =>
     jsonFetch('/api/recipe', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
 
-  recommend: (payload) =>
-    jsonFetch('/api/recommend', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
-
   /** 对话延伸建议：AI 回答完成后单独调用，不阻塞主回答 */
   suggest: (payload, signal) =>
     jsonFetch('/api/suggest', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload), signal }),
