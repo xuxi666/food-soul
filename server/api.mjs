@@ -8,7 +8,7 @@ import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
-import { resolveIngredient, resolveLoose as resolveLooseIngredient, analyze as epicureAnalyze, scoreDishes, runTool } from './epicure-service.mjs';
+import { resolveIngredient, resolveLoose as resolveLooseIngredient, analyze as epicureAnalyze, scoreDishes, runTool, autoAddIngredients } from './epicure-service.mjs';
 import { buildCreativePrompt, buildChatFlavorContext } from './epicure-prompts.mjs';
 import { validateCreative } from './epicure-recipe-schema.mjs';
 import { callTool as epicureCall } from './epicure-client.mjs';
@@ -679,6 +679,11 @@ async function handleEpicureCreate(req, res) {
     servings: Math.min(12, Math.max(1, Number(body.servings) || 2)),
     dishName: String(body.dishName || '').slice(0, 24),
     extra: String(body.extra || '').slice(0, 200),
+    dishType: String(body.dishType || '').slice(0, 12),
+    complexity: String(body.complexity || '').slice(0, 12),
+    flavorProfile: String(body.flavorProfile || '').slice(0, 12),
+    specialRequests: String(body.specialRequests || '').slice(0, 160),
+    mode: ['wizard', 'standard', 'pro'].includes(body.mode) ? body.mode : 'standard',
     advanced: {
       avoidIngredients: String(body.advanced?.avoidIngredients || '').slice(0, 60),
       highlightFlavor: String(body.advanced?.highlightFlavor || '').slice(0, 30),
@@ -1580,6 +1585,20 @@ export async function handleApi(req, res) {
       } catch (err) {
         return send(res, 200, { ok: false, error: String(err?.message || err).slice(0, 120), tools: [] });
       }
+    }
+    if (req.method === 'POST' && path === '/api/epicure/autoadd') {
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+      const rl = rateLimit(req, `epicure-autoadd:${actorKey(req, getCurrentUser(req))}`, 30, 60_000);
+      if (!rl.ok) return send(res, 429, { error: '请求过于频繁', code: 'rate_limited' });
+      const body = await readJson(req);
+      const ids = (Array.isArray(body.ids) ? body.ids : []).map((x) => String(x).slice(0, 30)).slice(0, 8);
+      const out = await autoAddIngredients({
+        ids,
+        count: Number(body.count) || 3,
+        vegetarian: Boolean(body.vegetarian),
+        plantBased: Boolean(body.plantBased),
+      });
+      return send(res, 200, out);
     }
     if (req.method === 'POST' && path === '/api/epicure/analyze') {
       if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });

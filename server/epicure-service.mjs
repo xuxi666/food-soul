@@ -218,22 +218,40 @@ export async function pairingOf(a, b) {
 }
 
 /** 食材库：给前端的分组列表 */
+const POPULAR_IDS = new Set([
+  'zhurou', 'wuhuarou', 'niurou', 'jirou', 'yu', 'xia',
+  'baicai', 'xiaobaicai', 'luobo', 'tudou', 'qiezi', 'fanqie', 'huanggua',
+  'xianggu', 'muer', 'doufu', 'jidan',
+  'cong', 'jiang', 'suan', 'xiangcai', 'ganlajiao', 'huajiao', 'bajiao',
+  'jiangyou', 'shengchou', 'cu', 'liaojiu', 'doubanjiang', 'yan',
+]);
+
 export function ingredientLibrary() {
   const lex = loadLexicon();
   return {
     categories: lex.categories,
     total: lex.items.length,
     verified: lex.verified,
-    items: lex.items.map((i) => ({
-      id: i.id,
-      cn: i.cn,
-      epicure: i.epicure,
-      cat: i.cat,
-      aliases: i.aliases,
-      foodGroup: i.foodGroup,
-      cuisineRegion: i.cuisineRegion,
-      chinaFriendly: chinaAffinity(i).ok,
-    })),
+    items: lex.items.map((i) => {
+      const group = String(i.foodGroup || '').toLowerCase();
+      const cat = i.cat;
+      const nonVeg = cat === 'meat' || cat === 'seafood' || /meat|fish|seafood/.test(group);
+      const dairy = cat === 'dairy' || /dairy|egg/.test(group);
+      return {
+        id: i.id,
+        cn: i.cn,
+        epicure: i.epicure,
+        cat,
+        aliases: i.aliases,
+        foodGroup: i.foodGroup,
+        cuisineRegion: i.cuisineRegion,
+        chinaFriendly: chinaAffinity(i).ok,
+        vegetarian: !nonVeg,
+        vegan: !nonVeg && !dairy,
+        // 常用：按中式厨房真实高频挑，不用词表顺序（否则全是肉类水产）
+        popular: POPULAR_IDS.has(i.id),
+      };
+    }),
     unresolved: lex.unresolved.map((u) => u.cn),
   };
 }
@@ -561,4 +579,40 @@ export async function scoreDishes(dishes, { userIngredient = '' } = {}) {
     }
   }
   return out;
+}
+
+
+/* ============================================================
+ * Auto-add：用真实搭配图谱给当前选择补充食材
+ * ============================================================ */
+export async function autoAddIngredients({ ids = [], count = 3, vegetarian = false, plantBased = false } = {}) {
+  const lex = loadLexicon();
+  const selected = ids.map((x) => resolveIngredient(x)).filter(Boolean);
+  if (!selected.length) return { ok: false, error: '请先选择至少一种食材' };
+
+  const r = await runTool('find_pairings', { ingredients: selected.map((s) => s.cn) });
+  if (!r.ok || !r.text) return { ok: false, error: r.error || '未取得搭配结果' };
+
+  // find_pairings 返回的是文本图谱：抓 "name (0.123)" 形式的节点
+  const picked = [];
+  const seen = new Set(selected.map((s) => s.epicure));
+  const re = /([a-z][a-z0-9_ ]{2,32})\s*\((0\.\d+)\)/gi;
+  let m;
+  while ((m = re.exec(r.text)) && picked.length < 40) {
+    const name = m[1].trim().toLowerCase().replace(/\s+/g, '_');
+    const score = Number(m[2]);
+    if (!Number.isFinite(score) || seen.has(name)) continue;
+    seen.add(name);
+    const hit = lex.byEpicure.get(name);
+    if (!hit) continue;
+    const group = String(hit.foodGroup || '').toLowerCase();
+    const nonVeg = hit.cat === 'meat' || hit.cat === 'seafood' || /meat|fish|seafood/.test(group);
+    const dairy = hit.cat === 'dairy' || /dairy|egg/.test(group);
+    if (vegetarian && nonVeg) continue;
+    if (plantBased && (nonVeg || dairy)) continue;
+    picked.push({ id: hit.id, cn: hit.cn, epicure: hit.epicure, cat: hit.cat, score });
+  }
+
+  picked.sort((a, b) => b.score - a.score);
+  return { ok: true, items: picked.slice(0, Math.max(1, Math.min(8, count))), total: picked.length };
 }

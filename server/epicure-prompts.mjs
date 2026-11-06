@@ -44,6 +44,10 @@ export function buildCreativePrompt(input, analysis) {
   if (input.taste) lines.push(`- 口味倾向：${input.taste}`);
   if (input.technique) lines.push(`- 烹饪方式：${input.technique}`);
   if (input.scene) lines.push(`- 用餐场景：${input.scene}`);
+  if (input.dishType) lines.push(`- 菜式形态：${input.dishType}`);
+  if (input.complexity) lines.push(`- 出品定位：${input.complexity}`);
+  if (input.flavorProfile) lines.push(`- 风味取向：${input.flavorProfile}`);
+  if (input.specialRequests) lines.push(`- 特别要求：${input.specialRequests}`);
   lines.push(`- 难度：${DIFF[input.difficulty] || '中等'}`);
   lines.push(`- 创新程度：${INNOV[input.innovation] || INNOV.mid}`);
   lines.push(`- 份量：${input.servings} 人`);

@@ -1,87 +1,261 @@
-/* Epicure 厨房：风味探索 + 创意厨房（与站点主体配色一致） */
+/* Epicure 厨房 —— 结构对齐参考站 Enter Kitchen，配色沿用站点（米白 + 陶土红） */
+
+/* ---------- 食材类别色 ---------- */
+:root {
+  --cat-meat: #c2604a;
+  --cat-seafood: #4d7f9c;
+  --cat-veg: #6f8f4e;
+  --cat-fungi: #8b6f4e;
+  --cat-grain: #c09a4a;
+  --cat-soy: #a08c5a;
+  --cat-dairy: #d3a54e;
+  --cat-seasoning: #96674a;
+  --cat-spice: #b4553f;
+}
 
 .ek-page .wrap {
   padding-bottom: 64px;
 }
 
-.ek-bar {
-  display: flex;
-  justify-content: center;
-  margin: 6px 0 18px;
-}
-
-.ek-panels {
-  min-height: 480px;
-}
-
-/* ---------- 风味探索 ---------- */
-.ek-explore {
+.ek-flow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: clamp(14px, 1.6vw, 22px);
+  gap: clamp(12px, 1.4vw, 18px);
+}
+
+.ek-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: clamp(12px, 1.4vw, 18px);
   align-items: stretch;
 }
 
-.ek-graphpane {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 580px;
+/* ---------- 通用卡片 ---------- */
+.ek-card {
+  padding: 14px;
   border-radius: 16px;
   border: 1px solid var(--color-border);
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgba(217, 164, 65, 0.07), transparent 62%),
-    var(--color-surface);
+  background: var(--color-surface);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
 }
 
-.ek-graphpane__head {
+.ek-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--color-border-soft);
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
-.ek-graphpane__title {
-  font-size: 12.5px;
-  letter-spacing: 0.14em;
+.ek-card__head b {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--color-text);
+}
+
+.ek-toggles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ek-label {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
   color: var(--color-text-secondary);
 }
 
-.ek-tools {
-  display: flex;
-  gap: 6px;
+.ek-hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.ek-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.ek-count {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ---------- 小控件 ---------- */
+.ek-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ek-switch input {
+  accent-color: var(--color-primary);
 }
 
 .ek-tool {
-  min-width: 30px;
-  height: 28px;
+  min-width: 28px;
+  height: 26px;
   padding: 0 9px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: 11.5px;
   cursor: pointer;
-  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
 .ek-tool:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   background: var(--color-primary-soft);
+}
+
+.ek-tool--round {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ek-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ek-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
-.egraph {
+.ek-num {
+  width: 46px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.ek-input,
+.ek-textarea,
+.ek-select {
+  width: 100%;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.ek-input:focus,
+.ek-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(217, 75, 50, 0.08);
+}
+
+.ek-textarea {
+  min-height: 84px;
+  resize: vertical;
+  line-height: 1.8;
+}
+
+.ek-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ek-field__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ---------- 图谱卡 ---------- */
+.ek-graph-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 560px;
+}
+
+.ek-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ek-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ek-chip em {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+.ek-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ek-ctx {
+  flex: 1;
+  min-width: 140px;
+}
+
+.ek-canvas {
   position: relative;
   flex: 1;
-  min-height: 460px;
-  cursor: grab;
+  min-height: 380px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-soft);
   background-image: radial-gradient(rgba(180, 150, 115, 0.16) 1px, transparent 1px);
   background-size: 22px 22px;
+  overflow: hidden;
+}
+
+.egraph {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
 }
 
 .egraph:active {
@@ -97,13 +271,13 @@
 }
 
 .egraph__edge {
-  stroke: rgba(160, 130, 95, 0.45);
+  stroke: rgba(160, 130, 95, 0.4);
   stroke-width: 1;
 }
 
 .egraph__edge.is-main {
-  stroke: rgba(217, 75, 50, 0.5);
-  stroke-width: 1.4;
+  stroke: rgba(217, 75, 50, 0.45);
+  stroke-width: 1.3;
 }
 
 .egraph__node circle {
@@ -115,8 +289,7 @@
 
 .egraph__node text {
   fill: var(--color-text);
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
   pointer-events: none;
   paint-order: stroke;
   stroke: #fffdf9;
@@ -131,23 +304,22 @@
 
 .egraph__node.lv0 text {
   fill: var(--color-primary);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
-.egraph__node.lv1 circle {
-  fill: #eef4e6;
-  stroke: #8fa87a;
-  stroke-width: 1.4;
-}
-
-.egraph__node.lv2 circle {
-  fill: #fdfbf6;
-  stroke: #cbb9a0;
-}
+.egraph__node.cat-meat circle { stroke: var(--cat-meat); stroke-width: 2; fill: #fbf0ec; }
+.egraph__node.cat-seafood circle { stroke: var(--cat-seafood); stroke-width: 2; fill: #eef4f8; }
+.egraph__node.cat-veg circle { stroke: var(--cat-veg); stroke-width: 2; fill: #f1f6ea; }
+.egraph__node.cat-fungi circle { stroke: var(--cat-fungi); stroke-width: 2; fill: #f7f1e9; }
+.egraph__node.cat-grain circle { stroke: var(--cat-grain); stroke-width: 2; fill: #fbf4e4; }
+.egraph__node.cat-soy circle { stroke: var(--cat-soy); stroke-width: 2; fill: #f8f4e9; }
+.egraph__node.cat-dairy circle { stroke: var(--cat-dairy); stroke-width: 2; fill: #fdf5e2; }
+.egraph__node.cat-seasoning circle { stroke: var(--cat-seasoning); stroke-width: 2; fill: #f8f0ea; }
+.egraph__node.cat-spice circle { stroke: var(--cat-spice); stroke-width: 2; fill: #fbeeea; }
 
 .egraph__node.is-unknown {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .egraph__node.is-foreign circle {
@@ -156,78 +328,82 @@
 
 .egraph__node:hover circle {
   fill: var(--color-surface-hover);
+}
+
+.egraph__plus circle {
+  fill: #fff;
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+}
+
+.egraph__plus text {
+  fill: var(--color-text-secondary);
+  font-size: 9px;
+  stroke: none;
+  pointer-events: none;
+}
+
+.egraph__node:hover .egraph__plus circle {
+  fill: var(--color-primary);
   stroke: var(--color-primary);
 }
 
-.ek-status {
-  margin: 0;
-  padding: 9px 14px 12px;
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  border-top: 1px solid var(--color-border-soft);
+.egraph__node:hover .egraph__plus text {
+  fill: #fff;
 }
 
-/* ---------- 右侧食材库 ---------- */
-.ek-side {
+.ek-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ek-status {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ---------- 食材库 ---------- */
+.ek-catalog {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 640px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.ek-side__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  color: var(--color-text);
-  margin-bottom: 10px;
-}
-
-.ek-count {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  letter-spacing: 0.06em;
+  max-height: 620px;
 }
 
 .ek-search {
   width: 100%;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-.ek-cats {
+.ek-tabs2 {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
-.ek-cat {
-  padding: 4px 9px;
+.ek-tab {
+  padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text-secondary);
   font-size: 11.5px;
   cursor: pointer;
-  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
-.ek-cat:hover {
-  border-color: var(--color-border-strong);
-}
-
-.ek-cat.is-on {
+.ek-tab.is-on {
   border-color: var(--color-primary);
   color: var(--color-primary);
   background: var(--color-primary-soft);
+}
+
+.ek-catalog-count {
+  margin-bottom: 6px;
 }
 
 .ek-list {
@@ -236,24 +412,22 @@
   overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
   padding-right: 2px;
 }
 
 .ek-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
-  padding: 7px 9px;
+  padding: 6px 8px;
   border-radius: 9px;
   border: 1px solid var(--color-border-soft);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
 .ek-item:hover {
@@ -267,147 +441,105 @@
   color: var(--color-primary);
 }
 
-.ek-item__meta {
-  font-size: 10px;
-  color: var(--color-text-muted);
+.ek-item__cn {
+  flex: 1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.ek-side__foot {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--color-border);
-}
-
-.ek-selected {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.ek-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.ek-chip em {
-  font-style: normal;
+.ek-item__x {
+  font-size: 11px;
   opacity: 0.6;
 }
 
-.ek-hint {
-  margin: 0;
-  font-size: 11.5px;
-  line-height: 1.7;
-  color: var(--color-text-muted);
+.ek-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--color-border-strong);
 }
 
-.ek-goto {
-  margin-top: 10px;
-  width: 100%;
+.ek-dot.cat-meat { background: var(--cat-meat); }
+.ek-dot.cat-seafood { background: var(--cat-seafood); }
+.ek-dot.cat-veg { background: var(--cat-veg); }
+.ek-dot.cat-fungi { background: var(--cat-fungi); }
+.ek-dot.cat-grain { background: var(--cat-grain); }
+.ek-dot.cat-soy { background: var(--cat-soy); }
+.ek-dot.cat-dairy { background: var(--cat-dairy); }
+.ek-dot.cat-seasoning { background: var(--cat-seasoning); }
+.ek-dot.cat-spice { background: var(--cat-spice); }
+
+/* ---------- 模式 ---------- */
+.ek-modes {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0;
 }
 
-/* ---------- 创意厨房 ---------- */
-.ek-create {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: clamp(14px, 1.6vw, 22px);
-  align-items: start;
-}
-
-.ek-card {
-  padding: 18px;
-  border-radius: 16px;
+.ek-mode {
+  padding: 7px 18px;
+  border-radius: 999px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
 }
 
-.ek-card + .ek-card {
-  margin-top: 14px;
-}
-
-.ek-card h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  font-size: 14px;
+.ek-mode.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
   font-weight: 500;
-  letter-spacing: 0.1em;
-  color: var(--color-text);
 }
 
-.ek-card h3 em {
-  font-style: normal;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
+/* ---------- 配方面板 ---------- */
+.ek-recipe__body {
+  display: grid;
+  gap: 12px;
 }
 
-.ek-field {
+.ek-recipe__ings {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
 }
 
-.ek-field > label,
-.ek-field > span.ek-label {
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
-  color: var(--color-text-secondary);
-}
-
-.ek-field__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.ek-recipe__row {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.ek-input,
-.ek-select,
-.ek-textarea {
-  width: 100%;
-  padding: 9px 11px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  font-family: inherit;
+.ek-recipe__row--col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 
-.ek-input:focus,
-.ek-select:focus,
-.ek-textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(217, 75, 50, 0.08);
-}
-
-.ek-textarea {
-  min-height: 72px;
-  resize: vertical;
-  line-height: 1.7;
-}
-
-.ek-styles {
+.ek-quickgroup {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.ek-quickgroup__name {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.ek-quickgrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
-.ek-style {
-  padding: 10px 12px;
+.ek-quick {
+  padding: 9px 11px;
   border-radius: 11px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -416,97 +548,36 @@
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
-.ek-style b {
+.ek-quick b {
   display: block;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--color-text);
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
-.ek-style span {
-  font-size: 11px;
+.ek-quick span {
+  font-size: 10.5px;
   color: var(--color-text-muted);
-  line-height: 1.5;
 }
 
-.ek-style:hover {
+.ek-quick:hover {
   border-color: var(--color-border-strong);
   background: var(--color-surface-soft);
 }
 
-.ek-style.is-on {
+.ek-quick.is-on {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
 
-.ek-style.is-on b {
+.ek-quick.is-on b {
   color: var(--color-primary);
 }
 
-/* 已选食材清单 */
-.ek-ing {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border-soft);
-  background: var(--color-surface-soft);
-  margin-bottom: 7px;
-}
-
-.ek-ing__name {
-  flex: 1;
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-.ek-ing__qty {
-  width: 74px;
-  padding: 5px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: #fff;
-  font-size: 12px;
-  color: var(--color-text);
-}
-
-.ek-ing__role {
-  padding: 5px 6px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: #fff;
-  font-size: 11.5px;
-  color: var(--color-text-secondary);
-}
-
-.ek-ing__del {
-  border: 0;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: 15px;
-  cursor: pointer;
-  padding: 0 2px;
-}
-
-.ek-ing__del:hover {
-  color: var(--color-danger);
-}
-
-.ek-empty {
-  padding: 18px;
-  border-radius: 12px;
-  border: 1px dashed var(--color-border);
-  text-align: center;
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-/* 高级参数折叠 */
+/* 高级参数 */
 .ek-adv {
   border-top: 1px dashed var(--color-border);
-  margin-top: 4px;
   padding-top: 10px;
 }
 
@@ -541,56 +612,128 @@
   display: block;
 }
 
-.ek-switch {
+.ek-seg {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.ek-seg--wrap {
+  flex-wrap: wrap;
+}
+
+.ek-seg__btn {
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-text-secondary);
+  font-size: 12px;
   cursor: pointer;
-  margin-bottom: 8px;
 }
 
-.ek-submit {
+.ek-seg__btn.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.ek-compgrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ek-comp {
+  padding: 10px;
+  border-radius: 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ek-comp b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-bottom: 3px;
+  color: var(--color-text);
+}
+
+.ek-comp span {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ek-comp.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-comp.is-on b {
+  color: var(--color-primary);
+}
+
+.ek-generate {
   width: 100%;
-  margin-top: 6px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.2s var(--ease);
 }
 
-.ek-submit[disabled] {
-  opacity: 0.55;
+.ek-generate:hover {
+  background: var(--color-primary-hover);
+}
+
+.ek-generate[disabled] {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 生成结果 */
+/* ---------- 结果 ---------- */
 .ek-result {
-  margin-top: 16px;
+  margin-top: 4px;
 }
 
 .ek-result__head {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 
 .ek-result__title {
+  margin: 0;
   font-size: 20px;
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--color-text);
-  margin: 0 0 6px;
+}
+
+.ek-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .ek-tag {
   display: inline-flex;
-  align-items: center;
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 10.5px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  margin-right: 6px;
 }
 
 .ek-tag--origin {
@@ -611,46 +754,31 @@
   background: var(--color-surface-soft);
 }
 
-.ek-analysis {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.ek-analysis__row {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
-}
-
-.ek-analysis__row b {
-  flex: 0 0 88px;
+.ek-result-card h3 {
+  margin: 16px 0 8px;
+  font-size: 13px;
   font-weight: 500;
+  letter-spacing: 0.1em;
   color: var(--color-text);
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
 }
 
 .ek-ings {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .ek-ings__row {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--color-border-soft);
   font-size: 12.5px;
   color: var(--color-text);
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--color-border-soft);
 }
 
 .ek-ings__row span:first-child {
-  flex: 0 0 auto;
+  flex: 1;
 }
 
 .ek-ings__row em {
@@ -664,12 +792,12 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ek-steps li {
-  padding: 10px 12px;
-  border-radius: 11px;
+  padding: 9px 12px;
+  border-radius: 10px;
   border: 1px solid var(--color-border-soft);
   background: var(--color-surface-soft);
   font-size: 12.5px;
@@ -679,85 +807,26 @@
 
 .ek-steps b {
   display: block;
-  font-size: 12.5px;
-  margin-bottom: 3px;
-  color: var(--color-text);
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
 .ek-steps i {
   font-style: normal;
   font-size: 11px;
   color: var(--color-text-muted);
-  margin-left: 8px;
 }
 
 .ek-result__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: 14px;
 }
 
-/* ---------- 响应式 ---------- */
-@media (max-width: 1080px) {
-  .ek-create {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 980px) {
-  .ek-explore {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ek-graphpane {
-    min-height: 420px;
-  }
-
-  .egraph {
-    min-height: 340px;
-  }
-
-  .ek-side {
-    max-height: none;
-  }
-
-  .ek-list {
-    max-height: 300px;
-  }
-}
-
-@media (max-width: 560px) {
-  .ek-list {
-    grid-template-columns: 1fr;
-  }
-
-  .ek-graphpane__head {
-    flex-wrap: wrap;
-  }
-
-  .egraph__node text {
-    font-size: 10.5px;
-  }
-
-  .ek-field__row {
-    grid-template-columns: 1fr;
-  }
-
-  .ek-styles {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* 桌面端：生成卡片吸顶，滚动时始终可点 */
-@media (min-width: 1081px) {
-  .ek-create > aside {
-    position: sticky;
-    top: 88px;
-  }
-}
-
-/* ---------- 分享到社区弹窗 ---------- */
+/* ---------- 分享弹窗 ---------- */
 .ek-modal {
   position: fixed;
   inset: 0;
@@ -766,7 +835,6 @@
   place-items: center;
   padding: 20px;
   background: rgba(60, 40, 26, 0.42);
-  backdrop-filter: blur(2px);
 }
 
 .ek-modal__box {
@@ -784,7 +852,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .ek-modal__head h3 {
@@ -792,41 +860,110 @@
   font-size: 15px;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: var(--color-text);
 }
 
 .ek-modal__close {
   border: 0;
   background: transparent;
   font-size: 18px;
-  line-height: 1;
   color: var(--color-text-muted);
   cursor: pointer;
-}
-
-.ek-modal__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--color-border);
-}
-
-.ek-modal .ek-textarea {
-  min-height: 96px;
-  font-size: 12.5px;
-  line-height: 1.8;
 }
 
 .ek-modal__tip {
   margin: 0 0 10px;
   font-size: 11.5px;
   color: var(--color-text-muted);
-  line-height: 1.7;
 }
 
-/* 社区帖子里的菜谱块 */
+.ek-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+/* ---------- 风味面板（复用组件） ---------- */
+.ep-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-soft);
+  background: linear-gradient(180deg, #fdfaf4, var(--color-surface));
+}
+
+.ep-panel.is-empty {
+  border-style: dashed;
+}
+
+.ep-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ep-panel__head b {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+}
+
+.ep-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  border: 1px solid #a8bb92;
+  color: #5d7449;
+  background: #f3f7ee;
+}
+
+.ep-rows {
+  display: grid;
+  gap: 5px;
+}
+
+.ep-row {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.ep-row b {
+  flex: 0 0 66px;
+  font-weight: 500;
+  font-size: 11.5px;
+  color: var(--color-text);
+}
+
+.ep-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.ep-note--dim {
+  opacity: 0.75;
+}
+
+.ep-chip {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  border: 1px solid #a8bb92;
+  color: #5d7449;
+  background: #f3f7ee;
+  margin-left: 6px;
+}
+
+/* ---------- 社区帖子里的菜谱块 ---------- */
 .post__recipe {
   margin-top: 10px;
   border-radius: 12px;
@@ -841,7 +978,6 @@
   gap: 8px;
   padding: 9px 12px;
   font-size: 12px;
-  letter-spacing: 0.06em;
   color: var(--color-text);
   cursor: pointer;
   list-style: none;
@@ -849,10 +985,6 @@
 
 .post__recipe summary::-webkit-details-marker {
   display: none;
-}
-
-.post__recipe summary b {
-  font-weight: 500;
 }
 
 .post__recipe__body {
@@ -892,84 +1024,58 @@
   color: var(--color-text-muted);
 }
 
-/* ---------- Epicure 风味面板（可复用） ---------- */
-.ep-panel {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border-soft);
-  background: linear-gradient(180deg, #fdfaf4, var(--color-surface));
+/* ---------- 响应式 ---------- */
+@media (max-width: 1080px) {
+  .ek-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ek-catalog {
+    max-height: none;
+  }
+
+  .ek-list {
+    max-height: 320px;
+  }
+
+  .ek-quickgrid,
+  .ek-compgrid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
-.ep-panel.is-empty {
-  border-style: dashed;
-}
+@media (max-width: 620px) {
+  .ek-graph-card {
+    min-height: 460px;
+  }
 
-.ep-panel__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
+  .ek-canvas {
+    min-height: 300px;
+  }
 
-.ep-panel__head b {
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--color-text);
-}
+  .ek-list {
+    grid-template-columns: 1fr;
+  }
 
-.ep-badge {
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  border: 1px solid #a8bb92;
-  color: #5d7449;
-  background: #f3f7ee;
-}
+  .ek-quickgrid,
+  .ek-compgrid {
+    grid-template-columns: 1fr;
+  }
 
-.ep-rows {
-  display: grid;
-  gap: 5px;
-}
+  .ek-field__row {
+    grid-template-columns: 1fr;
+  }
 
-.ep-row {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
-}
+  .ek-toolbar {
+    flex-wrap: wrap;
+  }
 
-.ep-row b {
-  flex: 0 0 66px;
-  font-weight: 500;
-  color: var(--color-text);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-}
+  .ek-ctx {
+    width: 100%;
+    flex: 1 0 100%;
+  }
 
-.ep-note {
-  margin: 8px 0 0;
-  font-size: 11px;
-  line-height: 1.7;
-  color: var(--color-text-muted);
-}
-
-.ep-note--dim {
-  opacity: 0.75;
-}
-
-.ep-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
-  border: 1px solid #a8bb92;
-  color: #5d7449;
-  background: #f3f7ee;
-  margin-left: 6px;
+  .ek-modes {
+    flex-wrap: wrap;
+  }
 }
