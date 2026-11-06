@@ -1,4 +1,7 @@
 import https from 'node:https';
+
+// 线上服务器到 Cloudflare 的 IPv6 不通，这里同样强制 IPv4
+const agentV4 = new https.Agent({ family: 4, keepAlive: true });
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,6 +137,7 @@ function fetchJson(url) {
       {
         headers: { 'user-agent': UA, accept: 'application/json', referer: 'https://epicure.kaikaku.ai/' },
         timeout: TIMEOUT,
+        agent: agentV4,
       },
       (res) => {
         if (res.statusCode !== 200) {
