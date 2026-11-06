@@ -6,9 +6,9 @@ import { TASTE_BY_ID, CUISINE_BY_ID, TASTES } from '../src/data/cuisines.js';
 import { buildDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildRecommendPrompt, buildSuggestionPrompt } from './prompt.mjs';
 import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
-import { epicureStatus } from './epicure-client.mjs';
+import { epicureStatus, toolsPublic } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
-import { resolveIngredient } from './epicure-service.mjs';
+import { resolveIngredient, analyze as epicureAnalyze } from './epicure-service.mjs';
 import { buildCreativePrompt } from './epicure-prompts.mjs';
 import { validateCreative } from './epicure-recipe-schema.mjs';
 import { callTool as epicureCall } from './epicure-client.mjs';
@@ -1481,6 +1481,38 @@ export async function handleApi(req, res) {
       const rl = rateLimit(req, 'epicure-status', 60, 60_000);
       if (!rl.ok) return send(res, 429, { error: '请求过于频繁', code: 'rate_limited' });
       return send(res, 200, await epicureStatus());
+    }
+    if (req.method === 'GET' && path === '/api/epicure/tools') {
+      const rl = rateLimit(req, 'epicure-tools', 60, 60_000);
+      if (!rl.ok) return send(res, 429, { error: '请求过于频繁', code: 'rate_limited' });
+      try {
+        return send(res, 200, { ok: true, tools: await toolsPublic() });
+      } catch (err) {
+        return send(res, 200, { ok: false, error: String(err?.message || err).slice(0, 120), tools: [] });
+      }
+    }
+    if (req.method === 'POST' && path === '/api/epicure/analyze') {
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+      const rl = rateLimit(req, `epicure-analyze:${actorKey(req, getCurrentUser(req))}`, 20, 60_000);
+      if (!rl.ok) return send(res, 429, { error: `请求过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
+      const body = await readJson(req);
+      const mode = String(body.mode || 'single');
+      if (!['single', 'pair', 'multi', 'cuisine', 'direction', 'atlas'].includes(mode)) {
+        return send(res, 400, { error: 'mode 不合法' });
+      }
+      const ingredients = (Array.isArray(body.ingredients) ? body.ingredients : [body.ingredient])
+        .filter(Boolean)
+        .map((x) => String(x).slice(0, 30))
+        .slice(0, 8);
+      if (!ingredients.length) return send(res, 400, { error: '请至少提供一个食材' });
+      const out = await epicureAnalyze({
+        mode,
+        ingredients,
+        axis: body.axis ? String(body.axis).slice(0, 40) : '',
+        target: body.target ? String(body.target).slice(0, 40) : '',
+        angle: body.angle,
+      });
+      return send(res, 200, out);
     }
     if (req.method === 'GET' && path === '/api/epicure/ingredients') {
       const lib = ingredientLibrary();

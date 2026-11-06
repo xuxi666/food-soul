@@ -1,280 +1,270 @@
+import http from 'node:http';
 import https from 'node:https';
+import { Readable } from 'node:stream';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
 /**
- * Epicure MCP 客户端（服务端专用，不暴露给浏览器）
+ * Epicure MCP 客户端（官方 SDK + Streamable HTTP）
  *
- * 协议：MCP Streamable HTTP（JSON-RPC over POST，响应可能是 SSE 帧）
- * 端点：https://epicure-mcp.kaikaku.ai/mcp
+ * 为什么自己实现 fetch：
+ * 线上服务器到 Cloudflare 的 IPv6 不通，Node 自带 fetch(undici) 会一直等到超时，
+ * 而 curl 正常。这里用 node:https + Agent({family:4}) 强制 IPv4，行为稳定。
  *
- * 设计要点：
- * - 单例会话：initialize 一次，复用 mcp-session-id；过期自动重建
- * - tools/list 结果缓存 10 分钟，用于校验工具是否存在
- * - 每次调用带超时（默认 12s），失败不抛给业务层以外的调用方
- * - 结果按 工具名+参数 缓存，避免同一食材反复请求
- * - 只允许调用白名单内的工具，防止被当成通用 MCP 代理
+ * 其余能力：
+ * - 单例连接复用，出错自动重连一次
+ * - tools/list 缓存（EPICURE_CACHE_TTL_MS）
+ * - 调用结果缓存，避免同一食材反复请求
+ * - 并发上限 EPICURE_MAX_CONCURRENCY
+ * - 工具白名单：不允许前端传任意工具名
+ * - 任何异常都不抛出到业务层以外，服务不会因此崩溃
  */
 
-const ENDPOINT = process.env.EPICURE_MCP_URL || 'https://epicure-mcp.kaikaku.ai/mcp';
-const CLIENT_NAME = 'food-soul';
-const CLIENT_VERSION = '1.0.0';
+const URL_RAW = process.env.EPICURE_MCP_URL || 'https://epicure-mcp.kaikaku.ai/mcp';
+const ENABLED = String(process.env.EPICURE_ENABLED ?? 'true') !== 'false';
+const CALL_TIMEOUT = Number(process.env.EPICURE_TIMEOUT_MS) || 10000;
+const CACHE_TTL = Number(process.env.EPICURE_CACHE_TTL_MS) || 300000;
+const MAX_CONCURRENCY = Math.max(1, Number(process.env.EPICURE_MAX_CONCURRENCY) || 3);
 
-const CALL_TIMEOUT = Number(process.env.EPICURE_TIMEOUT_MS) || 12000;
-const TOOLS_TTL = 10 * 60 * 1000;
-const RESULT_TTL = 30 * 60 * 1000;
-const MAX_RESULT_CACHE = 400;
-
-/** 业务实际会用到的工具（其余不开放调用） */
 export const ALLOWED_TOOLS = new Set([
+  'compare_on_axis',
   'pairing_score',
   'find_pairings',
-  'neighbors',
-  'compare_on_axis',
   'flavour_correlations',
   'cultural_profile',
-  'where_on_atlas',
-  'ingredient_on_factor',
+  'neighbors',
+  'morph',
   'list_targets',
   'list_factors',
-  'morph',
+  'ingredient_on_factor',
   'pareto_navigate',
   'closest_mode',
+  'where_on_atlas',
 ]);
 
-let session = null;          // { id, at }
-let sessionPromise = null;   // 并发初始化去重
-let toolsCache = null;       // { at, tools }
-const resultCache = new Map(); // key -> { at, value }
+/* ---------------- IPv4 fetch ---------------- */
+const agentHttps = new https.Agent({ family: 4, keepAlive: true, keepAliveMsecs: 15000 });
+const agentHttp = new http.Agent({ family: 4, keepAlive: true });
 
-export function isEpicureDisabled() {
-  return String(process.env.EPICURE_DISABLED || '') === '1';
+function headersToObject(h) {
+  if (!h) return {};
+  if (typeof h.forEach === 'function' && !Array.isArray(h)) {
+    const out = {};
+    h.forEach((v, k) => {
+      out[k] = v;
+    });
+    return out;
+  }
+  if (Array.isArray(h)) return Object.fromEntries(h);
+  return { ...h };
 }
 
-function cacheGet(key) {
-  const hit = resultCache.get(key);
-  if (!hit) return null;
-  if (Date.now() - hit.at > RESULT_TTL) {
-    resultCache.delete(key);
-    return null;
-  }
-  return hit.value;
-}
-
-function cacheSet(key, value) {
-  if (resultCache.size >= MAX_RESULT_CACHE) {
-    const oldest = resultCache.keys().next().value;
-    if (oldest) resultCache.delete(oldest);
-  }
-  resultCache.set(key, { at: Date.now(), value });
-}
-
-/** 从响应里取出 JSON-RPC 结果：可能是纯 JSON，也可能是 SSE 帧 */
-function parseRpcPayload(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('{')) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      /* 落到 SSE 解析 */
-    }
-  }
-  const lines = trimmed.split(/\r?\n/);
-  let last = null;
-  for (const line of lines) {
-    if (!line.startsWith('data:')) continue;
-    const raw = line.slice(5).trim();
-    if (!raw) continue;
-    try {
-      last = JSON.parse(raw);
-    } catch {
-      /* 忽略坏帧 */
-    }
-  }
-  return last;
-}
-
-/** 强制 IPv4 的 Agent：服务器到 Cloudflare 的 IPv6 常不通，undici/fetch 会一直等到超时 */
-const agentV4 = new https.Agent({ family: 4, keepAlive: true, keepAliveMsecs: 15000 });
-
-function httpPostJson(urlStr, body, headers, timeout) {
+/** 与标准 fetch 兼容的最小实现，只走 IPv4 */
+function ipv4Fetch(url, init = {}) {
   return new Promise((resolve, reject) => {
-    const url = new URL(urlStr);
-    const payload = Buffer.from(JSON.stringify(body), 'utf8');
-    const req = https.request(
+    const u = url instanceof URL ? url : new URL(typeof url === 'string' ? url : url.url || url.href);
+    const isHttps = u.protocol !== 'http:';
+    const mod = isHttps ? https : http;
+    const req = mod.request(
       {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port || 443,
-        path: url.pathname + url.search,
-        method: 'POST',
-        agent: agentV4,
-        headers: { ...headers, 'content-length': payload.length },
-        timeout,
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: u.pathname + u.search,
+        method: init.method || 'GET',
+        headers: headersToObject(init.headers),
+        agent: isHttps ? agentHttps : agentHttp,
       },
       (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
-          resolve({ status: res.statusCode || 0, headers: res.headers, text: Buffer.concat(chunks).toString('utf8') });
-        });
+        const body = Readable.toWeb(res);
+        resolve(
+          new Response(body, {
+            status: res.statusCode || 200,
+            statusText: res.statusMessage || '',
+            headers: res.headers,
+          })
+        );
       }
     );
-    req.on('timeout', () => {
-      req.destroy(Object.assign(new Error('epicure-timeout'), { code: 'timeout' }));
-    });
     req.on('error', (err) => reject(err));
-    req.write(payload);
+    if (init.signal) {
+      const onAbort = () => req.destroy(Object.assign(new Error('aborted'), { code: 'ABORT_ERR' }));
+      if (init.signal.aborted) onAbort();
+      else init.signal.addEventListener('abort', onAbort, { once: true });
+    }
+    const body = init.body;
+    if (body && typeof body.getReader === 'function') {
+      // Request.body 是 ReadableStream
+      const nodeStream = Readable.fromWeb(body);
+      nodeStream.on('data', (c) => req.write(c));
+      nodeStream.on('end', () => req.end());
+      nodeStream.on('error', (e) => req.destroy(e));
+      return;
+    }
+    if (body) {
+      req.write(typeof body === 'string' || Buffer.isBuffer(body) ? body : Buffer.from(body));
+    }
     req.end();
   });
 }
 
-async function postRpc(body, { sessionId, timeout = CALL_TIMEOUT } = {}) {
-  const headers = {
-    'content-type': 'application/json',
-    accept: 'application/json, text/event-stream',
-    ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
-  };
-  let res;
-  try {
-    res = await httpPostJson(ENDPOINT, body, headers, timeout);
-  } catch (err) {
-    const e = new Error(err?.code === 'timeout' ? 'epicure-timeout' : `epicure-network: ${err?.code || err?.message || err}`);
-    e.code = err?.code === 'timeout' ? 'timeout' : 'network';
-    throw e;
+/* ---------------- 连接管理 ---------------- */
+let client = null;
+let connecting = null;
+let toolsCache = null; // { at, tools }
+const resultCache = new Map(); // key -> { at, value }
+
+let active = 0;
+const waiters = [];
+
+async function acquire() {
+  if (active < MAX_CONCURRENCY) {
+    active += 1;
+    return;
   }
-  const sid = res.headers['mcp-session-id'];
-  const text = res.text;
-  if (res.status === 404) {
-    const err = new Error('session-expired');
-    err.code = 'session-expired';
-    throw err;
-  }
-  if (res.status < 200 || res.status >= 300) {
-    const err = new Error(`epicure-http-${res.status}`);
-    err.code = 'http';
-    err.status = res.status;
-    throw err;
-  }
-  return { payload: parseRpcPayload(text), sessionId: sid };
+  await new Promise((resolve) => waiters.push(resolve));
+  active += 1;
 }
 
-let nextId = 0;
+function release() {
+  active = Math.max(0, active - 1);
+  const next = waiters.shift();
+  if (next) next();
+}
 
-async function ensureSession(force = false) {
-  if (!force && session && Date.now() - session.at < 20 * 60 * 1000) return session.id;
-  if (sessionPromise) return sessionPromise;
+export function isEpicureEnabled() {
+  return ENABLED;
+}
 
-  sessionPromise = (async () => {
-    const { payload, sessionId } = await postRpc(
-      {
-        jsonrpc: '2.0',
-        id: ++nextId,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2024-11-05',
-          capabilities: {},
-          clientInfo: { name: CLIENT_NAME, version: CLIENT_VERSION },
-        },
-      },
-      { timeout: CALL_TIMEOUT }
-    );
-    if (!payload?.result || !sessionId) {
-      const err = new Error('epicure-init-failed');
-      err.code = 'init';
-      throw err;
-    }
-    session = { id: sessionId, at: Date.now() };
-    // 按协议补一条 initialized 通知（无 id，不需要等结果）
-    await postRpc(
-      { jsonrpc: '2.0', method: 'notifications/initialized' },
-      { sessionId, timeout: 5000 }
-    ).catch(() => {});
-    return sessionId;
+async function ensureClient(force = false) {
+  if (!ENABLED) throw Object.assign(new Error('epicure-disabled'), { code: 'disabled' });
+  if (!force && client) return client;
+  if (connecting) return connecting;
+
+  connecting = (async () => {
+    const transport = new StreamableHTTPClientTransport(new URL(URL_RAW), {
+      fetch: ipv4Fetch,
+      requestInit: { headers: { 'user-agent': 'food-soul/1.0 (+epicure)' } },
+    });
+    const c = new Client({ name: 'food-soul', version: '1.0.0' }, { capabilities: {} });
+    await c.connect(transport);
+    client = c;
+    return c;
   })();
 
   try {
-    return await sessionPromise;
+    return await connecting;
   } finally {
-    sessionPromise = null;
+    connecting = null;
   }
 }
 
-/** 获取工具清单（含真实 inputSchema），缓存 10 分钟 */
-export async function listTools({ force = false } = {}) {
-  if (!force && toolsCache && Date.now() - toolsCache.at < TOOLS_TTL) return toolsCache.tools;
-  const sid = await ensureSession();
-  const { payload } = await postRpc(
-    { jsonrpc: '2.0', id: ++nextId, method: 'tools/list', params: {} },
-    { sessionId: sid }
-  );
-  const tools = payload?.result?.tools;
-  if (!Array.isArray(tools)) {
-    const err = new Error('epicure-tools-failed');
-    err.code = 'tools';
-    throw err;
+function dropClient() {
+  try {
+    client?.close?.();
+  } catch {
+    /* 忽略关闭异常 */
   }
+  client = null;
+}
+
+/* ---------------- 工具清单 ---------------- */
+export async function listTools({ force = false } = {}) {
+  if (!force && toolsCache && Date.now() - toolsCache.at < CACHE_TTL) return toolsCache.tools;
+  const c = await ensureClient();
+  const res = await c.listTools();
+  const tools = Array.isArray(res?.tools) ? res.tools : [];
   toolsCache = { at: Date.now(), tools };
   return tools;
 }
 
-/**
- * 调用一个工具。返回 { ok, data, text, error, cached, ms }
- * 不抛异常，调用方按 ok 分支处理。
- */
-export async function callTool(name, args = {}, opts = {}) {
-  if (isEpicureDisabled()) return { ok: false, error: 'epicure-disabled' };
-  if (!ALLOWED_TOOLS.has(name)) return { ok: false, error: 'tool-not-allowed' };
-
-  const key = `${name}:${JSON.stringify(args)}`;
-  const cached = cacheGet(key);
-  if (cached && !opts.noCache) return { ...cached, cached: true };
-
-  const started = Date.now();
-  const timeout = Math.max(2000, Number(opts.timeout) || CALL_TIMEOUT);
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const sid = await ensureSession(attempt > 0);
-      const { payload } = await postRpc(
-        { jsonrpc: '2.0', id: ++nextId, method: 'tools/call', params: { name, arguments: args } },
-        { sessionId: sid, timeout }
-      );
-      if (payload?.error) {
-        const value = { ok: false, error: String(payload.error.message || 'rpc-error').slice(0, 200), ms: Date.now() - started };
-        return value;
-      }
-      const result = payload?.result || {};
-      const text = (result.content || [])
-        .filter((c) => c && typeof c.text === 'string')
-        .map((c) => c.text)
-        .join('\n');
-      const value = {
-        ok: !result.isError,
-        text,
-        data: safeJson(text),
-        error: result.isError ? text.slice(0, 200) : null,
-        ms: Date.now() - started,
-      };
-      if (value.ok) cacheSet(key, value);
-      return value;
-    } catch (err) {
-      const code = err?.code || 'network';
-      if (code === 'session-expired' && attempt === 0) {
-        await sleep(120);
-        continue;
-      }
-      if (attempt === 0 && code !== 'http') {
-        await sleep(200);
-        continue;
-      }
-      return { ok: false, error: `${code}: ${String(err.message || err).slice(0, 120)}`, ms: Date.now() - started };
-    }
-  }
-  return { ok: false, error: 'unreachable', ms: Date.now() - started };
+/** 给前端看的工具清单：只保留名称、说明、参数名与必填项，不暴露内部字段 */
+export async function toolsPublic() {
+  const tools = await listTools();
+  return tools.map((t) => {
+    const schema = t.inputSchema || {};
+    const props = schema.properties || {};
+    return {
+      name: t.name,
+      description: String(t.description || '').slice(0, 300),
+      params: Object.keys(props).map((k) => ({
+        name: k,
+        type: String(props[k]?.type || (props[k]?.anyOf ? 'any' : 'unknown')),
+        required: Array.isArray(schema.required) && schema.required.includes(k),
+        description: String(props[k]?.description || props[k]?.title || '').slice(0, 160),
+      })),
+      allowed: ALLOWED_TOOLS.has(t.name),
+    };
+  });
 }
 
-function safeJson(text) {
+/* ---------------- 调用 ---------------- */
+function cacheKey(name, args) {
+  return `${name}:${JSON.stringify(args)}`;
+}
+
+/**
+ * 调用一个工具。永不抛异常。
+ * @returns {{ok:boolean, data:any, text:string, error:string|null, ms:number, cached?:boolean}}
+ */
+export async function callTool(name, args = {}, opts = {}) {
+  if (!ENABLED) return { ok: false, error: 'epicure-disabled', ms: 0 };
+  if (!ALLOWED_TOOLS.has(name)) return { ok: false, error: 'tool-not-allowed', ms: 0 };
+
+  const key = cacheKey(name, args);
+  const hit = resultCache.get(key);
+  if (!opts.noCache && hit && Date.now() - hit.at < CACHE_TTL) return { ...hit.value, cached: true };
+
+  const timeout = Math.max(2000, Number(opts.timeout) || CALL_TIMEOUT);
+  const started = Date.now();
+
+  await acquire();
+  try {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const c = await ensureClient(attempt > 0);
+        const res = await c.callTool({ name, arguments: args }, undefined, { timeout });
+        const parts = Array.isArray(res?.content) ? res.content : [];
+        const text = parts
+          .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
+          .map((p) => p.text)
+          .join('\n');
+        const value = {
+          ok: !res?.isError,
+          text,
+          data: parseMaybeJson(text),
+          error: res?.isError ? text.slice(0, 240) : null,
+          ms: Date.now() - started,
+        };
+        if (value.ok) {
+          if (resultCache.size > 400) resultCache.delete(resultCache.keys().next().value);
+          resultCache.set(key, { at: Date.now(), value });
+        }
+        return value;
+      } catch (err) {
+        const code = err?.code || '';
+        const retryable =
+          code === 'ECONNRESET' || code === 'EPIPE' || /closed|abort|timeout/i.test(String(err?.message || ''));
+        if (attempt === 0 && retryable) {
+          dropClient();
+          await sleep(150);
+          continue;
+        }
+        return {
+          ok: false,
+          error: `${code || 'error'}: ${String(err?.message || err).slice(0, 140)}`,
+          ms: Date.now() - started,
+        };
+      }
+    }
+    return { ok: false, error: 'unreachable', ms: Date.now() - started };
+  } finally {
+    release();
+  }
+}
+
+function parseMaybeJson(text) {
   if (!text) return null;
   const t = text.trim();
   if (!(t.startsWith('{') || t.startsWith('['))) return null;
@@ -285,28 +275,37 @@ function safeJson(text) {
   }
 }
 
-/** 健康状态：能否连上、工具数、耗时 */
+/* ---------------- 状态 ---------------- */
 export async function epicureStatus() {
-  if (isEpicureDisabled()) return { ok: false, disabled: true, error: 'epicure-disabled' };
+  if (!ENABLED) return { enabled: false, ok: false, error: 'epicure-disabled' };
   const started = Date.now();
   try {
     const tools = await listTools();
     return {
+      enabled: true,
       ok: true,
-      endpoint: ENDPOINT,
-      tools: tools.map((t) => t.name),
+      url: URL_RAW,
       toolCount: tools.length,
+      tools: tools.map((t) => t.name),
       ms: Date.now() - started,
-      cached: Boolean(toolsCache && Date.now() - toolsCache.at > 50),
+      cacheTtlMs: CACHE_TTL,
+      timeoutMs: CALL_TIMEOUT,
+      maxConcurrency: MAX_CONCURRENCY,
     };
   } catch (err) {
-    return { ok: false, error: `${err?.code || 'network'}: ${String(err.message || err).slice(0, 120)}`, ms: Date.now() - started };
+    return {
+      enabled: true,
+      ok: false,
+      url: URL_RAW,
+      error: String(err?.code || err?.message || err).slice(0, 160),
+      ms: Date.now() - started,
+    };
   }
 }
 
-/** 测试用：清空缓存与会话 */
+/** 测试用：清空连接与缓存 */
 export function __resetEpicure() {
-  session = null;
+  dropClient();
   toolsCache = null;
   resultCache.clear();
 }

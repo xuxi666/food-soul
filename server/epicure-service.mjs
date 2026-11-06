@@ -237,3 +237,240 @@ export function ingredientLibrary() {
     unresolved: lex.unresolved.map((u) => u.cn),
   };
 }
+
+/* ============================================================
+ * 13 个工具的封装层
+ * - 参数按官方 tools/list 的真实 Schema 校验（必填/类型/范围）
+ * - 食材字段统一走中文词表映射，映射不到就明确报错，不偷换成别的食材
+ * - 记录本次用到哪些工具，供前端与提示词使用
+ * ============================================================ */
+
+const INT = (v, min, max, fallback) => {
+  const n = Math.trunc(Number(v));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+};
+const NUM = (v, min, max) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(max, Math.max(min, n));
+};
+
+export const TOOL_SPECS = {
+  compare_on_axis: { required: ['ingredient_a', 'ingredient_b', 'axis'], ingredient: ['ingredient_a', 'ingredient_b'], text: ['axis'] },
+  pairing_score: { required: ['ingredient_a', 'ingredient_b'], ingredient: ['ingredient_a', 'ingredient_b'] },
+  find_pairings: { required: ['ingredients'], ingredientList: ['ingredients'], bool: ['is_vegan', 'is_vegetarian'] },
+  flavour_correlations: { optional: { limit: [1, 100], min_abs_correlation: [0, 1] } },
+  cultural_profile: { required: ['ingredient'], ingredient: ['ingredient'] },
+  neighbors: { required: ['ingredient'], ingredient: ['ingredient'], optional: { top_k: [1, 50] } },
+  morph: { required: ['seed', 'target'], ingredient: ['seed'], morphTarget: true, optional: { angle_deg: [0, 180], top_k: [1, 50] } },
+  list_targets: { optional: { limit: [1, 50], offset: [0, 10000] }, enum: { kind: ['direction', 'mode'] } },
+  list_factors: { optional: { min_coherence: [0, 1] }, bool: ['include_examples'] },
+  ingredient_on_factor: { required: ['ingredient', 'factor'], ingredient: ['ingredient'], ints: { factor: [0, 19] } },
+  pareto_navigate: { required: ['seed', 'pole'], ingredient: ['seed'], pole: true, optional: { top_k_poles: [1, 10], max_frontier: [1, 25] } },
+  closest_mode: { required: ['ingredient'], ingredient: ['ingredient'], optional: { top_k: [1, 20] } },
+  where_on_atlas: { required: ['ingredient'], ingredient: ['ingredient'], optional: { top_k_neighbors_2d: [1, 25] } },
+};
+
+function coerceArgs(spec, raw) {
+  const out = {};
+  const resolved = [];
+  const missing = [];
+
+  for (const key of spec.required || []) {
+    if (raw[key] === undefined || raw[key] === null || raw[key] === '') missing.push(key);
+  }
+  if (missing.length) return { ok: false, error: `缺少参数：${missing.join(', ')}`, missing };
+
+  for (const key of spec.ingredient || []) {
+    if (raw[key] === undefined) continue;
+    const entry = resolveIngredient(raw[key]);
+    if (!entry) return { ok: false, error: `食材「${String(raw[key]).slice(0, 20)}」未收录，无法计算`, unresolved: raw[key] };
+    out[key] = entry.epicure;
+    resolved.push({ field: key, cn: entry.cn, epicure: entry.epicure });
+  }
+
+  for (const key of spec.ingredientList || []) {
+    const list = Array.isArray(raw[key]) ? raw[key] : raw[key] ? [raw[key]] : [];
+    if (!list.length) return { ok: false, error: `缺少参数：${key}`, missing: [key] };
+    const mapped = [];
+    for (const item of list.slice(0, 12)) {
+      const entry = resolveIngredient(item);
+      if (!entry) return { ok: false, error: `食材「${String(item).slice(0, 20)}」未收录，无法计算`, unresolved: item };
+      mapped.push(entry.epicure);
+      resolved.push({ field: key, cn: entry.cn, epicure: entry.epicure });
+    }
+    out[key] = mapped;
+  }
+
+  // morph.target：官方是判别联合，字符串按「方向」处理
+  if (spec.morphTarget) {
+    const t = raw.target;
+    if (typeof t === 'string' && t.trim()) {
+      out.target = { kind: 'direction', name: t.trim().slice(0, 60) };
+    } else if (t && typeof t === 'object' && ['direction', 'mode', 'ingredient'].includes(t.kind)) {
+      out.target = t;
+    } else {
+      return { ok: false, error: 'target 需为方向名，或 {kind:"direction"|"mode"|"ingredient", ...}' };
+    }
+  }
+
+  // pareto_navigate.pole：{factor:0-19, side:"a"|"b"}
+  if (spec.pole) {
+    const pl = raw.pole;
+    const factor = Number(pl?.factor);
+    const side = String(pl?.side || '');
+    if (!Number.isInteger(factor) || factor < 0 || factor > 19 || !['a', 'b'].includes(side)) {
+      return { ok: false, error: 'pole 需为 {factor: 0-19, side: "a"|"b"}' };
+    }
+    out.pole = { factor, side };
+  }
+
+  for (const [key, [min, max]] of Object.entries(spec.ints || {})) {
+    if (raw[key] === undefined || raw[key] === '') continue;
+    const v = INT(raw[key], min, max, undefined);
+    if (v === undefined) return { ok: false, error: `${key} 需为 ${min}-${max} 的整数` };
+    out[key] = v;
+  }
+
+  for (const key of spec.text || []) {
+    if (raw[key] !== undefined && raw[key] !== '') out[key] = String(raw[key]).slice(0, 60);
+  }
+  for (const [key, [min, max]] of Object.entries(spec.optional || {})) {
+    if (raw[key] === undefined || raw[key] === '') continue;
+    const v = Number.isInteger(min) ? INT(raw[key], min, max, undefined) : NUM(raw[key], min, max);
+    if (v !== undefined) out[key] = v;
+  }
+  for (const key of spec.bool || []) {
+    if (raw[key] !== undefined) out[key] = Boolean(raw[key]);
+  }
+  for (const [key, allowed] of Object.entries(spec.enum || {})) {
+    if (raw[key] !== undefined && allowed.includes(raw[key])) out[key] = raw[key];
+  }
+  return { ok: true, args: out, resolved };
+}
+
+/**
+ * 统一调用入口：只允许白名单工具，参数按 Schema 校验。
+ * @returns {{ok:boolean, tool:string, args?:object, resolved?:Array, data?:any, text?:string, error?:string, ms:number}}
+ */
+export async function runTool(name, rawArgs = {}) {
+  const spec = TOOL_SPECS[name];
+  if (!spec) return { ok: false, tool: name, error: 'tool-not-allowed', ms: 0 };
+  const coerced = coerceArgs(spec, rawArgs);
+  if (!coerced.ok) return { ok: false, tool: name, error: coerced.error, unresolved: coerced.unresolved, ms: 0 };
+
+  const started = Date.now();
+  const r = await callTool(name, coerced.args, { timeout: 12000 });
+  if (!r.ok) return { ok: false, tool: name, args: coerced.args, error: r.error, ms: r.ms };
+  return {
+    ok: true,
+    tool: name,
+    args: coerced.args,
+    resolved: coerced.resolved,
+    data: r.data,
+    text: r.text,
+    ms: r.ms,
+    cached: Boolean(r.cached),
+  };
+}
+
+/**
+ * 风味分析总入口：按业务模式挑选最相关的工具，不无脑全调。
+ * mode: single | pair | multi | cuisine | direction | atlas
+ */
+export async function analyze(input = {}) {
+  const mode = ['single', 'pair', 'multi', 'cuisine', 'direction', 'atlas'].includes(input.mode) ? input.mode : 'single';
+  const names = (Array.isArray(input.ingredients) ? input.ingredients : [input.ingredient])
+    .filter((x) => x !== undefined && x !== null && x !== '')
+    .slice(0, 8);
+
+  const used = [];
+  const notes = [];
+  const unresolved = [];
+  const results = {};
+
+  const run = async (tool, args) => {
+    const r = await runTool(tool, args);
+    used.push({ tool, ok: r.ok, ms: r.ms });
+    if (!r.ok && r.unresolved) unresolved.push(r.unresolved);
+    return r;
+  };
+
+  if (!names.length) return { ok: false, error: '请至少提供一个食材', mode, used, unresolved };
+
+  const entries = names.map((n) => ({ raw: n, entry: resolveIngredient(n) }));
+  const valid = entries.filter((e) => e.entry);
+  for (const e of entries) if (!e.entry) unresolved.push(e.raw);
+  if (!valid.length) return { ok: false, error: '食材均未收录', mode, used, unresolved, items: entries };
+
+  const primary = valid[0].entry;
+
+  if (mode === 'pair') {
+    if (valid.length < 2) return { ok: false, error: '双食材分析需要两个食材', mode, used, unresolved };
+    const [a, b] = valid;
+    const score = await run('pairing_score', { ingredient_a: a.raw, ingredient_b: b.raw });
+    results.pairing = score.ok ? score.data || score.text : null;
+    if (input.axis) {
+      const cmp = await run('compare_on_axis', { ingredient_a: a.raw, ingredient_b: b.raw, axis: input.axis });
+      results.compare = cmp.ok ? cmp.data || cmp.text : null;
+    }
+    results.subjects = [a.entry.cn, b.entry.cn];
+  } else if (mode === 'multi') {
+    const graph = await run('find_pairings', { ingredients: valid.map((v) => v.raw) });
+    results.pairings = graph.ok ? graph.data || graph.text : null;
+    const pairs = [];
+    for (let i = 0; i < valid.length && pairs.length < 3; i += 1) {
+      for (let j = i + 1; j < valid.length && pairs.length < 3; j += 1) {
+        const s = await run('pairing_score', { ingredient_a: valid[i].raw, ingredient_b: valid[j].raw });
+        if (s.ok) pairs.push({ a: valid[i].entry.cn, b: valid[j].entry.cn, score: s.data?.pairing_score ?? null, label: s.data?.percentile_label || '' });
+      }
+    }
+    results.pairs = pairs;
+    results.subjects = valid.map((v) => v.entry.cn);
+  } else if (mode === 'cuisine') {
+    const cp = await run('cultural_profile', { ingredient: primary.cn });
+    results.cultural = cp.ok ? cp.data || cp.text : null;
+    const nb = await run('neighbors', { ingredient: primary.cn, top_k: 6 });
+    results.neighbors = nb.ok ? nb.data || null : null;
+    results.subjects = [primary.cn];
+  } else if (mode === 'direction') {
+    const target = String(input.target || '').trim();
+    if (!target) return { ok: false, error: '方向分析需要 target', mode, used, unresolved };
+    const m = await run('morph', { seed: primary.cn, target, angle_deg: Number(input.angle) || 30, top_k: 6 });
+    results.morph = m.ok ? m.data || m.text : null;
+    const p = await run('pareto_navigate', { seed: primary.cn, pole: { factor: Number(input.poleFactor) || 0, side: input.poleSide === 'b' ? 'b' : 'a' }, top_k_poles: 3 });
+    results.pareto = p.ok ? p.data || p.text : null;
+    results.subjects = [primary.cn];
+    results.target = target;
+  } else if (mode === 'atlas') {
+    const w = await run('where_on_atlas', { ingredient: primary.cn, top_k_neighbors_2d: 5 });
+    results.atlas = w.ok ? w.data || w.text : null;
+    const c = await run('closest_mode', { ingredient: primary.cn, top_k: 3 });
+    results.mode = c.ok ? c.data || c.text : null;
+    results.subjects = [primary.cn];
+  } else {
+    // single：坐标 + 近邻 + 文化画像
+    const w = await run('where_on_atlas', { ingredient: primary.cn, top_k_neighbors_2d: 5 });
+    results.atlas = w.ok ? w.data || w.text : null;
+    const nb = await run('neighbors', { ingredient: primary.cn, top_k: 8 });
+    results.neighbors = nb.ok ? nb.data || null : null;
+    const cp = await run('cultural_profile', { ingredient: primary.cn });
+    results.cultural = cp.ok ? cp.data || cp.text : null;
+    results.subjects = [primary.cn];
+  }
+
+  const anyOk = used.some((u) => u.ok);
+  if (!anyOk) notes.push('Epicure 未返回有效结果，本次不做风味结论。');
+
+  return {
+    ok: anyOk,
+    mode,
+    subjects: results.subjects || [],
+    results,
+    used,
+    unresolved,
+    notes,
+    ms: used.reduce((s, u) => s + (u.ms || 0), 0),
+  };
+}
