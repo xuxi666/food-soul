@@ -1186,6 +1186,12 @@ export default {
 
     const onResize = () => graph.resize();
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    return {
+      // 路由卸载时调用：移除监听 + 停掉漂浮动画循环
+      destroy() {
+        window.removeEventListener('resize', onResize);
+        graph.destroy();
+      },
+    };
   },
 };

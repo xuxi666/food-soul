@@ -31,7 +31,85 @@ function createGraph(host) {
     drag: null,
     pan: null,
     onPick: null,
+    nodeEls: new Map(),   // epicure -> <g>
+    edgeEls: [],          // { line, from, to }
+    byId: new Map(),      // epicure -> node
+    raf: 0,
+    t0: 0,
   };
+
+  /* ---- 漂浮动画：参数由稳定 ID 推导，不用随机数，刷新/重排后节奏不变 ---- */
+  function hash01(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i += 1) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) / 4294967295;
+  }
+
+  function floatParams(node, idx) {
+    const key = String(node.epicure || idx);
+    const a = hash01(key);
+    const b = hash01(`${key}#y`);
+    const c = hash01(`${key}#p`);
+    return {
+      ampY: 3 + b * 5,                 // 垂直 3–8px
+      ampX: c * 3,                     // 水平 0–3px
+      period: 4000 + a * 4000,         // 周期 4–8s
+      phase: a * Math.PI * 2,          // 相位错开
+    };
+  }
+
+  const reduceMotion =
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : { matches: false };
+
+  function offsetOf(n, now) {
+    const p = n._float;
+    if (!p) return { dx: 0, dy: 0 };
+    // 正在拖这个节点时暂停它的漂浮，避免和鼠标抢位置
+    if (dragging === n) return { dx: 0, dy: 0 };
+    const w = ((now - state.t0) / p.period) * Math.PI * 2;
+    return {
+      dx: Math.sin(w + p.phase) * p.ampX,
+      dy: Math.sin(w + p.phase * 1.37) * p.ampY,
+    };
+  }
+
+  function tick(now) {
+    state.raf = requestAnimationFrame(tick);
+    if (document.hidden) return;   // 后台标签页不算
+    if (!state.nodes.length) return;
+    for (const n of state.nodes) {
+      const { dx, dy } = offsetOf(n, now);
+      n._fx = dx;
+      n._fy = dy;
+      const el = state.nodeEls.get(n.epicure);
+      if (el) el.setAttribute('transform', `translate(${n.x + dx},${n.y + dy})`);
+    }
+    for (const e of state.edgeEls) {
+      const a = state.byId.get(e.from);
+      const b = state.byId.get(e.to);
+      if (!a || !b) continue;
+      e.line.setAttribute('x1', a.x + (a._fx || 0));
+      e.line.setAttribute('y1', a.y + (a._fy || 0));
+      e.line.setAttribute('x2', b.x + (b._fx || 0));
+      e.line.setAttribute('y2', b.y + (b._fy || 0));
+    }
+  }
+
+  function startFloat() {
+    if (state.raf || reduceMotion.matches) return;
+    state.t0 = performance.now();
+    state.raf = requestAnimationFrame(tick);
+  }
+
+  function stopFloat() {
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.raf = 0;
+  }
 
   function applyView() {
     const { x, y, k } = state.view;
@@ -138,7 +216,14 @@ function createGraph(host) {
 
   function render() {
     clear(gRoot);
+    state.nodeEls.clear();
+    state.edgeEls = [];
     const byId = new Map(state.nodes.map((n) => [n.epicure, n]));
+    state.byId = byId;
+    // 每个节点分配一次稳定参数；已存在的沿用，避免重排后节奏跳变
+    state.nodes.forEach((n, i) => {
+      if (!n._float) n._float = floatParams(n, i);
+    });
     const edgeLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const nodeLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     gRoot.append(edgeLayer, nodeLayer);
@@ -148,21 +233,23 @@ function createGraph(host) {
       const b = byId.get(e.to);
       if (!a || !b) continue;
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', a.x);
-      line.setAttribute('y1', a.y);
-      line.setAttribute('x2', b.x);
-      line.setAttribute('y2', b.y);
+      line.setAttribute('x1', a.x + (a._fx || 0));
+      line.setAttribute('y1', a.y + (a._fy || 0));
+      line.setAttribute('x2', b.x + (b._fx || 0));
+      line.setAttribute('y2', b.y + (b._fy || 0));
       line.setAttribute('class', `egraph__edge${a.level === 0 || b.level === 0 ? ' is-main' : ''}`);
       line.setAttribute('stroke-opacity', String(Math.min(0.55, 0.12 + e.weight * 0.8)));
       edgeLayer.append(line);
+      state.edgeEls.push({ line, from: e.from, to: e.to });
     }
 
     for (const n of state.nodes) {
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       const catClass = n.cat ? ` cat-${n.cat}` : '';
       g.setAttribute('class', `egraph__node lv${n.level}${catClass}${n.known ? '' : ' is-unknown'}${n.chinaFriendly ? '' : ' is-foreign'}`);
-      g.setAttribute('transform', `translate(${n.x},${n.y})`);
+      g.setAttribute('transform', `translate(${n.x + (n._fx || 0)},${n.y + (n._fy || 0)})`);
       g.dataset.id = n.epicure;
+      state.nodeEls.set(n.epicure, g);
 
       const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       c.setAttribute('r', radiusOf(n));
@@ -202,6 +289,7 @@ function createGraph(host) {
     layout();
     render();
     applyView();
+    startFloat();
   }
 
   /* ---- 交互 ---- */
@@ -291,9 +379,20 @@ function createGraph(host) {
       relayoutAndRender();
     },
     empty() {
+      stopFloat();
       state.nodes = [];
       state.edges = [];
+      state.nodeEls.clear();
+      state.edgeEls = [];
       clear(gRoot);
+    },
+    /** 组件销毁时停掉动画循环 */
+    destroy() {
+      stopFloat();
+      state.nodes = [];
+      state.edges = [];
+      state.nodeEls.clear();
+      state.edgeEls = [];
     },
   };
 }
