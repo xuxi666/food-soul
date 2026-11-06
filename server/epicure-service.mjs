@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { callTool } from './epicure-client.mjs';
 import { LEXICON, CATEGORIES, findEntry } from './epicure-lexicon.mjs';
 import { findCatalogEntry, catalogReady } from './epicure-catalog.mjs';
+import { resolveDisplay } from './epicure-names.mjs';
 
 /**
  * Epicure 业务层：把「中文食材 + 用户意图」翻译成真实的工具调用，
@@ -85,7 +86,24 @@ export function resolveIngredient(input) {
     if (viaSrc) return viaSrc;
   }
 
-  // 2) 完整目录兜底：优先用词表里同名食材的 MCP 已验证名
+  // 2) MCP 专属名（官网目录里没有，但 Epicure 能算）：能解析出中文名就接受
+  const shown = resolveDisplay(raw);
+  if (shown.translated && shown.source === 'mcp-map') {
+    return {
+      id: raw,
+      cn: shown.display,
+      epicure: raw,
+      cat: null,
+      aliases: [],
+      foodGroup: null,
+      cuisineRegion: null,
+      translated: true,
+      vegetarian: true,
+      vegan: false,
+    };
+  }
+
+  // 3) 完整目录兜底：优先用词表里同名食材的 MCP 已验证名
   //    （目录名和 MCP 词表偶有拼写差异，如 szechuan peppercorn vs sichuan_peppercorn）
   if (catalogReady()) {
     const c = findCatalogEntry(raw);
@@ -131,19 +149,23 @@ export async function neighborsOf(entry, topK = 8) {
     .map((n) => {
       const known = lex.byEpicure.get(n.name);
       const cat = known || (catalogReady() ? findCatalogEntry(n.name) : null);
+      // 统一显示名：词表 → 目录 → MCP 专属映射 → 原始名
+      const shown = resolveDisplay(n.name);
       return {
-        epicure: n.name,
-        cn: cat?.cn || cat?.display || n.name,
+        epicure: n.name, // 原始名，传给 Epicure 的参数不变
+        cn: shown.display,
+        display: shown.display,
+        nameSource: shown.source,
         cat: known?.cat || null,
-        known: Boolean(cat),
+        known: shown.translated,
         sim: Number(n.sim),
         rank: n.rank,
         cuisineRegion: known?.cuisineRegion || null,
         foodGroup: cat?.foodGroup || cat?.category || null,
-        translated: Boolean(cat?.translated),
+        translated: shown.translated,
       };
     })
-    .filter((n) => n.known || Number.isFinite(n.sim));
+    .filter((n) => Number.isFinite(n.sim));
   return { ok: true, items, ms: r.ms, cached: Boolean(r.cached) };
 }
 
@@ -180,7 +202,23 @@ export async function buildNetwork(inputIds, opts = {}) {
     return node;
   };
 
-  centers.forEach((c) => pushNode({ epicure: c.epicure, cn: c.cn, cat: c.cat, known: true, sim: 1, foodGroup: c.foodGroup, cuisineRegion: c.cuisineRegion }, 0));
+  centers.forEach((c) =>
+    pushNode(
+      {
+        epicure: c.epicure,
+        cn: c.cn,
+        display: c.cn,
+        cat: c.cat,
+        known: true,
+        translated: true,
+        nameSource: 'center',
+        sim: 1,
+        foodGroup: c.foodGroup,
+        cuisineRegion: c.cuisineRegion,
+      },
+      0
+    )
+  );
 
   // 一级：每个中心食材的真实近邻
   const level1 = new Map(); // centerEpicure -> neighbors[]
