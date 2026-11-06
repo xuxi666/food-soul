@@ -1,3823 +1,3831 @@
 {
- "generatedAt": "2026-11-06T04:09:15.554Z",
- "total": 1032,
- "analyzable": 720,
- "items": {
-  "beef": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chicken": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pasta": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tomato": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pork": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bread": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chili": {
-   "ok": 1,
-   "mcp": "chili_pepper"
-  },
-  "bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "onion": {
-   "ok": 1,
-   "mcp": null
-  },
-  "potato": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mustard": {
-   "ok": 1,
-   "mcp": null
-  },
-  "apple": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sausage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chicken stock": {
-   "ok": 1,
-   "mcp": "chicken_broth"
-  },
-  "salad green": {
-   "ok": 1,
-   "mcp": "salad greens"
-  },
-  "chocolate": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bell pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "corn": {
-   "ok": 1,
-   "mcp": null
-  },
-  "flour": {
-   "ok": 1,
-   "mcp": null
-  },
-  "beef stock": {
-   "ok": 0
-  },
-  "cheddar": {
-   "ok": 1,
-   "mcp": "cheddar cheese"
-  },
-  "squash": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cherry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pineapple": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lamb": {
-   "ok": 1,
-   "mcp": null
-  },
-  "turkey": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dark chocolate": {
-   "ok": 1,
-   "mcp": null
-  },
-  "garlic": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hot sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "peach": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sugar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coffee": {
-   "ok": 1,
-   "mcp": null
-  },
-  "crab": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lemon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "breadcrumbs": {
-   "ok": 0
-  },
-  "coconut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "olive": {
-   "ok": 1,
-   "mcp": null
-  },
-  "almond": {
-   "ok": 1,
-   "mcp": null
-  },
-  "strawberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "veal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bacon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cream": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gherkin": {
-   "ok": 0
-  },
-  "orange": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shrimp": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tuna": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coriander": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green pea": {
-   "ok": 1,
-   "mcp": "pea"
-  },
-  "margarine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "raspberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oats": {
-   "ok": 1,
-   "mcp": "oat"
-  },
-  "mozzarella": {
-   "ok": 1,
-   "mcp": "mozzarella cheese"
-  },
-  "yogurt": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ginger": {
-   "ok": 1,
-   "mcp": null
-  },
-  "yeast": {
-   "ok": 1,
-   "mcp": null
-  },
-  "basil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ham": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "salmon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "butter": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grape": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "italian sausage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "parsley": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soy sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brown sugar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lime": {
-   "ok": 1,
-   "mcp": null
-  },
-  "noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "parmesan cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pear": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rum": {
-   "ok": 1,
-   "mcp": null
-  },
-  "vanilla": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cocoa powder": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cream cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mayonnaise": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oregano": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tortilla": {
-   "ok": 1,
-   "mcp": null
-  },
-  "vegetable stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "american cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "clam": {
-   "ok": 1,
-   "mcp": null
-  },
-  "corn tortilla": {
-   "ok": 1,
-   "mcp": null
-  },
-  "peanut butter": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "thyme": {
-   "ok": 1,
-   "mcp": null
-  },
-  "apricot": {
-   "ok": 1,
-   "mcp": null
-  },
-  "broccoli": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cashew": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cottage cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cucumber": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dill": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dried chili": {
-   "ok": 1,
-   "mcp": "chili_pepper"
-  },
-  "duck": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green chili": {
-   "ok": 1,
-   "mcp": null
-  },
-  "jalapeno chile": {
-   "ok": 1,
-   "mcp": "jalapeno"
-  },
-  "lentil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "macaroni": {
-   "ok": 1,
-   "mcp": "pasta"
-  },
-  "peanut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "walnut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "white chocolate": {
-   "ok": 1,
-   "mcp": null
-  },
-  "artichoke": {
-   "ok": 1,
-   "mcp": null
-  },
-  "beer": {
-   "ok": 1,
-   "mcp": null
-  },
-  "beet": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "celery": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cranberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fig": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grapefruit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mango": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mint": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pecan": {
-   "ok": 1,
-   "mcp": null
-  },
-  "raisin": {
-   "ok": 1,
-   "mcp": null
-  },
-  "spinach": {
-   "ok": 1,
-   "mcp": null
-  },
-  "venison": {
-   "ok": 1,
-   "mcp": null
-  },
-  "blueberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "carrot": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cornmeal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "egg": {
-   "ok": 1,
-   "mcp": null
-  },
-  "evaporated milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "honey": {
-   "ok": 1,
-   "mcp": null
-  },
-  "maple syrup": {
-   "ok": 1,
-   "mcp": null
-  },
-  "plum": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pork stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ricotta": {
-   "ok": 1,
-   "mcp": "ricotta cheese"
-  },
-  "sage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sweet wine": {
-   "ok": 0
-  },
-  "whole wheat flour": {
-   "ok": 1,
-   "mcp": null
-  },
-  "anchovy": {
-   "ok": 1,
-   "mcp": null
-  },
-  "blue cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brown rice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cabbage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chipotle chile": {
-   "ok": 0
-  },
-  "corn syrup": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hazelnut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "horseradish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "marshmallow": {
-   "ok": 1,
-   "mcp": null
-  },
-  "olive oil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "orange juice": {
-   "ok": 1,
-   "mcp": "orange"
-  },
-  "paprika": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pimento pepper": {
-   "ok": 1,
-   "mcp": "pimento"
-  },
-  "pistachio": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rosemary": {
-   "ok": 1,
-   "mcp": null
-  },
-  "scallop": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked pork": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tarragon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "thai chili": {
-   "ok": 1,
-   "mcp": "birds_eye_chili"
-  },
-  "annatto": {
-   "ok": 1,
-   "mcp": "annatto seed"
-  },
-  "asparagus": {
-   "ok": 1,
-   "mcp": null
-  },
-  "barley": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bay leaf": {
-   "ok": 1,
-   "mcp": null
-  },
-  "blackberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "buttermilk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cauliflower": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cayenne pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cinnamon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coconut milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cumin": {
-   "ok": 1,
-   "mcp": null
-  },
-  "curry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "eggplant": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lavender": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lobster": {
-   "ok": 1,
-   "mcp": null
-  },
-  "milk chocolate": {
-   "ok": 1,
-   "mcp": null
-  },
-  "monterey jack cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pickled jalapeno chilies": {
-   "ok": 1,
-   "mcp": "pickled jalapeno"
-  },
-  "pretzel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "prune": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rye bread": {
-   "ok": 1,
-   "mcp": null
-  },
-  "savory": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sesame seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sherry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shortening": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tofu": {
-   "ok": 1,
-   "mcp": null
-  },
-  "white wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ancho chile": {
-   "ok": 1,
-   "mcp": null
-  },
-  "anise": {
-   "ok": 1,
-   "mcp": null
-  },
-  "banana": {
-   "ok": 1,
-   "mcp": null
-  },
-  "beef fat": {
-   "ok": 0
-  },
-  "caper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "caramel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cardamom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chestnut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coca cola": {
-   "ok": 1,
-   "mcp": "cola"
-  },
-  "courgette": {
-   "ok": 1,
-   "mcp": "zucchini"
-  },
-  "couscous": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cured ham": {
-   "ok": 1,
-   "mcp": "prosciutto"
-  },
-  "dried pea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "egg noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "goat cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ketchup": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kielbasa": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lemon zest": {
-   "ok": 1,
-   "mcp": "lemon"
-  },
-  "molasses": {
-   "ok": 1,
-   "mcp": null
-  },
-  "okra": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pomegranate": {
-   "ok": 1,
-   "mcp": null
-  },
-  "porcini mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked sausage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sour cream": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sweet potato": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "veal stock": {
-   "ok": 0
-  },
-  "vodka": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wood ear mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "worcestershire sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "arugula": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black tea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chickpea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chickpea flour": {
-   "ok": 0
-  },
-  "chive": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cider": {
-   "ok": 1,
-   "mcp": "apple cider"
-  },
-  "clove": {
-   "ok": 1,
-   "mcp": null
-  },
-  "crawfish": {
-   "ok": 1,
-   "mcp": "crayfish"
-  },
-  "egg white": {
-   "ok": 1,
-   "mcp": null
-  },
-  "feta cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fish stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green tea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "habanero chili": {
-   "ok": 0
-  },
-  "lime zest": {
-   "ok": 0
-  },
-  "macadamia nut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mandarin": {
-   "ok": 0
-  },
-  "marsala wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "miso paste": {
-   "ok": 0
-  },
-  "mustard seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "orange zest": {
-   "ok": 0
-  },
-  "passion fruit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pike-perch": {
-   "ok": 0
-  },
-  "pita bread": {
-   "ok": 1,
-   "mcp": null
-  },
-  "popcorn": {
-   "ok": 0
-  },
-  "salami": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sesame oil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sun dried tomato": {
-   "ok": 1,
-   "mcp": null
-  },
-  "swiss chard": {
-   "ok": 1,
-   "mcp": null
-  },
-  "swiss cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tahini": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tamarind": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tapioca": {
-   "ok": 1,
-   "mcp": null
-  },
-  "triple sec": {
-   "ok": 1,
-   "mcp": null
-  },
-  "turkey stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "white pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "allspice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "avocado": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bean thread noodle": {
-   "ok": 0
-  },
-  "black bean sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "caviar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chorizo": {
-   "ok": 1,
-   "mcp": null
-  },
-  "clam stock": {
-   "ok": 0
-  },
-  "cranberry juice": {
-   "ok": 0
-  },
-  "creme de cacao": {
-   "ok": 1,
-   "mcp": null
-  },
-  "creme de menthe": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dashi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dried red chili": {
-   "ok": 1,
-   "mcp": "chili_pepper"
-  },
-  "endive": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fennel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fenugreek leaf": {
-   "ok": 1,
-   "mcp": null
-  },
-  "flax seed": {
-   "ok": 0
-  },
-  "fresh cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "glutinous rice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green onion": {
-   "ok": 0
-  },
-  "halibut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hominy corn": {
-   "ok": 0
-  },
-  "kale": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lemongrass": {
-   "ok": 1,
-   "mcp": null
-  },
-  "liquid smoke": {
-   "ok": 1,
-   "mcp": null
-  },
-  "marjoram": {
-   "ok": 1,
-   "mcp": null
-  },
-  "nutmeg": {
-   "ok": 1,
-   "mcp": null
-  },
-  "polenta": {
-   "ok": 1,
-   "mcp": null
-  },
-  "poppy seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pumpkin seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red lentil": {
-   "ok": 0
-  },
-  "rye flour": {
-   "ok": 0
-  },
-  "saffron": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shallot": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shiitake mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "silken tofu": {
-   "ok": 0
-  },
-  "soybean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "spring onion": {
-   "ok": 0
-  },
-  "sugar snap pea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sunflower seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sweetened condensed milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "truffle mushroom": {
-   "ok": 0
-  },
-  "turmeric": {
-   "ok": 1,
-   "mcp": null
-  },
-  "watermelon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wild rice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "agave syrup": {
-   "ok": 1,
-   "mcp": null
-  },
-  "almond flour": {
-   "ok": 0
-  },
-  "amaretti cookie": {
-   "ok": 1,
-   "mcp": null
-  },
-  "apple cider": {
-   "ok": 1,
-   "mcp": null
-  },
-  "apple cider vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "arbol chile": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bacon fat": {
-   "ok": 0
-  },
-  "bourbon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brandy": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brussels sprout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bulgur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "candied ginger": {
-   "ok": 0
-  },
-  "chai tea": {
-   "ok": 0
-  },
-  "champagne": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cheese curd": {
-   "ok": 0
-  },
-  "chervil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chili pepper flake": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chinese napa cabbage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chocolate liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cod": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cornstarch": {
-   "ok": 1,
-   "mcp": null
-  },
-  "currant": {
-   "ok": 0
-  },
-  "dark soy sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "date": {
-   "ok": 1,
-   "mcp": null
-  },
-  "egg yolk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fennel seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fenugreek": {
-   "ok": 0
-  },
-  "fish roe": {
-   "ok": 1,
-   "mcp": null
-  },
-  "galangal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "glutinous rice flour": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green cardamom": {
-   "ok": 0
-  },
-  "guava": {
-   "ok": 1,
-   "mcp": null
-  },
-  "honeydew": {
-   "ok": 0
-  },
-  "hot chocolate powder": {
-   "ok": 0
-  },
-  "kelp": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kirsch liqueur": {
-   "ok": 0
-  },
-  "kombu": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lard": {
-   "ok": 1,
-   "mcp": null
-  },
-  "licorice": {
-   "ok": 0
-  },
-  "lingonberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mace": {
-   "ok": 1,
-   "mcp": null
-  },
-  "masa harina": {
-   "ok": 1,
-   "mcp": null
-  },
-  "matzo meal": {
-   "ok": 0
-  },
-  "mixed spice": {
-   "ok": 0
-  },
-  "pea shoot": {
-   "ok": 1,
-   "mcp": null
-  },
-  "peppermint": {
-   "ok": 1,
-   "mcp": null
-  },
-  "persimmon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pigeon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pine nut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "plantain": {
-   "ok": 1,
-   "mcp": null
-  },
-  "powdered sugar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "radish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red curry paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red pepper flake": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rhubarb": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice paper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rose": {
-   "ok": 0
-  },
-  "runner bean": {
-   "ok": 0
-  },
-  "sambal oelek": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sardine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sauerkraut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sea bass": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked ham": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked paprika": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked turkey": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sole": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soy milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soymilk": {
-   "ok": 0
-  },
-  "squid": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sriracha sauce": {
-   "ok": 0
-  },
-  "star anise": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sumac": {
-   "ok": 1,
-   "mcp": null
-  },
-  "swordfish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "szechuan peppercorn": {
-   "ok": 0
-  },
-  "tangerine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tequila": {
-   "ok": 1,
-   "mcp": null
-  },
-  "trout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wasabi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "adzuki bean": {
-   "ok": 0
-  },
-  "alfalfa sprout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "almond butter": {
-   "ok": 1,
-   "mcp": null
-  },
-  "almond liqueur": {
-   "ok": 0
-  },
-  "almond milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "amaretto liqueur": {
-   "ok": 0
-  },
-  "amchoor": {
-   "ok": 0
-  },
-  "anaheim chili": {
-   "ok": 0
-  },
-  "anise liqueur": {
-   "ok": 0
-  },
-  "apple brandy": {
-   "ok": 1,
-   "mcp": null
-  },
-  "apple juice": {
-   "ok": 0
-  },
-  "apple liqueur": {
-   "ok": 0
-  },
-  "apple schnapps": {
-   "ok": 0
-  },
-  "baguette": {
-   "ok": 0
-  },
-  "balsamic vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bean sprout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black cumin": {
-   "ok": 0
-  },
-  "bluefish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bok choy": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bone marrow": {
-   "ok": 1,
-   "mcp": null
-  },
-  "boysenberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bran": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brie": {
-   "ok": 1,
-   "mcp": "brie cheese"
-  },
-  "brioche": {
-   "ok": 1,
-   "mcp": null
-  },
-  "broccoli rabe": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cacao": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cake flour": {
-   "ok": 0
-  },
-  "calamari": {
-   "ok": 0
-  },
-  "candied cherry": {
-   "ok": 0
-  },
-  "candied orange": {
-   "ok": 0
-  },
-  "candied pineapple": {
-   "ok": 0
-  },
-  "cantaloupe": {
-   "ok": 1,
-   "mcp": null
-  },
-  "carom seed": {
-   "ok": 0
-  },
-  "catfish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "celery seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chamomile": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chard": {
-   "ok": 0
-  },
-  "cherry liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chicken fat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chinese five spice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chinese rice wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chipotle chile in adobo": {
-   "ok": 0
-  },
-  "chow mein noodle": {
-   "ok": 0
-  },
-  "clementine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coconut liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coconut oil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coffee liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "corn flake": {
-   "ok": 1,
-   "mcp": "corn flakes"
-  },
-  "corned beef": {
-   "ok": 1,
-   "mcp": null
-  },
-  "curry leaf": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dark beer": {
-   "ok": 1,
-   "mcp": null
-  },
-  "dried cranberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "edamame": {
-   "ok": 1,
-   "mcp": null
-  },
-  "elderflower liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "epazote": {
-   "ok": 1,
-   "mcp": null
-  },
-  "espresso": {
-   "ok": 0
-  },
-  "fava bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fish sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "flounder": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fontina cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "frankfurter": {
-   "ok": 0
-  },
-  "garam masala": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ghee": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gin": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ginger ale": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gnocchi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "goat milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gochujang": {
-   "ok": 1,
-   "mcp": null
-  },
-  "greek yogurt": {
-   "ok": 0
-  },
-  "green peppercorn": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grouper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gruyere cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "guajillo chile": {
-   "ok": 1,
-   "mcp": null
-  },
-  "haddock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hake": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hibiscus tea": {
-   "ok": 0
-  },
-  "hijiki seaweed": {
-   "ok": 0
-  },
-  "hoisin sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "icing sugar": {
-   "ok": 0
-  },
-  "irish cream": {
-   "ok": 1,
-   "mcp": null
-  },
-  "jaggery": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kefalotiri cheese": {
-   "ok": 0
-  },
-  "kimchi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kiwi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lamb stock": {
-   "ok": 0
-  },
-  "leek": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lemon balm": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lemon thyme": {
-   "ok": 0
-  },
-  "lemon verbena": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lime leaf": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lobster stock": {
-   "ok": 0
-  },
-  "lychee": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mackerel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "maggi": {
-   "ok": 0
-  },
-  "mahi mahi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "malt": {
-   "ok": 1,
-   "mcp": null
-  },
-  "malted milk": {
-   "ok": 0
-  },
-  "maple sugar": {
-   "ok": 0
-  },
-  "maraschino cherry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "marmite": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mascarpone cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "melon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "moong dal": {
-   "ok": 0
-  },
-  "morel mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mortadella": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mushroom stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mussel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "nam pla": {
-   "ok": 0
-  },
-  "nopales": {
-   "ok": 0
-  },
-  "nutritional yeast": {
-   "ok": 1,
-   "mcp": null
-  },
-  "octopus": {
-   "ok": 1,
-   "mcp": null
-  },
-  "orange blossom water": {
-   "ok": 1,
-   "mcp": null
-  },
-  "orange liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "orange roughy": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oyster sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "paneer": {
-   "ok": 1,
-   "mcp": null
-  },
-  "papaya": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pasilla chile": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pecorino cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pepperoni": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pheasant": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pita": {
-   "ok": 0
-  },
-  "poblano chile": {
-   "ok": 0
-  },
-  "port wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "psyllium husk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pumpernickel bread": {
-   "ok": 0
-  },
-  "quinoa": {
-   "ok": 1,
-   "mcp": null
-  },
-  "raspberry liqueur": {
-   "ok": 0
-  },
-  "red cabbage": {
-   "ok": 0
-  },
-  "red currant": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red snapper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice flour": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ricotta cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "root beer": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rose wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rutabaga": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sansho pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "scotch whisky": {
-   "ok": 0
-  },
-  "semi sweet chocolate": {
-   "ok": 0
-  },
-  "shiso": {
-   "ok": 0
-  },
-  "shrimp paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shrimp stock": {
-   "ok": 0
-  },
-  "smoked chicken": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked salmon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked trout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soppressata": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sorrel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soy flour": {
-   "ok": 0
-  },
-  "sparkling wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "stout beer": {
-   "ok": 0
-  },
-  "sweet chili sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sweet soy sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "taco cheese": {
-   "ok": 0
-  },
-  "tandoori masala": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tapioca flour": {
-   "ok": 0
-  },
-  "teff flour": {
-   "ok": 0
-  },
-  "tempura flour": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tex-mex cheese": {
-   "ok": 0
-  },
-  "toffee": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tortellini": {
-   "ok": 1,
-   "mcp": null
-  },
-  "turnip": {
-   "ok": 1,
-   "mcp": null
-  },
-  "urad dal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "verjus": {
-   "ok": 0
-  },
-  "vermicelli": {
-   "ok": 1,
-   "mcp": null
-  },
-  "vermouth": {
-   "ok": 1,
-   "mcp": null
-  },
-  "water chestnut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "watercress": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wheat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wheat germ": {
-   "ok": 1,
-   "mcp": null
-  },
-  "white truffle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "yam": {
-   "ok": 1,
-   "mcp": null
-  },
-  "yellowfin tuna": {
-   "ok": 0
-  },
-  "yuzu": {
-   "ok": 1,
-   "mcp": null
-  },
-  "100s and 1000s": {
-   "ok": 0
-  },
-  "7 up": {
-   "ok": 0
-  },
-  "abalone": {
-   "ok": 1,
-   "mcp": null
-  },
-  "absinthe": {
-   "ok": 1,
-   "mcp": null
-  },
-  "acorn": {
-   "ok": 1,
-   "mcp": null
-  },
-  "adobo sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "advocaat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "aleppo pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "amaranth": {
-   "ok": 1,
-   "mcp": null
-  },
-  "amaranth flour": {
-   "ok": 0
-  },
-  "anasazi bean": {
-   "ok": 0
-  },
-  "anejo cheese": {
-   "ok": 0
-  },
-  "angelica": {
-   "ok": 0
-  },
-  "angostura bitters": {
-   "ok": 0
-  },
-  "apricot brandy": {
-   "ok": 1,
-   "mcp": null
-  },
-  "apricot liqueur": {
-   "ok": 0
-  },
-  "aquavit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "arame seaweed": {
-   "ok": 0
-  },
-  "arctic char": {
-   "ok": 1,
-   "mcp": null
-  },
-  "armagnac": {
-   "ok": 1,
-   "mcp": null
-  },
-  "asadero cheese": {
-   "ok": 0
-  },
-  "asafoetida": {
-   "ok": 1,
-   "mcp": null
-  },
-  "asiago cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "avocado oil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bagel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "baharat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bamboo shoot": {
-   "ok": 1,
-   "mcp": null
-  },
-  "banana liqueur": {
-   "ok": 0
-  },
-  "banana schnapps": {
-   "ok": 0
-  },
-  "barbecue sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "barberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "barley flour": {
-   "ok": 0
-  },
-  "barley malt syrup": {
-   "ok": 0
-  },
-  "bean flour": {
-   "ok": 0
-  },
-  "bean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bee pollen": {
-   "ok": 1,
-   "mcp": null
-  },
-  "beef heart": {
-   "ok": 0
-  },
-  "beef liver": {
-   "ok": 0
-  },
-  "beef tongue": {
-   "ok": 0
-  },
-  "bel paese cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "benedictine liqueur": {
-   "ok": 0
-  },
-  "berbere": {
-   "ok": 1,
-   "mcp": null
-  },
-  "biscuit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bitter melon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black bean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black cardamom": {
-   "ok": 0
-  },
-  "black currant": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black pudding": {
-   "ok": 0
-  },
-  "black rice": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black treacle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black truffle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "black vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "blackberry brandy": {
-   "ok": 0
-  },
-  "blackberry liqueur": {
-   "ok": 0
-  },
-  "blackberry schnapps": {
-   "ok": 0
-  },
-  "blackberry wine": {
-   "ok": 0
-  },
-  "blood orange": {
-   "ok": 1,
-   "mcp": null
-  },
-  "blueberry schnapps": {
-   "ok": 0
-  },
-  "bonito": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bratwurst": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brazil nut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "breadfruit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "bresaola": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brown rice flour": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brown rice syrup": {
-   "ok": 1,
-   "mcp": null
-  },
-  "brown rice vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "buckwheat flour": {
-   "ok": 0
-  },
-  "buckwheat groat": {
-   "ok": 0
-  },
-  "buckwheat noodle": {
-   "ok": 0
-  },
-  "burdock": {
-   "ok": 0
-  },
-  "butterfish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "butterscotch schnapps": {
-   "ok": 0
-  },
-  "cachaca": {
-   "ok": 1,
-   "mcp": null
-  },
-  "calf liver": {
-   "ok": 0
-  },
-  "calvados": {
-   "ok": 1,
-   "mcp": null
-  },
-  "camembert": {
-   "ok": 1,
-   "mcp": "camembert cheese"
-  },
-  "campari": {
-   "ok": 1,
-   "mcp": null
-  },
-  "candied lemon peel": {
-   "ok": 0
-  },
-  "candied walnut": {
-   "ok": 0
-  },
-  "candlenut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "carambola": {
-   "ok": 0
-  },
-  "caraway": {
-   "ok": 0
-  },
-  "caraway seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cardoon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "carob": {
-   "ok": 1,
-   "mcp": null
-  },
-  "carp": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cashew butter": {
-   "ok": 0
-  },
-  "cashew milk": {
-   "ok": 0
-  },
-  "cassava": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cassia": {
-   "ok": 0
-  },
-  "cavolo nero": {
-   "ok": 0
-  },
-  "celeriac": {
-   "ok": 1,
-   "mcp": null
-  },
-  "challah": {
-   "ok": 0
-  },
-  "champagne vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "channa dal": {
-   "ok": 0
-  },
-  "chanterelle mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "char siu sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chat masala": {
-   "ok": 0
-  },
-  "cherry brandy": {
-   "ok": 0
-  },
-  "chestnut flour": {
-   "ok": 0
-  },
-  "chia seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chicken giblet": {
-   "ok": 0
-  },
-  "chicken gizzard": {
-   "ok": 0
-  },
-  "chicken liver": {
-   "ok": 0
-  },
-  "chicken sausage": {
-   "ok": 0
-  },
-  "chickpea dal": {
-   "ok": 0
-  },
-  "chihuahua cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chili bean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chili flake": {
-   "ok": 0
-  },
-  "chinese sausage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "chinese sweet bean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "choy sum": {
-   "ok": 1,
-   "mcp": null
-  },
-  "clementine zest": {
-   "ok": 0
-  },
-  "clotted cream": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cloud ear mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cockle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cocoa butter": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cocoa nib": {
-   "ok": 0
-  },
-  "coconut amino": {
-   "ok": 1,
-   "mcp": "coconut aminos"
-  },
-  "coconut butter": {
-   "ok": 0
-  },
-  "coconut cream": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coconut flour": {
-   "ok": 0
-  },
-  "coconut sugar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coconut vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cognac": {
-   "ok": 1,
-   "mcp": null
-  },
-  "collard green": {
-   "ok": 1,
-   "mcp": null
-  },
-  "comte": {
-   "ok": 1,
-   "mcp": "comte cheese"
-  },
-  "conch": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cookie": {
-   "ok": 1,
-   "mcp": null
-  },
-  "coriander root": {
-   "ok": 1,
-   "mcp": null
-  },
-  "corn tortilla chip": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cotija cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "crabapple": {
-   "ok": 0
-  },
-  "creme de banane": {
-   "ok": 1,
-   "mcp": null
-  },
-  "creme de cassis": {
-   "ok": 1,
-   "mcp": null
-  },
-  "creme fraiche": {
-   "ok": 1,
-   "mcp": null
-  },
-  "culantro": {
-   "ok": 1,
-   "mcp": null
-  },
-  "cuttlefish": {
-   "ok": 0
-  },
-  "daikon radish": {
-   "ok": 0
-  },
-  "daikon sprout": {
-   "ok": 0
-  },
-  "dal": {
-   "ok": 0
-  },
-  "dandelion green": {
-   "ok": 0
-  },
-  "dark miso": {
-   "ok": 1,
-   "mcp": null
-  },
-  "date sugar": {
-   "ok": 0
-  },
-  "Dr. Pepper": {
-   "ok": 0
-  },
-  "dried rose petal": {
-   "ok": 0
-  },
-  "dry vermouth": {
-   "ok": 0
-  },
-  "duck fat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "duck stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "earl grey tea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "eau de vie": {
-   "ok": 0
-  },
-  "edam cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "eel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "eggnog": {
-   "ok": 1,
-   "mcp": null
-  },
-  "elderberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "emmenthaler cheese": {
-   "ok": 0
-  },
-  "enoki mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "escargot": {
-   "ok": 0
-  },
-  "farmer cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "farro": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fennel pollen": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fermented black bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "fines herbes": {
-   "ok": 1,
-   "mcp": null
-  },
-  "focaccia bread": {
-   "ok": 0
-  },
-  "foie gras": {
-   "ok": 1,
-   "mcp": null
-  },
-  "framboise eau de vie": {
-   "ok": 0
-  },
-  "framboise liqueur": {
-   "ok": 0
-  },
-  "frangelico": {
-   "ok": 0
-  },
-  "frog leg": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gai lan": {
-   "ok": 0
-  },
-  "galliano liqueur": {
-   "ok": 0
-  },
-  "ginger liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ginkgo nut": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gochugaru": {
-   "ok": 1,
-   "mcp": null
-  },
-  "goji berry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "goldschlager": {
-   "ok": 1,
-   "mcp": null
-  },
-  "goose": {
-   "ok": 1,
-   "mcp": null
-  },
-  "goose fat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gooseberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "gouda cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grains of paradise": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grana padano cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grand marnier": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grape juice": {
-   "ok": 0
-  },
-  "grape leaf": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grappa": {
-   "ok": 1,
-   "mcp": null
-  },
-  "green banana": {
-   "ok": 0
-  },
-  "green curry paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "grenadine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "guava juice": {
-   "ok": 0
-  },
-  "halloumi cheese": {
-   "ok": 0
-  },
-  "harissa": {
-   "ok": 1,
-   "mcp": null
-  },
-  "havarti cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hawaiian bread": {
-   "ok": 0
-  },
-  "hazelnut butter": {
-   "ok": 0
-  },
-  "hazelnut liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hearts of palm": {
-   "ok": 1,
-   "mcp": null
-  },
-  "heavy cream": {
-   "ok": 1,
-   "mcp": "heavy cream cheese"
-  },
-  "hemp milk": {
-   "ok": 0
-  },
-  "hemp seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "herbes de provence": {
-   "ok": 1,
-   "mcp": null
-  },
-  "herring": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hing": {
-   "ok": 0
-  },
-  "hokkien noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hop": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hot bean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "hp steak sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "huckleberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "irish moss": {
-   "ok": 0
-  },
-  "irish whiskey": {
-   "ok": 0
-  },
-  "jackfruit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "jamaican jerk spice": {
-   "ok": 0
-  },
-  "japanese cucumber": {
-   "ok": 0
-  },
-  "jarlsberg cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "jasmine tea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "jerusalem artichoke": {
-   "ok": 1,
-   "mcp": null
-  },
-  "jicama": {
-   "ok": 1,
-   "mcp": null
-  },
-  "juniper berry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kaffir lime": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kahlua": {
-   "ok": 0
-  },
-  "kamut flour": {
-   "ok": 0
-  },
-  "kasha": {
-   "ok": 0
-  },
-  "kasseri cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "katakuriko": {
-   "ok": 0
-  },
-  "kefir": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kewra": {
-   "ok": 0
-  },
-  "key lime": {
-   "ok": 0
-  },
-  "key lime juice": {
-   "ok": 0
-  },
-  "key lime zest": {
-   "ok": 0
-  },
-  "khoya": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kidney bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "king oyster mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "kingfish": {
-   "ok": 0
-  },
-  "kluski": {
-   "ok": 0
-  },
-  "knockwurst": {
-   "ok": 0
-  },
-  "kohlrabi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "konnyaku": {
-   "ok": 0
-  },
-  "koshi an": {
-   "ok": 0
-  },
-  "kudzu": {
-   "ok": 0
-  },
-  "kumara": {
-   "ok": 0
-  },
-  "kumquat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ladyfinger": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lamb liver": {
-   "ok": 0
-  },
-  "lamb sausage": {
-   "ok": 0
-  },
-  "lasagna noodle": {
-   "ok": 0
-  },
-  "lasagna sheet": {
-   "ok": 0
-  },
-  "lavash bread": {
-   "ok": 0
-  },
-  "lillet blanc": {
-   "ok": 0
-  },
-  "lima bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lime cordial": {
-   "ok": 0
-  },
-  "limoncello": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lo mein noodle": {
-   "ok": 0
-  },
-  "lotus seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "lovage": {
-   "ok": 1,
-   "mcp": null
-  },
-  "madeira wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "madras curry powder": {
-   "ok": 1,
-   "mcp": null
-  },
-  "maitake mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "malt syrup": {
-   "ok": 0
-  },
-  "manchego cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mandarin juice": {
-   "ok": 0
-  },
-  "mange touts pea": {
-   "ok": 0
-  },
-  "marjoram leaf": {
-   "ok": 0
-  },
-  "marmalade": {
-   "ok": 0
-  },
-  "marzipan": {
-   "ok": 1,
-   "mcp": null
-  },
-  "masoor dal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "matcha green tea powder": {
-   "ok": 1,
-   "mcp": null
-  },
-  "melon liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mexican cheese": {
-   "ok": 0
-  },
-  "mexican oregano": {
-   "ok": 0
-  },
-  "mezcal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "millet": {
-   "ok": 1,
-   "mcp": null
-  },
-  "millet flour": {
-   "ok": 0
-  },
-  "mincemeat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mirin": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mitsuba": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mizithra": {
-   "ok": 0
-  },
-  "mizuna": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mole sauce": {
-   "ok": 0
-  },
-  "monkfish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "montrachet cheese": {
-   "ok": 0
-  },
-  "muenster": {
-   "ok": 1,
-   "mcp": "muenster cheese"
-  },
-  "mulberry": {
-   "ok": 1,
-   "mcp": null
-  },
-  "multi grain flour": {
-   "ok": 0
-  },
-  "mung bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mung bean sprout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mung dal": {
-   "ok": 0
-  },
-  "mushroom soy sauce": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mustard green": {
-   "ok": 1,
-   "mcp": null
-  },
-  "mutton": {
-   "ok": 1,
-   "mcp": null
-  },
-  "naan bread": {
-   "ok": 0
-  },
-  "nectarine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "nigella seed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "nori": {
-   "ok": 1,
-   "mcp": null
-  },
-  "nuoc nam": {
-   "ok": 0
-  },
-  "oat": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oat flour": {
-   "ok": 0
-  },
-  "oaxaca cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "okara": {
-   "ok": 0
-  },
-  "onion seed": {
-   "ok": 0
-  },
-  "orange pekoe tea": {
-   "ok": 0
-  },
-  "orgeat syrup": {
-   "ok": 0
-  },
-  "ouzo": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oxtail": {
-   "ok": 0
-  },
-  "oyster": {
-   "ok": 1,
-   "mcp": null
-  },
-  "oyster liquor": {
-   "ok": 0
-  },
-  "oyster mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pak choi": {
-   "ok": 0
-  },
-  "palm sugar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "panang curry paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pancetta": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pandan": {
-   "ok": 0
-  },
-  "panela cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "parsnip": {
-   "ok": 1,
-   "mcp": null
-  },
-  "passata": {
-   "ok": 0
-  },
-  "pastis": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pastrami": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pastry cream": {
-   "ok": 0
-  },
-  "pawpaw": {
-   "ok": 0
-  },
-  "peach brandy": {
-   "ok": 0
-  },
-  "peach liqueur": {
-   "ok": 0
-  },
-  "peach schnapps": {
-   "ok": 0
-  },
-  "pear brandy": {
-   "ok": 0
-  },
-  "pear juice": {
-   "ok": 0
-  },
-  "pear liqueur": {
-   "ok": 0
-  },
-  "pear nectar": {
-   "ok": 0
-  },
-  "pear vodka": {
-   "ok": 0
-  },
-  "pernod": {
-   "ok": 0
-  },
-  "pigeon pea": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pimms": {
-   "ok": 0
-  },
-  "pineapple juice": {
-   "ok": 0
-  },
-  "pineapple rum": {
-   "ok": 0
-  },
-  "pink peppercorn": {
-   "ok": 0
-  },
-  "piquillo pepper": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pisco": {
-   "ok": 1,
-   "mcp": null
-  },
-  "plum brandy": {
-   "ok": 0
-  },
-  "plum wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pomegranate liqueur": {
-   "ok": 0
-  },
-  "pomegranate molasses": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pomelo": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ponzu": {
-   "ok": 1,
-   "mcp": null
-  },
-  "pork liver": {
-   "ok": 0
-  },
-  "porter beer": {
-   "ok": 0
-  },
-  "preserved black bean": {
-   "ok": 1,
-   "mcp": null
-  },
-  "preserved lemon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "prickly pear": {
-   "ok": 1,
-   "mcp": null
-  },
-  "prosecco": {
-   "ok": 1,
-   "mcp": null
-  },
-  "provolone cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "purslane": {
-   "ok": 1,
-   "mcp": null
-  },
-  "quail": {
-   "ok": 1,
-   "mcp": null
-  },
-  "quail egg": {
-   "ok": 1,
-   "mcp": null
-  },
-  "quark": {
-   "ok": 1,
-   "mcp": null
-  },
-  "queso blanco cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "quince": {
-   "ok": 1,
-   "mcp": null
-  },
-  "quinoa flour": {
-   "ok": 0
-  },
-  "rabbit": {
-   "ok": 1,
-   "mcp": null
-  },
-  "radicchio": {
-   "ok": 1,
-   "mcp": null
-  },
-  "radish sprout": {
-   "ok": 0
-  },
-  "rainbow trout": {
-   "ok": 0
-  },
-  "ramen noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ramp": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rapadura": {
-   "ok": 0
-  },
-  "rapini": {
-   "ok": 0
-  },
-  "ras el hanout": {
-   "ok": 1,
-   "mcp": null
-  },
-  "raspberry juice": {
-   "ok": 0
-  },
-  "raspberry schnapps": {
-   "ok": 0
-  },
-  "raspberry vinegar": {
-   "ok": 0
-  },
-  "raspberry vodka": {
-   "ok": 0
-  },
-  "razor clam": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red bean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red date": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red leicester cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "red miso": {
-   "ok": 0
-  },
-  "red wine vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice milk": {
-   "ok": 1,
-   "mcp": null
-  },
-  "rice syrup": {
-   "ok": 0
-  },
-  "rice wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "ricotta salata": {
-   "ok": 1,
-   "mcp": null
-  },
-  "robiola": {
-   "ok": 0
-  },
-  "rockfish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "romano": {
-   "ok": 0
-  },
-  "rose water": {
-   "ok": 0
-  },
-  "ruby port": {
-   "ok": 0
-  },
-  "rye flake": {
-   "ok": 0
-  },
-  "rye whiskey": {
-   "ok": 0
-  },
-  "sago": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sake": {
-   "ok": 1,
-   "mcp": null
-  },
-  "salsify": {
-   "ok": 1,
-   "mcp": null
-  },
-  "salt cod fish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "savoy cabbage": {
-   "ok": 0
-  },
-  "sea bream": {
-   "ok": 1,
-   "mcp": null
-  },
-  "seafood stock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "seaweed": {
-   "ok": 1,
-   "mcp": null
-  },
-  "seitan": {
-   "ok": 0
-  },
-  "semolina": {
-   "ok": 1,
-   "mcp": null
-  },
-  "semolina flour": {
-   "ok": 0
-  },
-  "shad": {
-   "ok": 0
-  },
-  "shaoxing wine": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shark": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sherry wine vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shichimi togarashi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "shimeji mushroom": {
-   "ok": 0
-  },
-  "shirataki noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "skate": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sloe gin": {
-   "ok": 0
-  },
-  "smelt": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked almond": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked cheddar cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked fish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked haddock": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked mackerel": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked mozzarella": {
-   "ok": 0
-  },
-  "smoked oyster": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked provolone cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked tofu": {
-   "ok": 1,
-   "mcp": null
-  },
-  "smoked whitefish": {
-   "ok": 1,
-   "mcp": null
-  },
-  "snail": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soba noodle": {
-   "ok": 0
-  },
-  "somen noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sorghum": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sorghum flour": {
-   "ok": 0
-  },
-  "sour milk": {
-   "ok": 0
-  },
-  "southern comfort": {
-   "ok": 1,
-   "mcp": null
-  },
-  "soybean paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "spaetzle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "spam": {
-   "ok": 0
-  },
-  "spearmint": {
-   "ok": 0
-  },
-  "spelt": {
-   "ok": 1,
-   "mcp": null
-  },
-  "spelt flour": {
-   "ok": 0
-  },
-  "spiced rum": {
-   "ok": 0
-  },
-  "spirulina": {
-   "ok": 1,
-   "mcp": null
-  },
-  "splenda": {
-   "ok": 0
-  },
-  "squid ink": {
-   "ok": 1,
-   "mcp": null
-  },
-  "star fruit": {
-   "ok": 0
-  },
-  "straw mushroom": {
-   "ok": 1,
-   "mcp": null
-  },
-  "strawberry liqueur": {
-   "ok": 0
-  },
-  "strawberry preserve": {
-   "ok": 0
-  },
-  "strawberry vodka": {
-   "ok": 0
-  },
-  "striped bass": {
-   "ok": 0
-  },
-  "sturgeon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sugar cane": {
-   "ok": 0
-  },
-  "sunflower seed butter": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sunflower sprout": {
-   "ok": 0
-  },
-  "surimi": {
-   "ok": 0
-  },
-  "sweet marjoram": {
-   "ok": 0
-  },
-  "sweet vermouth": {
-   "ok": 1,
-   "mcp": null
-  },
-  "sweetbread": {
-   "ok": 1,
-   "mcp": null
-  },
-  "szechuan sauce": {
-   "ok": 0
-  },
-  "tagliatelle": {
-   "ok": 0
-  },
-  "taleggio cheese": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tangerine zest": {
-   "ok": 0
-  },
-  "tarama": {
-   "ok": 0
-  },
-  "taro": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tatsoi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "teff": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tempeh": {
-   "ok": 1,
-   "mcp": null
-  },
-  "thai basil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "thai green chili": {
-   "ok": 1,
-   "mcp": null
-  },
-  "thai rice noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tilapia": {
-   "ok": 1,
-   "mcp": null
-  },
-  "toasted sesame oil": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tobiko": {
-   "ok": 0
-  },
-  "tom yum paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "tomatillo": {
-   "ok": 1,
-   "mcp": null
-  },
-  "toor dal": {
-   "ok": 1,
-   "mcp": null
-  },
-  "treacle": {
-   "ok": 0
-  },
-  "tripe": {
-   "ok": 0
-  },
-  "trumpet mushroom": {
-   "ok": 0
-  },
-  "turbot": {
-   "ok": 1,
-   "mcp": null
-  },
-  "turkey giblet": {
-   "ok": 0
-  },
-  "turkey gizzard": {
-   "ok": 0
-  },
-  "turkey liver": {
-   "ok": 0
-  },
-  "turnip green": {
-   "ok": 1,
-   "mcp": null
-  },
-  "udon noodle": {
-   "ok": 1,
-   "mcp": null
-  },
-  "umeboshi": {
-   "ok": 1,
-   "mcp": null
-  },
-  "vanilla liqueur": {
-   "ok": 0
-  },
-  "vanilla schnapps": {
-   "ok": 0
-  },
-  "vegemite": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wafer": {
-   "ok": 1,
-   "mcp": null
-  },
-  "wakame seaweed": {
-   "ok": 0
-  },
-  "wheat berry": {
-   "ok": 0
-  },
-  "white balsamic vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "white chocolate liqueur": {
-   "ok": 1,
-   "mcp": null
-  },
-  "white port": {
-   "ok": 0
-  },
-  "white vermouth": {
-   "ok": 0
-  },
-  "white wine vinegar": {
-   "ok": 1,
-   "mcp": null
-  },
-  "winter melon": {
-   "ok": 1,
-   "mcp": null
-  },
-  "yakisoba noodle": {
-   "ok": 0
-  },
-  "yellow curry paste": {
-   "ok": 1,
-   "mcp": null
-  },
-  "yogurt cheese": {
-   "ok": 0
-  },
-  "yucca root": {
-   "ok": 0
-  },
-  "zaatar": {
-   "ok": 1,
-   "mcp": null
+  "generatedAt": "2026-11-06T04:25:34.209Z",
+  "total": 1032,
+  "analyzable": 728,
+  "items": {
+    "beef": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chicken": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pasta": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tomato": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pork": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bread": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chili": {
+      "ok": 1,
+      "mcp": "chili_pepper"
+    },
+    "bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "onion": {
+      "ok": 1,
+      "mcp": null
+    },
+    "potato": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mustard": {
+      "ok": 1,
+      "mcp": null
+    },
+    "apple": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sausage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chicken stock": {
+      "ok": 1,
+      "mcp": "chicken_broth"
+    },
+    "salad green": {
+      "ok": 1,
+      "mcp": "salad greens"
+    },
+    "chocolate": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bell pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "corn": {
+      "ok": 1,
+      "mcp": null
+    },
+    "flour": {
+      "ok": 1,
+      "mcp": null
+    },
+    "beef stock": {
+      "ok": 0
+    },
+    "cheddar": {
+      "ok": 1,
+      "mcp": "cheddar cheese"
+    },
+    "squash": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cherry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pineapple": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lamb": {
+      "ok": 1,
+      "mcp": null
+    },
+    "turkey": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dark chocolate": {
+      "ok": 1,
+      "mcp": null
+    },
+    "garlic": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hot sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "peach": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sugar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coffee": {
+      "ok": 1,
+      "mcp": null
+    },
+    "crab": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lemon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "breadcrumbs": {
+      "ok": 0
+    },
+    "coconut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "olive": {
+      "ok": 1,
+      "mcp": null
+    },
+    "almond": {
+      "ok": 1,
+      "mcp": null
+    },
+    "strawberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "veal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bacon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cream": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gherkin": {
+      "ok": 0
+    },
+    "orange": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shrimp": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tuna": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coriander": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green pea": {
+      "ok": 1,
+      "mcp": "pea"
+    },
+    "margarine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "raspberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oats": {
+      "ok": 1,
+      "mcp": "oat"
+    },
+    "mozzarella": {
+      "ok": 1,
+      "mcp": "mozzarella cheese"
+    },
+    "yogurt": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ginger": {
+      "ok": 1,
+      "mcp": null
+    },
+    "yeast": {
+      "ok": 1,
+      "mcp": null
+    },
+    "basil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ham": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "salmon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "butter": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grape": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "italian sausage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "parsley": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soy sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brown sugar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lime": {
+      "ok": 1,
+      "mcp": null
+    },
+    "noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "parmesan cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pear": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rum": {
+      "ok": 1,
+      "mcp": null
+    },
+    "vanilla": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cocoa powder": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cream cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mayonnaise": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oregano": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tortilla": {
+      "ok": 1,
+      "mcp": null
+    },
+    "vegetable stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "american cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "clam": {
+      "ok": 1,
+      "mcp": null
+    },
+    "corn tortilla": {
+      "ok": 1,
+      "mcp": null
+    },
+    "peanut butter": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "thyme": {
+      "ok": 1,
+      "mcp": null
+    },
+    "apricot": {
+      "ok": 1,
+      "mcp": null
+    },
+    "broccoli": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cashew": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cottage cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cucumber": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dill": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dried chili": {
+      "ok": 1,
+      "mcp": "chili_pepper"
+    },
+    "duck": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green chili": {
+      "ok": 1,
+      "mcp": null
+    },
+    "jalapeno chile": {
+      "ok": 1,
+      "mcp": "jalapeno"
+    },
+    "lentil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "macaroni": {
+      "ok": 1,
+      "mcp": "pasta"
+    },
+    "peanut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "walnut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "white chocolate": {
+      "ok": 1,
+      "mcp": null
+    },
+    "artichoke": {
+      "ok": 1,
+      "mcp": null
+    },
+    "beer": {
+      "ok": 1,
+      "mcp": null
+    },
+    "beet": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "celery": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cranberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fig": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grapefruit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mango": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mint": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pecan": {
+      "ok": 1,
+      "mcp": null
+    },
+    "raisin": {
+      "ok": 1,
+      "mcp": null
+    },
+    "spinach": {
+      "ok": 1,
+      "mcp": null
+    },
+    "venison": {
+      "ok": 1,
+      "mcp": null
+    },
+    "blueberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "carrot": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cornmeal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "egg": {
+      "ok": 1,
+      "mcp": null
+    },
+    "evaporated milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "honey": {
+      "ok": 1,
+      "mcp": null
+    },
+    "maple syrup": {
+      "ok": 1,
+      "mcp": null
+    },
+    "plum": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pork stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ricotta": {
+      "ok": 1,
+      "mcp": "ricotta cheese"
+    },
+    "sage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sweet wine": {
+      "ok": 0
+    },
+    "whole wheat flour": {
+      "ok": 1,
+      "mcp": null
+    },
+    "anchovy": {
+      "ok": 1,
+      "mcp": null
+    },
+    "blue cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brown rice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cabbage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chipotle chile": {
+      "ok": 0
+    },
+    "corn syrup": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hazelnut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "horseradish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "marshmallow": {
+      "ok": 1,
+      "mcp": null
+    },
+    "olive oil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "orange juice": {
+      "ok": 1,
+      "mcp": "orange"
+    },
+    "paprika": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pimento pepper": {
+      "ok": 1,
+      "mcp": "pimento"
+    },
+    "pistachio": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rosemary": {
+      "ok": 1,
+      "mcp": null
+    },
+    "scallop": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked pork": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tarragon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "thai chili": {
+      "ok": 1,
+      "mcp": "birds_eye_chili"
+    },
+    "annatto": {
+      "ok": 1,
+      "mcp": "annatto seed"
+    },
+    "asparagus": {
+      "ok": 1,
+      "mcp": null
+    },
+    "barley": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bay leaf": {
+      "ok": 1,
+      "mcp": null
+    },
+    "blackberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "buttermilk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cauliflower": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cayenne pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cinnamon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coconut milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cumin": {
+      "ok": 1,
+      "mcp": null
+    },
+    "curry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "eggplant": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lavender": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lobster": {
+      "ok": 1,
+      "mcp": null
+    },
+    "milk chocolate": {
+      "ok": 1,
+      "mcp": null
+    },
+    "monterey jack cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pickled jalapeno chilies": {
+      "ok": 1,
+      "mcp": "pickled jalapeno"
+    },
+    "pretzel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "prune": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rye bread": {
+      "ok": 1,
+      "mcp": null
+    },
+    "savory": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sesame seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sherry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shortening": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tofu": {
+      "ok": 1,
+      "mcp": null
+    },
+    "white wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ancho chile": {
+      "ok": 1,
+      "mcp": null
+    },
+    "anise": {
+      "ok": 1,
+      "mcp": null
+    },
+    "banana": {
+      "ok": 1,
+      "mcp": null
+    },
+    "beef fat": {
+      "ok": 0
+    },
+    "caper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "caramel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cardamom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chestnut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coca cola": {
+      "ok": 1,
+      "mcp": "cola"
+    },
+    "courgette": {
+      "ok": 1,
+      "mcp": "zucchini"
+    },
+    "couscous": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cured ham": {
+      "ok": 1,
+      "mcp": "prosciutto"
+    },
+    "dried pea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "egg noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "goat cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ketchup": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kielbasa": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lemon zest": {
+      "ok": 1,
+      "mcp": "lemon"
+    },
+    "molasses": {
+      "ok": 1,
+      "mcp": null
+    },
+    "okra": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pomegranate": {
+      "ok": 1,
+      "mcp": null
+    },
+    "porcini mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked sausage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sour cream": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sweet potato": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "veal stock": {
+      "ok": 0
+    },
+    "vodka": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wood ear mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "worcestershire sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "arugula": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black tea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chickpea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chickpea flour": {
+      "ok": 0
+    },
+    "chive": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cider": {
+      "ok": 1,
+      "mcp": "apple cider"
+    },
+    "clove": {
+      "ok": 1,
+      "mcp": null
+    },
+    "crawfish": {
+      "ok": 1,
+      "mcp": "crayfish"
+    },
+    "egg white": {
+      "ok": 1,
+      "mcp": null
+    },
+    "feta cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fish stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green tea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "habanero chili": {
+      "ok": 0
+    },
+    "lime zest": {
+      "ok": 0
+    },
+    "macadamia nut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mandarin": {
+      "ok": 0
+    },
+    "marsala wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "miso paste": {
+      "ok": 0
+    },
+    "mustard seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "orange zest": {
+      "ok": 0
+    },
+    "passion fruit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pike-perch": {
+      "ok": 0
+    },
+    "pita bread": {
+      "ok": 1,
+      "mcp": null
+    },
+    "popcorn": {
+      "ok": 0
+    },
+    "salami": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sesame oil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sun dried tomato": {
+      "ok": 1,
+      "mcp": null
+    },
+    "swiss chard": {
+      "ok": 1,
+      "mcp": null
+    },
+    "swiss cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tahini": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tamarind": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tapioca": {
+      "ok": 1,
+      "mcp": null
+    },
+    "triple sec": {
+      "ok": 1,
+      "mcp": null
+    },
+    "turkey stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "white pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "allspice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "avocado": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bean thread noodle": {
+      "ok": 1,
+      "mcp": "glass_noodle"
+    },
+    "black bean sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "caviar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chorizo": {
+      "ok": 1,
+      "mcp": null
+    },
+    "clam stock": {
+      "ok": 0
+    },
+    "cranberry juice": {
+      "ok": 0
+    },
+    "creme de cacao": {
+      "ok": 1,
+      "mcp": null
+    },
+    "creme de menthe": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dashi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dried red chili": {
+      "ok": 1,
+      "mcp": "chili_pepper"
+    },
+    "endive": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fennel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fenugreek leaf": {
+      "ok": 1,
+      "mcp": null
+    },
+    "flax seed": {
+      "ok": 0
+    },
+    "fresh cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "glutinous rice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green onion": {
+      "ok": 1,
+      "mcp": "scallion"
+    },
+    "halibut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hominy corn": {
+      "ok": 0
+    },
+    "kale": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lemongrass": {
+      "ok": 1,
+      "mcp": null
+    },
+    "liquid smoke": {
+      "ok": 1,
+      "mcp": null
+    },
+    "marjoram": {
+      "ok": 1,
+      "mcp": null
+    },
+    "nutmeg": {
+      "ok": 1,
+      "mcp": null
+    },
+    "polenta": {
+      "ok": 1,
+      "mcp": null
+    },
+    "poppy seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pumpkin seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red lentil": {
+      "ok": 0
+    },
+    "rye flour": {
+      "ok": 0
+    },
+    "saffron": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shallot": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shiitake mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "silken tofu": {
+      "ok": 0
+    },
+    "soybean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "spring onion": {
+      "ok": 1,
+      "mcp": "scallion"
+    },
+    "sugar snap pea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sunflower seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sweetened condensed milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "truffle mushroom": {
+      "ok": 0
+    },
+    "turmeric": {
+      "ok": 1,
+      "mcp": null
+    },
+    "watermelon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wild rice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "agave syrup": {
+      "ok": 1,
+      "mcp": null
+    },
+    "almond flour": {
+      "ok": 0
+    },
+    "amaretti cookie": {
+      "ok": 1,
+      "mcp": null
+    },
+    "apple cider": {
+      "ok": 1,
+      "mcp": null
+    },
+    "apple cider vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "arbol chile": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bacon fat": {
+      "ok": 0
+    },
+    "bourbon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brandy": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brussels sprout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bulgur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "candied ginger": {
+      "ok": 0
+    },
+    "chai tea": {
+      "ok": 0
+    },
+    "champagne": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cheese curd": {
+      "ok": 0
+    },
+    "chervil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chili pepper flake": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chinese napa cabbage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chocolate liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cod": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cornstarch": {
+      "ok": 1,
+      "mcp": null
+    },
+    "currant": {
+      "ok": 0
+    },
+    "dark soy sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "date": {
+      "ok": 1,
+      "mcp": null
+    },
+    "egg yolk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fennel seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fenugreek": {
+      "ok": 0
+    },
+    "fish roe": {
+      "ok": 1,
+      "mcp": null
+    },
+    "galangal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "glutinous rice flour": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green cardamom": {
+      "ok": 0
+    },
+    "guava": {
+      "ok": 1,
+      "mcp": null
+    },
+    "honeydew": {
+      "ok": 0
+    },
+    "hot chocolate powder": {
+      "ok": 0
+    },
+    "kelp": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kirsch liqueur": {
+      "ok": 0
+    },
+    "kombu": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lard": {
+      "ok": 1,
+      "mcp": null
+    },
+    "licorice": {
+      "ok": 0
+    },
+    "lingonberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mace": {
+      "ok": 1,
+      "mcp": null
+    },
+    "masa harina": {
+      "ok": 1,
+      "mcp": null
+    },
+    "matzo meal": {
+      "ok": 0
+    },
+    "mixed spice": {
+      "ok": 0
+    },
+    "pea shoot": {
+      "ok": 1,
+      "mcp": null
+    },
+    "peppermint": {
+      "ok": 1,
+      "mcp": null
+    },
+    "persimmon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pigeon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pine nut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "plantain": {
+      "ok": 1,
+      "mcp": null
+    },
+    "powdered sugar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "radish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red curry paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red pepper flake": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rhubarb": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice paper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rose": {
+      "ok": 0
+    },
+    "runner bean": {
+      "ok": 0
+    },
+    "sambal oelek": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sardine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sauerkraut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sea bass": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked ham": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked paprika": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked turkey": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sole": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soy milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soymilk": {
+      "ok": 1,
+      "mcp": "soy_milk"
+    },
+    "squid": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sriracha sauce": {
+      "ok": 0
+    },
+    "star anise": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sumac": {
+      "ok": 1,
+      "mcp": null
+    },
+    "swordfish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "szechuan peppercorn": {
+      "ok": 1,
+      "mcp": "sichuan_peppercorn"
+    },
+    "tangerine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tequila": {
+      "ok": 1,
+      "mcp": null
+    },
+    "trout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wasabi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "adzuki bean": {
+      "ok": 0
+    },
+    "alfalfa sprout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "almond butter": {
+      "ok": 1,
+      "mcp": null
+    },
+    "almond liqueur": {
+      "ok": 0
+    },
+    "almond milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "amaretto liqueur": {
+      "ok": 0
+    },
+    "amchoor": {
+      "ok": 0
+    },
+    "anaheim chili": {
+      "ok": 0
+    },
+    "anise liqueur": {
+      "ok": 0
+    },
+    "apple brandy": {
+      "ok": 1,
+      "mcp": null
+    },
+    "apple juice": {
+      "ok": 0
+    },
+    "apple liqueur": {
+      "ok": 0
+    },
+    "apple schnapps": {
+      "ok": 0
+    },
+    "baguette": {
+      "ok": 0
+    },
+    "balsamic vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bean sprout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black cumin": {
+      "ok": 0
+    },
+    "bluefish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bok choy": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bone marrow": {
+      "ok": 1,
+      "mcp": null
+    },
+    "boysenberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bran": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brie": {
+      "ok": 1,
+      "mcp": "brie cheese"
+    },
+    "brioche": {
+      "ok": 1,
+      "mcp": null
+    },
+    "broccoli rabe": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cacao": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cake flour": {
+      "ok": 0
+    },
+    "calamari": {
+      "ok": 0
+    },
+    "candied cherry": {
+      "ok": 0
+    },
+    "candied orange": {
+      "ok": 0
+    },
+    "candied pineapple": {
+      "ok": 0
+    },
+    "cantaloupe": {
+      "ok": 1,
+      "mcp": null
+    },
+    "carom seed": {
+      "ok": 0
+    },
+    "catfish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "celery seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chamomile": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chard": {
+      "ok": 0
+    },
+    "cherry liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chicken fat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chinese five spice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chinese rice wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chipotle chile in adobo": {
+      "ok": 0
+    },
+    "chow mein noodle": {
+      "ok": 0
+    },
+    "clementine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coconut liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coconut oil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coffee liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "corn flake": {
+      "ok": 1,
+      "mcp": "corn flakes"
+    },
+    "corned beef": {
+      "ok": 1,
+      "mcp": null
+    },
+    "curry leaf": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dark beer": {
+      "ok": 1,
+      "mcp": null
+    },
+    "dried cranberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "edamame": {
+      "ok": 1,
+      "mcp": null
+    },
+    "elderflower liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "epazote": {
+      "ok": 1,
+      "mcp": null
+    },
+    "espresso": {
+      "ok": 0
+    },
+    "fava bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fish sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "flounder": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fontina cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "frankfurter": {
+      "ok": 0
+    },
+    "garam masala": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ghee": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gin": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ginger ale": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gnocchi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "goat milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gochujang": {
+      "ok": 1,
+      "mcp": null
+    },
+    "greek yogurt": {
+      "ok": 0
+    },
+    "green peppercorn": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grouper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gruyere cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "guajillo chile": {
+      "ok": 1,
+      "mcp": null
+    },
+    "haddock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hake": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hibiscus tea": {
+      "ok": 0
+    },
+    "hijiki seaweed": {
+      "ok": 0
+    },
+    "hoisin sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "icing sugar": {
+      "ok": 0
+    },
+    "irish cream": {
+      "ok": 1,
+      "mcp": null
+    },
+    "jaggery": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kefalotiri cheese": {
+      "ok": 0
+    },
+    "kimchi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kiwi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lamb stock": {
+      "ok": 0
+    },
+    "leek": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lemon balm": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lemon thyme": {
+      "ok": 0
+    },
+    "lemon verbena": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lime leaf": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lobster stock": {
+      "ok": 0
+    },
+    "lychee": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mackerel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "maggi": {
+      "ok": 0
+    },
+    "mahi mahi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "malt": {
+      "ok": 1,
+      "mcp": null
+    },
+    "malted milk": {
+      "ok": 0
+    },
+    "maple sugar": {
+      "ok": 0
+    },
+    "maraschino cherry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "marmite": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mascarpone cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "melon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "moong dal": {
+      "ok": 0
+    },
+    "morel mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mortadella": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mushroom stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mussel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "nam pla": {
+      "ok": 0
+    },
+    "nopales": {
+      "ok": 0
+    },
+    "nutritional yeast": {
+      "ok": 1,
+      "mcp": null
+    },
+    "octopus": {
+      "ok": 1,
+      "mcp": null
+    },
+    "orange blossom water": {
+      "ok": 1,
+      "mcp": null
+    },
+    "orange liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "orange roughy": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oyster sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "paneer": {
+      "ok": 1,
+      "mcp": null
+    },
+    "papaya": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pasilla chile": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pecorino cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pepperoni": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pheasant": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pita": {
+      "ok": 0
+    },
+    "poblano chile": {
+      "ok": 0
+    },
+    "port wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "psyllium husk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pumpernickel bread": {
+      "ok": 0
+    },
+    "quinoa": {
+      "ok": 1,
+      "mcp": null
+    },
+    "raspberry liqueur": {
+      "ok": 0
+    },
+    "red cabbage": {
+      "ok": 0
+    },
+    "red currant": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red snapper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice flour": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ricotta cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "root beer": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rose wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rutabaga": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sansho pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "scotch whisky": {
+      "ok": 0
+    },
+    "semi sweet chocolate": {
+      "ok": 0
+    },
+    "shiso": {
+      "ok": 0
+    },
+    "shrimp paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shrimp stock": {
+      "ok": 0
+    },
+    "smoked chicken": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked salmon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked trout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soppressata": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sorrel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soy flour": {
+      "ok": 0
+    },
+    "sparkling wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "stout beer": {
+      "ok": 0
+    },
+    "sweet chili sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sweet soy sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "taco cheese": {
+      "ok": 0
+    },
+    "tandoori masala": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tapioca flour": {
+      "ok": 0
+    },
+    "teff flour": {
+      "ok": 0
+    },
+    "tempura flour": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tex-mex cheese": {
+      "ok": 0
+    },
+    "toffee": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tortellini": {
+      "ok": 1,
+      "mcp": null
+    },
+    "turnip": {
+      "ok": 1,
+      "mcp": null
+    },
+    "urad dal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "verjus": {
+      "ok": 0
+    },
+    "vermicelli": {
+      "ok": 1,
+      "mcp": null
+    },
+    "vermouth": {
+      "ok": 1,
+      "mcp": null
+    },
+    "water chestnut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "watercress": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wheat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wheat germ": {
+      "ok": 1,
+      "mcp": null
+    },
+    "white truffle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "yam": {
+      "ok": 1,
+      "mcp": null
+    },
+    "yellowfin tuna": {
+      "ok": 0
+    },
+    "yuzu": {
+      "ok": 1,
+      "mcp": null
+    },
+    "100s and 1000s": {
+      "ok": 0
+    },
+    "7 up": {
+      "ok": 0
+    },
+    "abalone": {
+      "ok": 1,
+      "mcp": null
+    },
+    "absinthe": {
+      "ok": 1,
+      "mcp": null
+    },
+    "acorn": {
+      "ok": 1,
+      "mcp": null
+    },
+    "adobo sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "advocaat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "aleppo pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "amaranth": {
+      "ok": 1,
+      "mcp": null
+    },
+    "amaranth flour": {
+      "ok": 0
+    },
+    "anasazi bean": {
+      "ok": 0
+    },
+    "anejo cheese": {
+      "ok": 0
+    },
+    "angelica": {
+      "ok": 0
+    },
+    "angostura bitters": {
+      "ok": 0
+    },
+    "apricot brandy": {
+      "ok": 1,
+      "mcp": null
+    },
+    "apricot liqueur": {
+      "ok": 0
+    },
+    "aquavit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "arame seaweed": {
+      "ok": 0
+    },
+    "arctic char": {
+      "ok": 1,
+      "mcp": null
+    },
+    "armagnac": {
+      "ok": 1,
+      "mcp": null
+    },
+    "asadero cheese": {
+      "ok": 0
+    },
+    "asafoetida": {
+      "ok": 1,
+      "mcp": null
+    },
+    "asiago cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "avocado oil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bagel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "baharat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bamboo shoot": {
+      "ok": 1,
+      "mcp": null
+    },
+    "banana liqueur": {
+      "ok": 0
+    },
+    "banana schnapps": {
+      "ok": 0
+    },
+    "barbecue sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "barberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "barley flour": {
+      "ok": 0
+    },
+    "barley malt syrup": {
+      "ok": 0
+    },
+    "bean flour": {
+      "ok": 0
+    },
+    "bean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bee pollen": {
+      "ok": 1,
+      "mcp": null
+    },
+    "beef heart": {
+      "ok": 0
+    },
+    "beef liver": {
+      "ok": 0
+    },
+    "beef tongue": {
+      "ok": 0
+    },
+    "bel paese cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "benedictine liqueur": {
+      "ok": 0
+    },
+    "berbere": {
+      "ok": 1,
+      "mcp": null
+    },
+    "biscuit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bitter melon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black bean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black cardamom": {
+      "ok": 0
+    },
+    "black currant": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black pudding": {
+      "ok": 0
+    },
+    "black rice": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black treacle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black truffle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "black vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "blackberry brandy": {
+      "ok": 0
+    },
+    "blackberry liqueur": {
+      "ok": 0
+    },
+    "blackberry schnapps": {
+      "ok": 0
+    },
+    "blackberry wine": {
+      "ok": 0
+    },
+    "blood orange": {
+      "ok": 1,
+      "mcp": null
+    },
+    "blueberry schnapps": {
+      "ok": 0
+    },
+    "bonito": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bratwurst": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brazil nut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "breadfruit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "bresaola": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brown rice flour": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brown rice syrup": {
+      "ok": 1,
+      "mcp": null
+    },
+    "brown rice vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "buckwheat flour": {
+      "ok": 0
+    },
+    "buckwheat groat": {
+      "ok": 0
+    },
+    "buckwheat noodle": {
+      "ok": 0
+    },
+    "burdock": {
+      "ok": 0
+    },
+    "butterfish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "butterscotch schnapps": {
+      "ok": 0
+    },
+    "cachaca": {
+      "ok": 1,
+      "mcp": null
+    },
+    "calf liver": {
+      "ok": 0
+    },
+    "calvados": {
+      "ok": 1,
+      "mcp": null
+    },
+    "camembert": {
+      "ok": 1,
+      "mcp": "camembert cheese"
+    },
+    "campari": {
+      "ok": 1,
+      "mcp": null
+    },
+    "candied lemon peel": {
+      "ok": 0
+    },
+    "candied walnut": {
+      "ok": 0
+    },
+    "candlenut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "carambola": {
+      "ok": 0
+    },
+    "caraway": {
+      "ok": 0
+    },
+    "caraway seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cardoon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "carob": {
+      "ok": 1,
+      "mcp": null
+    },
+    "carp": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cashew butter": {
+      "ok": 0
+    },
+    "cashew milk": {
+      "ok": 0
+    },
+    "cassava": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cassia": {
+      "ok": 0
+    },
+    "cavolo nero": {
+      "ok": 0
+    },
+    "celeriac": {
+      "ok": 1,
+      "mcp": null
+    },
+    "challah": {
+      "ok": 0
+    },
+    "champagne vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "channa dal": {
+      "ok": 0
+    },
+    "chanterelle mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "char siu sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chat masala": {
+      "ok": 0
+    },
+    "cherry brandy": {
+      "ok": 0
+    },
+    "chestnut flour": {
+      "ok": 0
+    },
+    "chia seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chicken giblet": {
+      "ok": 0
+    },
+    "chicken gizzard": {
+      "ok": 0
+    },
+    "chicken liver": {
+      "ok": 0
+    },
+    "chicken sausage": {
+      "ok": 0
+    },
+    "chickpea dal": {
+      "ok": 0
+    },
+    "chihuahua cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chili bean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chili flake": {
+      "ok": 0
+    },
+    "chinese sausage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "chinese sweet bean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "choy sum": {
+      "ok": 1,
+      "mcp": null
+    },
+    "clementine zest": {
+      "ok": 0
+    },
+    "clotted cream": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cloud ear mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cockle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cocoa butter": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cocoa nib": {
+      "ok": 0
+    },
+    "coconut amino": {
+      "ok": 1,
+      "mcp": "coconut aminos"
+    },
+    "coconut butter": {
+      "ok": 0
+    },
+    "coconut cream": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coconut flour": {
+      "ok": 0
+    },
+    "coconut sugar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coconut vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cognac": {
+      "ok": 1,
+      "mcp": null
+    },
+    "collard green": {
+      "ok": 1,
+      "mcp": null
+    },
+    "comte": {
+      "ok": 1,
+      "mcp": "comte cheese"
+    },
+    "conch": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cookie": {
+      "ok": 1,
+      "mcp": null
+    },
+    "coriander root": {
+      "ok": 1,
+      "mcp": null
+    },
+    "corn tortilla chip": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cotija cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "crabapple": {
+      "ok": 0
+    },
+    "creme de banane": {
+      "ok": 1,
+      "mcp": null
+    },
+    "creme de cassis": {
+      "ok": 1,
+      "mcp": null
+    },
+    "creme fraiche": {
+      "ok": 1,
+      "mcp": null
+    },
+    "culantro": {
+      "ok": 1,
+      "mcp": null
+    },
+    "cuttlefish": {
+      "ok": 1,
+      "mcp": "squid"
+    },
+    "daikon radish": {
+      "ok": 0
+    },
+    "daikon sprout": {
+      "ok": 0
+    },
+    "dal": {
+      "ok": 0
+    },
+    "dandelion green": {
+      "ok": 0
+    },
+    "dark miso": {
+      "ok": 1,
+      "mcp": null
+    },
+    "date sugar": {
+      "ok": 0
+    },
+    "Dr. Pepper": {
+      "ok": 0
+    },
+    "dried rose petal": {
+      "ok": 0
+    },
+    "dry vermouth": {
+      "ok": 0
+    },
+    "duck fat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "duck stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "earl grey tea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "eau de vie": {
+      "ok": 0
+    },
+    "edam cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "eel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "eggnog": {
+      "ok": 1,
+      "mcp": null
+    },
+    "elderberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "emmenthaler cheese": {
+      "ok": 0
+    },
+    "enoki mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "escargot": {
+      "ok": 0
+    },
+    "farmer cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "farro": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fennel pollen": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fermented black bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "fines herbes": {
+      "ok": 1,
+      "mcp": null
+    },
+    "focaccia bread": {
+      "ok": 0
+    },
+    "foie gras": {
+      "ok": 1,
+      "mcp": null
+    },
+    "framboise eau de vie": {
+      "ok": 0
+    },
+    "framboise liqueur": {
+      "ok": 0
+    },
+    "frangelico": {
+      "ok": 0
+    },
+    "frog leg": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gai lan": {
+      "ok": 0
+    },
+    "galliano liqueur": {
+      "ok": 0
+    },
+    "ginger liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ginkgo nut": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gochugaru": {
+      "ok": 1,
+      "mcp": null
+    },
+    "goji berry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "goldschlager": {
+      "ok": 1,
+      "mcp": null
+    },
+    "goose": {
+      "ok": 1,
+      "mcp": null
+    },
+    "goose fat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gooseberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "gouda cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grains of paradise": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grana padano cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grand marnier": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grape juice": {
+      "ok": 0
+    },
+    "grape leaf": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grappa": {
+      "ok": 1,
+      "mcp": null
+    },
+    "green banana": {
+      "ok": 0
+    },
+    "green curry paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "grenadine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "guava juice": {
+      "ok": 0
+    },
+    "halloumi cheese": {
+      "ok": 0
+    },
+    "harissa": {
+      "ok": 1,
+      "mcp": null
+    },
+    "havarti cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hawaiian bread": {
+      "ok": 0
+    },
+    "hazelnut butter": {
+      "ok": 0
+    },
+    "hazelnut liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hearts of palm": {
+      "ok": 1,
+      "mcp": null
+    },
+    "heavy cream": {
+      "ok": 1,
+      "mcp": "heavy cream cheese"
+    },
+    "hemp milk": {
+      "ok": 0
+    },
+    "hemp seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "herbes de provence": {
+      "ok": 1,
+      "mcp": null
+    },
+    "herring": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hing": {
+      "ok": 0
+    },
+    "hokkien noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hop": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hot bean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "hp steak sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "huckleberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "irish moss": {
+      "ok": 0
+    },
+    "irish whiskey": {
+      "ok": 0
+    },
+    "jackfruit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "jamaican jerk spice": {
+      "ok": 0
+    },
+    "japanese cucumber": {
+      "ok": 0
+    },
+    "jarlsberg cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "jasmine tea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "jerusalem artichoke": {
+      "ok": 1,
+      "mcp": null
+    },
+    "jicama": {
+      "ok": 1,
+      "mcp": null
+    },
+    "juniper berry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kaffir lime": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kahlua": {
+      "ok": 0
+    },
+    "kamut flour": {
+      "ok": 0
+    },
+    "kasha": {
+      "ok": 0
+    },
+    "kasseri cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "katakuriko": {
+      "ok": 0
+    },
+    "kefir": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kewra": {
+      "ok": 0
+    },
+    "key lime": {
+      "ok": 0
+    },
+    "key lime juice": {
+      "ok": 0
+    },
+    "key lime zest": {
+      "ok": 0
+    },
+    "khoya": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kidney bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "king oyster mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "kingfish": {
+      "ok": 0
+    },
+    "kluski": {
+      "ok": 0
+    },
+    "knockwurst": {
+      "ok": 0
+    },
+    "kohlrabi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "konnyaku": {
+      "ok": 0
+    },
+    "koshi an": {
+      "ok": 0
+    },
+    "kudzu": {
+      "ok": 0
+    },
+    "kumara": {
+      "ok": 0
+    },
+    "kumquat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ladyfinger": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lamb liver": {
+      "ok": 0
+    },
+    "lamb sausage": {
+      "ok": 0
+    },
+    "lasagna noodle": {
+      "ok": 0
+    },
+    "lasagna sheet": {
+      "ok": 0
+    },
+    "lavash bread": {
+      "ok": 0
+    },
+    "lillet blanc": {
+      "ok": 0
+    },
+    "lima bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lime cordial": {
+      "ok": 0
+    },
+    "limoncello": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lo mein noodle": {
+      "ok": 0
+    },
+    "lotus seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "lovage": {
+      "ok": 1,
+      "mcp": null
+    },
+    "madeira wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "madras curry powder": {
+      "ok": 1,
+      "mcp": null
+    },
+    "maitake mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "malt syrup": {
+      "ok": 0
+    },
+    "manchego cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mandarin juice": {
+      "ok": 0
+    },
+    "mange touts pea": {
+      "ok": 0
+    },
+    "marjoram leaf": {
+      "ok": 0
+    },
+    "marmalade": {
+      "ok": 0
+    },
+    "marzipan": {
+      "ok": 1,
+      "mcp": null
+    },
+    "masoor dal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "matcha green tea powder": {
+      "ok": 1,
+      "mcp": null
+    },
+    "melon liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mexican cheese": {
+      "ok": 0
+    },
+    "mexican oregano": {
+      "ok": 0
+    },
+    "mezcal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "millet": {
+      "ok": 1,
+      "mcp": null
+    },
+    "millet flour": {
+      "ok": 0
+    },
+    "mincemeat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mirin": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mitsuba": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mizithra": {
+      "ok": 0
+    },
+    "mizuna": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mole sauce": {
+      "ok": 0
+    },
+    "monkfish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "montrachet cheese": {
+      "ok": 0
+    },
+    "muenster": {
+      "ok": 1,
+      "mcp": "muenster cheese"
+    },
+    "mulberry": {
+      "ok": 1,
+      "mcp": null
+    },
+    "multi grain flour": {
+      "ok": 0
+    },
+    "mung bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mung bean sprout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mung dal": {
+      "ok": 0
+    },
+    "mushroom soy sauce": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mustard green": {
+      "ok": 1,
+      "mcp": null
+    },
+    "mutton": {
+      "ok": 1,
+      "mcp": null
+    },
+    "naan bread": {
+      "ok": 0
+    },
+    "nectarine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "nigella seed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "nori": {
+      "ok": 1,
+      "mcp": null
+    },
+    "nuoc nam": {
+      "ok": 0
+    },
+    "oat": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oat flour": {
+      "ok": 0
+    },
+    "oaxaca cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "okara": {
+      "ok": 0
+    },
+    "onion seed": {
+      "ok": 0
+    },
+    "orange pekoe tea": {
+      "ok": 0
+    },
+    "orgeat syrup": {
+      "ok": 0
+    },
+    "ouzo": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oxtail": {
+      "ok": 0
+    },
+    "oyster": {
+      "ok": 1,
+      "mcp": null
+    },
+    "oyster liquor": {
+      "ok": 0
+    },
+    "oyster mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pak choi": {
+      "ok": 1,
+      "mcp": "bok_choy"
+    },
+    "palm sugar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "panang curry paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pancetta": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pandan": {
+      "ok": 0
+    },
+    "panela cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "parsnip": {
+      "ok": 1,
+      "mcp": null
+    },
+    "passata": {
+      "ok": 0
+    },
+    "pastis": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pastrami": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pastry cream": {
+      "ok": 0
+    },
+    "pawpaw": {
+      "ok": 0
+    },
+    "peach brandy": {
+      "ok": 0
+    },
+    "peach liqueur": {
+      "ok": 0
+    },
+    "peach schnapps": {
+      "ok": 0
+    },
+    "pear brandy": {
+      "ok": 0
+    },
+    "pear juice": {
+      "ok": 0
+    },
+    "pear liqueur": {
+      "ok": 0
+    },
+    "pear nectar": {
+      "ok": 0
+    },
+    "pear vodka": {
+      "ok": 0
+    },
+    "pernod": {
+      "ok": 0
+    },
+    "pigeon pea": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pimms": {
+      "ok": 0
+    },
+    "pineapple juice": {
+      "ok": 0
+    },
+    "pineapple rum": {
+      "ok": 0
+    },
+    "pink peppercorn": {
+      "ok": 0
+    },
+    "piquillo pepper": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pisco": {
+      "ok": 1,
+      "mcp": null
+    },
+    "plum brandy": {
+      "ok": 0
+    },
+    "plum wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pomegranate liqueur": {
+      "ok": 0
+    },
+    "pomegranate molasses": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pomelo": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ponzu": {
+      "ok": 1,
+      "mcp": null
+    },
+    "pork liver": {
+      "ok": 0
+    },
+    "porter beer": {
+      "ok": 0
+    },
+    "preserved black bean": {
+      "ok": 1,
+      "mcp": null
+    },
+    "preserved lemon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "prickly pear": {
+      "ok": 1,
+      "mcp": null
+    },
+    "prosecco": {
+      "ok": 1,
+      "mcp": null
+    },
+    "provolone cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "purslane": {
+      "ok": 1,
+      "mcp": null
+    },
+    "quail": {
+      "ok": 1,
+      "mcp": null
+    },
+    "quail egg": {
+      "ok": 1,
+      "mcp": null
+    },
+    "quark": {
+      "ok": 1,
+      "mcp": null
+    },
+    "queso blanco cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "quince": {
+      "ok": 1,
+      "mcp": null
+    },
+    "quinoa flour": {
+      "ok": 0
+    },
+    "rabbit": {
+      "ok": 1,
+      "mcp": null
+    },
+    "radicchio": {
+      "ok": 1,
+      "mcp": null
+    },
+    "radish sprout": {
+      "ok": 0
+    },
+    "rainbow trout": {
+      "ok": 0
+    },
+    "ramen noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ramp": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rapadura": {
+      "ok": 0
+    },
+    "rapini": {
+      "ok": 0
+    },
+    "ras el hanout": {
+      "ok": 1,
+      "mcp": null
+    },
+    "raspberry juice": {
+      "ok": 0
+    },
+    "raspberry schnapps": {
+      "ok": 0
+    },
+    "raspberry vinegar": {
+      "ok": 0
+    },
+    "raspberry vodka": {
+      "ok": 0
+    },
+    "razor clam": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red bean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red date": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red leicester cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "red miso": {
+      "ok": 0
+    },
+    "red wine vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice milk": {
+      "ok": 1,
+      "mcp": null
+    },
+    "rice syrup": {
+      "ok": 0
+    },
+    "rice wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "ricotta salata": {
+      "ok": 1,
+      "mcp": null
+    },
+    "robiola": {
+      "ok": 0
+    },
+    "rockfish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "romano": {
+      "ok": 0
+    },
+    "rose water": {
+      "ok": 0
+    },
+    "ruby port": {
+      "ok": 0
+    },
+    "rye flake": {
+      "ok": 0
+    },
+    "rye whiskey": {
+      "ok": 0
+    },
+    "sago": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sake": {
+      "ok": 1,
+      "mcp": null
+    },
+    "salsify": {
+      "ok": 1,
+      "mcp": null
+    },
+    "salt cod fish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "savoy cabbage": {
+      "ok": 0
+    },
+    "sea bream": {
+      "ok": 1,
+      "mcp": null
+    },
+    "seafood stock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "seaweed": {
+      "ok": 1,
+      "mcp": null
+    },
+    "seitan": {
+      "ok": 0
+    },
+    "semolina": {
+      "ok": 1,
+      "mcp": null
+    },
+    "semolina flour": {
+      "ok": 0
+    },
+    "shad": {
+      "ok": 0
+    },
+    "shaoxing wine": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shark": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sherry wine vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shichimi togarashi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "shimeji mushroom": {
+      "ok": 0
+    },
+    "shirataki noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "skate": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sloe gin": {
+      "ok": 0
+    },
+    "smelt": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked almond": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked cheddar cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked fish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked haddock": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked mackerel": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked mozzarella": {
+      "ok": 0
+    },
+    "smoked oyster": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked provolone cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked tofu": {
+      "ok": 1,
+      "mcp": null
+    },
+    "smoked whitefish": {
+      "ok": 1,
+      "mcp": null
+    },
+    "snail": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soba noodle": {
+      "ok": 0
+    },
+    "somen noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sorghum": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sorghum flour": {
+      "ok": 0
+    },
+    "sour milk": {
+      "ok": 0
+    },
+    "southern comfort": {
+      "ok": 1,
+      "mcp": null
+    },
+    "soybean paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "spaetzle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "spam": {
+      "ok": 0
+    },
+    "spearmint": {
+      "ok": 0
+    },
+    "spelt": {
+      "ok": 1,
+      "mcp": null
+    },
+    "spelt flour": {
+      "ok": 0
+    },
+    "spiced rum": {
+      "ok": 0
+    },
+    "spirulina": {
+      "ok": 1,
+      "mcp": null
+    },
+    "splenda": {
+      "ok": 0
+    },
+    "squid ink": {
+      "ok": 1,
+      "mcp": null
+    },
+    "star fruit": {
+      "ok": 0
+    },
+    "straw mushroom": {
+      "ok": 1,
+      "mcp": null
+    },
+    "strawberry liqueur": {
+      "ok": 0
+    },
+    "strawberry preserve": {
+      "ok": 0
+    },
+    "strawberry vodka": {
+      "ok": 0
+    },
+    "striped bass": {
+      "ok": 0
+    },
+    "sturgeon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sugar cane": {
+      "ok": 0
+    },
+    "sunflower seed butter": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sunflower sprout": {
+      "ok": 0
+    },
+    "surimi": {
+      "ok": 1,
+      "mcp": "crab_stick"
+    },
+    "sweet marjoram": {
+      "ok": 0
+    },
+    "sweet vermouth": {
+      "ok": 1,
+      "mcp": null
+    },
+    "sweetbread": {
+      "ok": 1,
+      "mcp": null
+    },
+    "szechuan sauce": {
+      "ok": 0
+    },
+    "tagliatelle": {
+      "ok": 0
+    },
+    "taleggio cheese": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tangerine zest": {
+      "ok": 0
+    },
+    "tarama": {
+      "ok": 0
+    },
+    "taro": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tatsoi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "teff": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tempeh": {
+      "ok": 1,
+      "mcp": null
+    },
+    "thai basil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "thai green chili": {
+      "ok": 1,
+      "mcp": null
+    },
+    "thai rice noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tilapia": {
+      "ok": 1,
+      "mcp": null
+    },
+    "toasted sesame oil": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tobiko": {
+      "ok": 0
+    },
+    "tom yum paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "tomatillo": {
+      "ok": 1,
+      "mcp": null
+    },
+    "toor dal": {
+      "ok": 1,
+      "mcp": null
+    },
+    "treacle": {
+      "ok": 0
+    },
+    "tripe": {
+      "ok": 0
+    },
+    "trumpet mushroom": {
+      "ok": 0
+    },
+    "turbot": {
+      "ok": 1,
+      "mcp": null
+    },
+    "turkey giblet": {
+      "ok": 0
+    },
+    "turkey gizzard": {
+      "ok": 0
+    },
+    "turkey liver": {
+      "ok": 0
+    },
+    "turnip green": {
+      "ok": 1,
+      "mcp": null
+    },
+    "udon noodle": {
+      "ok": 1,
+      "mcp": null
+    },
+    "umeboshi": {
+      "ok": 1,
+      "mcp": null
+    },
+    "vanilla liqueur": {
+      "ok": 0
+    },
+    "vanilla schnapps": {
+      "ok": 0
+    },
+    "vegemite": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wafer": {
+      "ok": 1,
+      "mcp": null
+    },
+    "wakame seaweed": {
+      "ok": 0
+    },
+    "wheat berry": {
+      "ok": 0
+    },
+    "white balsamic vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "white chocolate liqueur": {
+      "ok": 1,
+      "mcp": null
+    },
+    "white port": {
+      "ok": 0
+    },
+    "white vermouth": {
+      "ok": 0
+    },
+    "white wine vinegar": {
+      "ok": 1,
+      "mcp": null
+    },
+    "winter melon": {
+      "ok": 1,
+      "mcp": null
+    },
+    "yakisoba noodle": {
+      "ok": 0
+    },
+    "yellow curry paste": {
+      "ok": 1,
+      "mcp": null
+    },
+    "yogurt cheese": {
+      "ok": 0
+    },
+    "yucca root": {
+      "ok": 0
+    },
+    "zaatar": {
+      "ok": 1,
+      "mcp": null
+    }
   }
- }
 }
