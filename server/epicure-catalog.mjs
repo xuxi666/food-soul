@@ -382,6 +382,33 @@ export function queryCatalog(opts = {}) {
     args.push(like, like, like);
   }
 
+  // 按指定中文名批量取（起点推荐用），保持传入顺序
+  if (Array.isArray(opts.names) && opts.names.length) {
+    const names = opts.names.map((n) => String(n).slice(0, 20)).slice(0, 20);
+    const ph = names.map(() => '?').join(',');
+    const rows = db
+      .prepare(`SELECT * FROM epicure_catalog WHERE active = 1 AND cn IN (${ph})`)
+      .all(...names);
+    const order = new Map(names.map((n, i) => [n, i]));
+    rows.sort((a, b) => (order.get(a.cn) ?? 99) - (order.get(b.cn) ?? 99));
+    // 同一中文名可能对应多个官方条目（如 阿魏/阿魏），只留能算风味的那个
+    const seen = new Map();
+    for (const r of rows) {
+      const prev = seen.get(r.cn);
+      if (!prev || (r.mcp_ok === 1 && prev.mcp_ok !== 1)) seen.set(r.cn, r);
+    }
+    const deduped = [...seen.values()].sort((a, b) => (order.get(a.cn) ?? 99) - (order.get(b.cn) ?? 99));
+    rows.length = 0;
+    rows.push(...deduped);
+    return {
+      total: rows.length,
+      page: 1,
+      pageSize: rows.length,
+      hasMore: false,
+      items: rows.map(mapRow),
+    };
+  }
+
   const whereSql = where.join(' AND ');
   let rows;
   let total;
@@ -423,6 +450,25 @@ export function queryCatalog(opts = {}) {
       mcpName: r.mcp_name || r.name,
       popular: POPULAR_NAMES.has(normalizeName(r.name)),
     })),
+  };
+}
+
+function mapRow(r) {
+  return {
+    name: r.name,
+    cn: r.cn || '',
+    display: r.cn || r.name,
+    category: r.category,
+    categoryCn: CATEGORY_CN[r.category] || r.category,
+    categories: safeArray(r.categories),
+    isVegan: Boolean(r.is_vegan),
+    isVegetarian: Boolean(r.is_vegetarian),
+    originalCount: r.original_count,
+    aliases: safeArray(r.cn_aliases),
+    translated: Boolean(r.cn),
+    analyzable: r.mcp_ok === 1,
+    mcpName: r.mcp_name || null,
+    popular: POPULAR_NAMES.has(normalizeName(r.name)),
   };
 }
 

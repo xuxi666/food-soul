@@ -1565,3 +1565,221 @@
     max-height: none;
   }
 }
+
+/* ---------- 图谱空状态引导 ---------- */
+.ek-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 18px 56px;
+  text-align: center;
+  /* 容器不拦事件，只有按钮可点，保证画布仍可拖动缩放 */
+  pointer-events: none;
+  animation: ek-fade-in 0.24s var(--ease);
+}
+
+.ek-empty[hidden] {
+  display: none;
+}
+
+.ek-empty__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.ek-empty__desc {
+  margin: 0;
+  max-width: 380px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.ek-empty__label {
+  margin: 10px 0 2px;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.ek-empty__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 360px;
+  pointer-events: auto;
+}
+
+.ek-empty__chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease),
+    transform 0.18s var(--ease);
+}
+
+.ek-empty__chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: translateY(-1px);
+}
+
+.ek-empty__chip:active {
+  transform: translateY(0);
+}
+
+@keyframes ek-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .ek-empty {
+    padding: 16px 12px 52px;
+  }
+
+  .ek-empty__title {
+    font-size: 15px;
+  }
+
+  .ek-empty__chips {
+    gap: 6px;
+    /* 右侧给缩放按钮留位置，避免最右一列被压住 */
+    max-width: calc(100% - 56px);
+  }
+
+  .ek-empty__chip {
+    padding: 5px 11px;
+    font-size: 11.5px;
+  }
+}
+
+/* ---------- 图谱空状态引导 ---------- */
+.ek-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 18px 56px;
+  text-align: center;
+  /* 容器不拦事件，只有按钮可点，保证画布仍可拖动缩放 */
+  pointer-events: none;
+  animation: ek-fade-in 0.24s var(--ease);
+}
+
+.ek-empty[hidden] {
+  display: none;
+}
+
+.ek-empty__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.ek-empty__desc {
+  margin: 0;
+  max-width: 380px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.ek-empty__label {
+  margin: 10px 0 2px;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.ek-empty__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 360px;
+  pointer-events: auto;
+}
+
+.ek-empty__chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease),
+    transform 0.18s var(--ease);
+}
+
+.ek-empty__chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: translateY(-1px);
+}
+
+.ek-empty__chip:active {
+  transform: translateY(0);
+}
+
+@keyframes ek-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .ek-empty {
+    padding: 16px 12px 52px;
+  }
+
+  .ek-empty__title {
+    font-size: 15px;
+  }
+
+  .ek-empty__chips {
+    gap: 6px;
+    /* 右侧给缩放按钮留位置，避免最右一列被压住 */
+    max-width: calc(100% - 56px);
+  }
+
+  .ek-empty__chip {
+    padding: 5px 11px;
+    font-size: 11.5px;
+  }
+}

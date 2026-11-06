@@ -45,6 +45,9 @@ const COMPLEXITY = [
 
 const FLAVORS = ['咸鲜', '甜润'];
 
+/** 空状态起点：按顺序取，目录里查不到的自动跳过 */
+const STARTER_NAMES = ['辣椒', '阿魏', '土豆', '番茄', '洋葱', '姜', '蒜', '花生', '柠檬', '茉莉花茶'];
+
 /** 8 张快速开始卡：菜式 × 定位 的随机配对，分咸鲜/甜润两组 */
 function buildQuickStart() {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -98,6 +101,56 @@ export default {
     const graphHost = h('div', { class: 'egraph' });
     const graph = createGraph(graphHost);
     const graphLoading = h('div', { class: 'ek-graphloading', hidden: true }, h('span', { class: 'ek-spinner' }), '正在计算风味关联…');
+
+    /* ---- 空状态引导 ---- */
+    const starterBox = h('div', { class: 'ek-empty__chips' });
+    const emptyBox = h(
+      'div',
+      { class: 'ek-empty' },
+      h('p', { class: 'ek-empty__title', text: '选择一种食材。' }),
+      h('p', { class: 'ek-empty__desc', text: 'Epicure 将揭示其最接近的风味关系以及值得探索的路径。' }),
+      h('p', { class: 'ek-empty__label', text: '以下是几个起点' }),
+      starterBox
+    );
+
+    function paintEmpty() {
+      const isEmpty = selected.length === 0;
+      emptyBox.hidden = !isEmpty;
+    }
+
+    async function loadStarters() {
+      try {
+        const res = await fetch(`/api/epicure/ingredients?names=${encodeURIComponent(STARTER_NAMES.join(','))}`);
+        const data = await res.json();
+        const items = (data.items || []).filter((i) => i.display);
+        clear(starterBox);
+        for (const it of items) {
+          starterBox.append(
+            h(
+              'button',
+              {
+                class: 'ek-empty__chip',
+                type: 'button',
+                title: `${it.display} · ${it.categoryCn}${it.analyzable ? '' : ' · 暂无风味数据'}`,
+                onclick: () =>
+                  addIngredient({
+                    id: it.name,
+                    cn: it.display,
+                    epicure: it.name,
+                    cat: null,
+                    vegetarian: it.isVegetarian,
+                    vegan: it.isVegan,
+                  }),
+              },
+              it.display
+            )
+          );
+        }
+        if (!items.length) starterBox.append(h('span', { class: 'ek-hint', text: '起点食材加载失败' }));
+      } catch {
+        starterBox.append(h('span', { class: 'ek-hint', text: '起点食材加载失败' }));
+      }
+    }
     const statusLine = h('p', { class: 'ek-status', text: '选择食材后显示 Epicure 计算的真实关联' });
 
     graph.onPick((n) => {
@@ -130,6 +183,7 @@ export default {
       paintChips();
       paintList();
       paintRecipe();
+      paintEmpty();
       void loadNetwork();
     }
 
@@ -247,20 +301,35 @@ export default {
       chipsBox.append(h('span', { class: 'ek-count', text: `已选 ${selected.length}` }));
     }
 
-    const vegSwitch = h('input', {
-      type: 'checkbox',
-      onchange: (e) => {
-        vegOnly = e.target.checked;
-        void loadCatalog({ reset: true });
-      },
-    });
-    const veganSwitch = h('input', {
-      type: 'checkbox',
-      onchange: (e) => {
-        plantBased = e.target.checked;
-        void loadCatalog({ reset: true });
-      },
-    });
+    // 素食 / 纯素开关只在配方面板使用（图谱区已移除）
+    const vegToggle = () =>
+      h(
+        'label',
+        { class: 'ek-switch' },
+        h('input', {
+          type: 'checkbox',
+          checked: vegOnly,
+          onchange: (e) => {
+            vegOnly = e.target.checked;
+            void loadCatalog({ reset: true });
+          },
+        }),
+        '素食'
+      );
+    const veganToggle = () =>
+      h(
+        'label',
+        { class: 'ek-switch' },
+        h('input', {
+          type: 'checkbox',
+          checked: plantBased,
+          onchange: (e) => {
+            plantBased = e.target.checked;
+            void loadCatalog({ reset: true });
+          },
+        }),
+        '纯素'
+      );
 
     const graphCard = h(
       'section',
@@ -272,14 +341,12 @@ export default {
         h(
           'div',
           { class: 'ek-toggles' },
-          h('label', { class: 'ek-switch' }, vegSwitch, '素食'),
-          h('label', { class: 'ek-switch' }, veganSwitch, '纯素'),
           h(
             'button',
             {
               class: 'ek-tool',
               type: 'button',
-              title: '清空',
+              title: '清空已选食材',
               onclick: () => {
                 selected.length = 0;
                 refresh();
@@ -295,6 +362,7 @@ export default {
         'div',
         { class: 'ek-canvas' },
         graphHost,
+        emptyBox,
         graphLoading,
         h(
           'div',
@@ -587,8 +655,8 @@ export default {
         h(
           'div',
           { class: 'ek-toggles' },
-          h('label', { class: 'ek-switch' }, vegSwitch, '素食'),
-          h('label', { class: 'ek-switch' }, veganSwitch, '纯素')
+          vegToggle(),
+          veganToggle()
         )
       );
 
@@ -1182,6 +1250,8 @@ export default {
     paintRecipe();
 
     paintTabs2();
+    paintEmpty();
+    void loadStarters();
     void loadCatalog({ reset: true });
 
     const onResize = () => graph.resize();

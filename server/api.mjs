@@ -1490,6 +1490,7 @@ export async function handleApi(req, res) {
         pageSize: url.searchParams.get('pageSize') || 30,
         vegetarian: url.searchParams.get('vegetarian') === '1',
         vegan: url.searchParams.get('vegan') === '1',
+        names: (url.searchParams.get('names') || '').split(',').map((x) => x.trim()).filter(Boolean),
       });
       return send(res, 200, {
         ok: true,
