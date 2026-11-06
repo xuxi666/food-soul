@@ -87,8 +87,9 @@ export function resolveIngredient(input) {
   }
 
   // 2) MCP 专属名（官网目录里没有，但 Epicure 能算）：能解析出中文名就接受
+  //    包含组合翻译（camembert_cheese）与单字（durian），点了能继续展开
   const shown = resolveDisplay(raw);
-  if (shown.translated && shown.source === 'mcp-map') {
+  if (shown.translated && shown.source !== 'catalog' && shown.source !== 'lexicon') {
     return {
       id: raw,
       cn: shown.display,
