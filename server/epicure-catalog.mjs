@@ -330,8 +330,10 @@ export function catalogStats() {
     .get();
   const running = db.prepare("SELECT COUNT(*) AS n FROM epicure_sync_log WHERE status = 'running'").get();
   return {
-    total: row.total || 0,
+    // total 与列表口径一致：只算有中文名的
+    total: row.translated || 0,
     translated: row.translated || 0,
+    catalogTotal: row.total || 0,
     vegetarian: row.vegetarian || 0,
     vegan: row.vegan || 0,
     // 只有经过 MCP 实测能解析的才算可分析
@@ -365,13 +367,13 @@ export function queryCatalog(opts = {}) {
   const page = Math.max(1, Number(opts.page) || 1);
   const pageSize = Math.min(60, Math.max(6, Number(opts.pageSize) || 30));
 
-  const where = ['active = 1'];
+  // 只展示有中文名的食材：没有译名的不进列表，也不参与搜索
+  const where = ["active = 1", "cn IS NOT NULL", "cn != ''"];
   const args = [];
   if (category && category !== 'all') {
     where.push('(category = ? OR categories LIKE ?)');
     args.push(category, `%"${category}"%`);
   }
-  if (mode === 'translated') where.push("cn IS NOT NULL AND cn != ''");
   if (opts.vegetarian) where.push('is_vegetarian = 1');
   if (opts.vegan) where.push('is_vegan = 1');
   if (q) {

@@ -322,7 +322,6 @@ export default {
     const TABS = [
       { id: 'all', name: '全部' },
       { id: 'popular', name: '常用' },
-      { id: 'translated', name: '有中文名' },
     ];
 
     const cat = {
@@ -390,9 +389,9 @@ export default {
       const sync = cat.stats.lastSyncAt ? new Date(cat.stats.lastSyncAt).toLocaleDateString('zh-CN') : '未同步';
       const scope = cat.q ? `匹配 ${n(cat.total)} 条` : `本类 ${n(cat.total)} 条`;
       const noData = Number(cat.stats.unanalyzable || 0);
-      countLine.textContent = `${scope} · 目录 ${n(cat.stats.total)} 种（有中文 ${n(cat.stats.translated)} · 可分析 ${n(
-        cat.stats.analyzable
-      )}${noData ? ` · 暂无风味 ${n(noData)}` : ''}）· 同步于 ${sync}`;
+      countLine.textContent = `${scope} · 目录 ${n(cat.stats.total)} 种（可分析 ${n(cat.stats.analyzable)}${
+        noData ? ` · 暂无风味 ${n(noData)}` : ''
+      }）· 同步于 ${sync}`;
     }
 
     function paintList() {
