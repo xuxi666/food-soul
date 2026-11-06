@@ -1256,6 +1256,7 @@ async function handlePosts(req, res, url) {
       cuisineId: body.cuisineId || '',
       tasteId: body.tasteId || '',
       author: { id: who.id, name: who.name },
+      recipe: body.recipe,
     });
     return send(res, 201, { post });
   }

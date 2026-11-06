@@ -313,6 +313,44 @@ export default {
       );
     }
 
+    /** Epicure 厨房分享过来的原创菜谱：折叠展示食材与步骤 */
+    function recipeBlock(post) {
+      const r = post.recipe;
+      if (!r || !Array.isArray(r.ingredients) || !Array.isArray(r.steps)) return null;
+      const DIFF = { easy: '简单', medium: '中等', hard: '复杂' };
+      return h(
+        'details',
+        { class: 'post__recipe' },
+        h(
+          'summary',
+          {},
+          h('b', { text: r.title || '原创菜谱' }),
+          h('span', {
+            class: 'post__badge',
+            text: r.origin === 'traditional' ? '传统菜式' : 'AI 原创',
+          }),
+          r.cuisine ? h('span', { class: 'post__kind', text: r.cuisine }) : null,
+          r.minutes ? h('span', { class: 'post__kind', text: `${r.minutes} 分钟` }) : null,
+          r.difficulty ? h('span', { class: 'post__kind', text: DIFF[r.difficulty] || r.difficulty }) : null
+        ),
+        h(
+          'div',
+          { class: 'post__recipe__body' },
+          r.intro ? h('p', { text: r.intro }) : null,
+          h(
+            'div',
+            { class: 'post__recipe__ings' },
+            ...r.ingredients.map((i) =>
+              h('span', {}, h('em', { text: `${i.name}${i.role === 'aux' ? '（辅）' : ''}` }), h('em', { text: `${i.amount}${i.unit}` }))
+            )
+          ),
+          h('ol', { class: 'post__recipe__steps' }, ...r.steps.map((st) => h('li', { text: st.action }))),
+          r.flavor ? h('p', { class: 'post__recipe__flavor', text: `风味分析：${r.flavor}` }) : null,
+          r.model ? h('p', { class: 'post__recipe__flavor', text: `生成模型：${r.model}` }) : null
+        )
+      );
+    }
+
     function postCard(post) {
       const dish = DISH_BY_ID[post.dishId];
       const liked = (post.likedBy || []).includes(me.id);
@@ -492,6 +530,7 @@ export default {
         ),
         h('p', { class: 'post__text', text: post.content }),
         imagesBlock(post),
+        recipeBlock(post),
         dish
           ? h('div', { class: 'post__dish' },
               h('a', { class: 'post__dish-main', href: `/dishes/${dish.id}`, 'data-link': '' },

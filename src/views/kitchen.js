@@ -983,10 +983,179 @@ export default {
             'div',
             { class: 'ek-result__actions' },
             h('button', { class: 'btn btn--sm', type: 'button', onclick: () => void submit() }, '再生成一次'),
+            h('button', { class: 'btn btn--sm btn--solid', type: 'button', onclick: () => openShare(r, data) }, '分享到社区'),
             h('span', { class: 'ek-hint', text: `${data.provider || ''} ${data.model || ''} · ${Math.round((data.ms || 0) / 1000)} 秒` })
           )
         )
       );
+    }
+
+    /** 分享到社区：自动填充，全部可改，用户点「发布」才真正提交 */
+    function openShare(recipe, data) {
+      const ingText = recipe.ingredients.map((i) => `${i.name} ${i.amount}${i.unit}`).join('\n');
+      const stepText = recipe.steps.map((s) => s.action).join('\n');
+
+      const titleIn = h('input', { class: 'ek-input', type: 'text', maxlength: '24', value: recipe.dish_name });
+      const introIn = h('textarea', { class: 'ek-textarea', maxlength: '160' });
+      introIn.value = recipe.intro || '';
+      const tasteIn = h('input', {
+        class: 'ek-input',
+        type: 'text',
+        maxlength: '40',
+        value: (recipe.flavor_profile || []).join('、'),
+        placeholder: '用顿号分隔，如 咸鲜、微辣',
+      });
+      const ingIn = h('textarea', { class: 'ek-textarea', maxlength: '600' });
+      ingIn.value = ingText;
+      const stepIn = h('textarea', { class: 'ek-textarea', maxlength: '2000' });
+      stepIn.value = stepText;
+      const fileIn = h('input', { type: 'file', accept: 'image/*', class: 'ek-input' });
+      let uploadedUrl = '';
+      let uploading = false;
+
+      const tip = h('p', {
+        class: 'ek-modal__tip',
+        text: '以下内容已自动填好，都可以改；改完点「发布」才会提交到社区。',
+      });
+      const publishBtn = h('button', { class: 'btn btn--solid btn--sm', type: 'button' }, '发布');
+      const cancelBtn = h('button', { class: 'btn btn--sm', type: 'button' }, '取消');
+
+      const box = h(
+        'div',
+        { class: 'ek-modal__box' },
+        h(
+          'div',
+          { class: 'ek-modal__head' },
+          h('h3', {}, '分享到美食社区'),
+          h('button', { class: 'ek-modal__close', type: 'button', onclick: () => close() }, '×')
+        ),
+        tip,
+        field('菜名', titleIn),
+        field('简介', introIn),
+        h('div', { class: 'ek-field__row' }, field('口味标签', tasteIn), field('成品图（可选）', fileIn)),
+        field('食材（每行一个：名称 用量）', ingIn),
+        field('步骤（每行一步）', stepIn),
+        h('div', { class: 'ek-modal__foot' }, cancelBtn, publishBtn)
+      );
+      const modal = h('div', { class: 'ek-modal', role: 'dialog', 'aria-modal': 'true' }, box);
+
+      function close() {
+        modal.remove();
+        document.removeEventListener('keydown', onKey);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') close();
+      }
+      document.addEventListener('keydown', onKey);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) close();
+      });
+      cancelBtn.addEventListener('click', close);
+
+      fileIn.addEventListener('change', async () => {
+        const file = fileIn.files?.[0];
+        if (!file) return;
+        if (file.size > 4 * 1024 * 1024) return toast('图片不要超过 4MB', 'err');
+        uploading = true;
+        publishBtn.disabled = true;
+        publishBtn.textContent = '图片上传中…';
+        try {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(String(fr.result));
+            fr.onerror = reject;
+            fr.readAsDataURL(file);
+          });
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl }),
+          });
+          const out = await res.json();
+          if (!res.ok || !out.ok) throw new Error(out.error || '上传失败');
+          uploadedUrl = out.url || out.image || '';
+          tip.textContent = '图片已上传，发布时会一并提交。';
+        } catch (err) {
+          toast(String(err.message || err).slice(0, 40), 'err');
+        } finally {
+          uploading = false;
+          publishBtn.disabled = false;
+          publishBtn.textContent = '发布';
+        }
+      });
+
+      publishBtn.addEventListener('click', async () => {
+        const title = titleIn.value.trim();
+        const intro = introIn.value.trim();
+        if (!title) return toast('菜名不能为空', 'err');
+        const ingredients = ingIn.value
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const m = line.match(/^(.*?)[\s　]+([\d.]+)\s*(\D*)$/);
+            if (!m) return { name: line.slice(0, 30), amount: 0, unit: '', role: 'main' };
+            return { name: m[1].trim().slice(0, 30), amount: Number(m[2]) || 0, unit: (m[3] || '').trim().slice(0, 6), role: 'main' };
+          })
+          .filter((i) => i.name);
+        const steps = stepIn.value
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((action, i) => ({ step: i + 1, action: action.slice(0, 300), heat: '', minutes: 0 }));
+        if (!ingredients.length || !steps.length) return toast('食材和步骤都要有内容', 'err');
+
+        publishBtn.disabled = true;
+        publishBtn.textContent = '发布中…';
+        try {
+          const res = await fetch('/api/posts', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              content: `${intro || title}\n\n（Epicure 厨房生成，食材与步骤见下方菜谱）`.slice(0, 800),
+              kind: '菜谱分享',
+              images: uploadedUrl ? [uploadedUrl] : [],
+              recipe: {
+                title,
+                intro,
+                cuisine: recipe.cuisine_style,
+                tastes: tasteIn.value
+                  .split(/[、,，\s]+/)
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+                  .slice(0, 5),
+                difficulty: recipe.difficulty,
+                minutes: (recipe.prep_minutes || 0) + (recipe.cook_minutes || 0),
+                ingredients,
+                steps,
+                flavor: recipe.flavor_design?.pairing_notes || '',
+                origin: recipe.dish_type === 'traditional' ? 'traditional' : 'ai-original',
+                model: `${data.provider || ''} ${data.model || ''}`.trim(),
+              },
+            }),
+          });
+          const out = await res.json();
+          if (res.status === 401) {
+            toast('请先登录后再分享', 'err');
+            return;
+          }
+          if (!res.ok) throw new Error(out.error || '发布失败');
+          close();
+          toast('已发布到美食社区');
+          location.hash = '';
+          setTimeout(() => {
+            location.href = '/community';
+          }, 400);
+        } catch (err) {
+          toast(String(err.message || err).slice(0, 40), 'err');
+        } finally {
+          publishBtn.disabled = false;
+          publishBtn.textContent = '发布';
+        }
+      });
+
+      document.body.append(modal);
+      titleIn.focus();
     }
 
     async function submit() {

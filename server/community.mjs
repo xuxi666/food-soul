@@ -119,7 +119,45 @@ export function findPost(id) {
   return posts.find((p) => p.id === id) || null;
 }
 
-export function addPost({ content, image, images, kind, dishId, cuisineId, tasteId, author }) {
+
+/** 把 Epicure 厨房生成的菜谱压成帖子可存储的结构；不合法就丢弃，不写半成品 */
+function cleanRecipe(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const ingredients = (Array.isArray(raw.ingredients) ? raw.ingredients : [])
+    .slice(0, 24)
+    .map((i) => ({
+      name: String(i?.name || '').trim().slice(0, 30),
+      amount: Math.max(0, Number(i?.amount) || 0),
+      unit: String(i?.unit || '').slice(0, 6),
+      role: i?.role === 'aux' ? 'aux' : 'main',
+    }))
+    .filter((i) => i.name);
+  const steps = (Array.isArray(raw.steps) ? raw.steps : [])
+    .slice(0, 20)
+    .map((s, idx) => ({
+      step: Math.max(1, Number(s?.step) || idx + 1),
+      action: String(s?.action || '').trim().slice(0, 300),
+      heat: String(s?.heat || '').slice(0, 12),
+      minutes: Math.max(0, Number(s?.minutes) || 0),
+    }))
+    .filter((s) => s.action);
+  if (!ingredients.length || !steps.length) return null;
+  return {
+    title: String(raw.title || '').trim().slice(0, 24),
+    intro: String(raw.intro || '').slice(0, 160),
+    cuisine: String(raw.cuisine || '').slice(0, 16),
+    tastes: (Array.isArray(raw.tastes) ? raw.tastes : []).map((t) => String(t).slice(0, 10)).filter(Boolean).slice(0, 5),
+    difficulty: ['easy', 'medium', 'hard'].includes(raw.difficulty) ? raw.difficulty : 'medium',
+    minutes: Math.max(0, Number(raw.minutes) || 0),
+    ingredients,
+    steps,
+    flavor: String(raw.flavor || '').slice(0, 300),
+    origin: raw.origin === 'traditional' ? 'traditional' : 'ai-original',
+    model: String(raw.model || '').slice(0, 40),
+  };
+}
+
+export function addPost({ content, image, images, kind, dishId, cuisineId, tasteId, author, recipe }) {
   const state = read();
   const post = {
     id: crypto.randomUUID(),
@@ -137,6 +175,8 @@ export function addPost({ content, image, images, kind, dishId, cuisineId, taste
     reports: 0,
     isSeed: false,
     comments: [],
+    // Epicure 厨房分享过来的原创菜谱（可为空）
+    recipe: cleanRecipe(recipe),
   };
   state.posts.unshift(post);
   write(state);
