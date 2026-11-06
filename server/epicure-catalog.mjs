@@ -2,6 +2,7 @@ import https from 'node:https';
 
 import { db } from './db.mjs';
 import { LEXICON } from './epicure-lexicon.mjs';
+import { CN_MAP } from './epicure-cn-map.mjs';
 
 /**
  * Epicure 完整食材目录
@@ -149,16 +150,23 @@ function fetchJson(url) {
   });
 }
 
-/** 中文映射：词表里的中文名挂到目录条目上（只挂命中的） */
+/** 中文映射：先挂人工译名表，再挂词表（词表优先级更高，含分类与别名） */
 function buildCnIndex() {
   const byNorm = new Map();
+  // 1) 词表（带分类、别名，优先）
   for (const item of LEXICON) {
     for (const cand of [item.cn, ...(item.candidates || [])]) {
       const key = normalizeName(cand);
       if (!key) continue;
       if (!byNorm.has(key)) byNorm.set(key, []);
-      byNorm.get(key).push(item);
+      byNorm.get(key).push({ cn: item.cn, aliases: [] });
     }
+  }
+  // 2) 人工译名表（只补没有的，不覆盖词表）
+  for (const [name, cn] of Object.entries(CN_MAP)) {
+    const key = normalizeName(name);
+    if (!key || !cn) continue;
+    if (!byNorm.has(key)) byNorm.set(key, [{ cn, aliases: [] }]);
   }
   return byNorm;
 }
