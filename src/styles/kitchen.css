@@ -412,6 +412,8 @@
   overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  align-content: start;
+  grid-auto-rows: min-content;
   gap: 5px;
   padding-right: 2px;
 }
@@ -1182,4 +1184,196 @@
 .ek-thumbx:hover {
   border-color: var(--color-danger);
   color: var(--color-danger);
+}
+
+/* 食材目录：分类横滑条 + 加载更多 */
+.ek-catbar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.ek-catbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.ek-catbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+.ek-cat {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ek-cat:hover {
+  border-color: var(--color-border-strong);
+}
+
+.ek-cat.is-on {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-catalog-count {
+  font-size: 10.5px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.ek-more {
+  width: 100%;
+  margin-top: 8px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ek-more:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* 食材目录：分类横滑条 + 加载更多 */
+.ek-catbar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.ek-catbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.ek-catbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+.ek-cat {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ek-cat:hover {
+  border-color: var(--color-border-strong);
+}
+
+.ek-cat.is-on {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-catalog-count {
+  font-size: 10.5px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.ek-more {
+  width: 100%;
+  margin-top: 8px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ek-more:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* 图谱计算中的轻量提示 */
+.ek-graphloading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: rgba(255, 253, 248, 0.72);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+}
+
+.ek-graphloading[hidden] {
+  display: none;
+}
+
+.ek-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-primary);
+  animation: ek-spin 0.8s linear infinite;
+}
+
+@keyframes ek-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 图谱计算中的轻量提示 */
+.ek-graphloading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: rgba(255, 253, 248, 0.72);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+}
+
+.ek-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-primary);
+  animation: ek-spin 0.8s linear infinite;
+}
+
+@keyframes ek-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -69,7 +69,6 @@ function buildQuickStart() {
 
 export default {
   async mount(root) {
-    let library = null;
     const selected = [];       // { id, cn, epicure, cat, vegetarian, vegan }
     let vegOnly = false;
     let plantBased = false;
@@ -97,15 +96,12 @@ export default {
     /* ---------------- 图谱 ---------------- */
     const graphHost = h('div', { class: 'egraph' });
     const graph = createGraph(graphHost);
+    const graphLoading = h('div', { class: 'ek-graphloading', hidden: true }, h('span', { class: 'ek-spinner' }), '正在计算风味关联…');
     const statusLine = h('p', { class: 'ek-status', text: '选择食材后显示 Epicure 计算的真实关联' });
 
     graph.onPick((n) => {
-      const hit = library?.items.find((i) => i.epicure === n.epicure);
-      if (!hit) {
-        toast(`「${n.cn}」未收录进中文食材库，暂不能加入`, 'err');
-        return;
-      }
-      addIngredient(hit);
+      if (!n?.epicure) return;
+      addIngredient({ id: n.epicure, cn: n.cn || n.epicure, epicure: n.epicure, cat: n.cat, vegetarian: true, vegan: false });
     });
 
     /* ---------------- 食材操作 ---------------- */
@@ -131,7 +127,7 @@ export default {
 
     function refresh() {
       paintChips();
-      paintCatalog();
+      paintList();
       paintRecipe();
       void loadNetwork();
     }
@@ -144,6 +140,8 @@ export default {
         return;
       }
       statusLine.textContent = '正在向 Epicure 请求风味关联…';
+      graphLoading.hidden = false;
+      const startedAt = Date.now();
       try {
         const res = await fetch('/api/epicure/network', {
           method: 'POST',
@@ -157,11 +155,13 @@ export default {
         }
         lastNet = data;
         graph.setData(data);
-        statusLine.textContent = `Epicure 实时计算 · ${data.stats.nodes} 个节点 / ${data.stats.edges} 条关联${
-          data.unresolved?.length ? ` · 未识别：${data.unresolved.join('、')}` : ''
-        }`;
+        statusLine.textContent = `Epicure 实时计算 · ${data.stats.nodes} 个节点 / ${data.stats.edges} 条关联 · ${
+          (Date.now() - startedAt) / 1000
+        }s${data.unresolved?.length ? ` · 未识别：${data.unresolved.join('、')}` : ''}`;
       } catch (err) {
         statusLine.textContent = `请求失败：${String(err.message || err).slice(0, 60)}`;
+      } finally {
+        graphLoading.hidden = true;
       }
     }
 
@@ -209,11 +209,8 @@ export default {
         for (const it of data.items || []) {
           if (selected.some((s) => s.id === it.id)) continue;
           if (selected.length >= 8) break;
-          const full = library.items.find((x) => x.id === it.id);
-          if (full) {
-            selected.push({ id: full.id, cn: full.cn, epicure: full.epicure, cat: full.cat, vegetarian: full.vegetarian, vegan: full.vegan });
-            added += 1;
-          }
+          selected.push({ id: it.id, cn: it.cn, epicure: it.epicure, cat: it.cat || null, vegetarian: true, vegan: false });
+          added += 1;
         }
         if (!added) toast('没有找到可补充的食材', 'err');
         else toast(`已补充 ${added} 种`);
@@ -249,14 +246,14 @@ export default {
       type: 'checkbox',
       onchange: (e) => {
         vegOnly = e.target.checked;
-        paintCatalog();
+        void loadCatalog({ reset: true });
       },
     });
     const veganSwitch = h('input', {
       type: 'checkbox',
       onchange: (e) => {
         plantBased = e.target.checked;
-        paintCatalog();
+        void loadCatalog({ reset: true });
       },
     });
 
@@ -293,6 +290,7 @@ export default {
         'div',
         { class: 'ek-canvas' },
         graphHost,
+        graphLoading,
         h(
           'div',
           { class: 'ek-zoom' },
@@ -304,26 +302,36 @@ export default {
       statusLine
     );
 
-    /* ---------------- 食材库 ---------------- */
+    /* ---------------- 食材库（服务端搜索 + 分页） ---------------- */
     const searchInput = h('input', {
       class: 'field__input ek-search',
       type: 'search',
-      placeholder: '搜索食材…',
+      placeholder: '搜索食材（中文 / 英文）…',
       'aria-label': '搜索食材',
-      oninput: (e) => {
-        searchText = e.target.value.trim();
-        paintCatalog();
-      },
     });
     const tabsBar = h('div', { class: 'ek-tabs2' });
-    const countLine = h('p', { class: 'ek-hint ek-catalog-count', text: '' });
+    const catBar = h('div', { class: 'ek-catbar' });
+    const countLine = h('p', { class: 'ek-hint ek-catalog-count', text: '加载中…' });
     const listBox = h('div', { class: 'ek-list' });
+    const moreBtn = h('button', { class: 'ek-more', type: 'button', hidden: true }, '加载更多');
 
     const TABS = [
       { id: 'all', name: '全部' },
       { id: 'popular', name: '常用' },
-      { id: 'more', name: '更多' },
+      { id: 'translated', name: '有中文名' },
     ];
+
+    const cat = {
+      q: '',
+      category: 'all',
+      mode: 'popular',
+      page: 1,
+      total: 0,
+      items: [],
+      hasMore: false,
+      stats: null,
+      loading: false,
+    };
 
     function paintTabs2() {
       clear(tabsBar);
@@ -332,12 +340,12 @@ export default {
           h(
             'button',
             {
-              class: `ek-tab${activeTab === t.id ? ' is-on' : ''}`,
+              class: `ek-tab${cat.mode === t.id ? ' is-on' : ''}`,
               type: 'button',
               onclick: () => {
-                activeTab = t.id;
+                cat.mode = t.id;
                 paintTabs2();
-                paintCatalog();
+                void loadCatalog({ reset: true });
               },
             },
             t.name
@@ -346,57 +354,157 @@ export default {
       }
     }
 
-    function paintCatalog() {
-      if (!library) return;
-      clear(listBox);
-      const q = searchText.toLowerCase();
-      let items = library.items.filter((it) => {
-        if (vegOnly && !it.vegetarian) return false;
-        if (plantBased && !it.vegan) return false;
-        if (q) {
-          const hit = it.cn.includes(searchText) || it.epicure.includes(q) || (it.aliases || []).some((a) => a.includes(searchText));
-          if (!hit) return false;
-        }
-        return true;
-      });
-      if (activeTab === 'popular') items = items.filter((i) => i.popular);
-      if (activeTab === 'more') items = items.filter((i) => !i.popular);
+    function paintCatBar() {
+      clear(catBar);
+      const list = [{ id: 'all', name: '全部分类' }, ...(cat.stats?.categories || [])];
+      for (const c of list) {
+        catBar.append(
+          h(
+            'button',
+            {
+              class: `ek-cat${cat.category === c.id ? ' is-on' : ''}`,
+              type: 'button',
+              title: c.count ? `${c.count} 种` : '',
+              onclick: () => {
+                cat.category = c.id;
+                paintCatBar();
+                void loadCatalog({ reset: true });
+              },
+            },
+            c.count ? `${c.name} ${c.count}` : c.name
+          )
+        );
+      }
+    }
 
-      countLine.textContent = q
-        ? `${items.length} 条结果`
-        : `${library.items.filter((i) => i.popular).length} 种常用食材 · 共 ${library.items.length} 种`;
-
-      if (!items.length) {
-        listBox.append(h('p', { class: 'ek-hint', text: '没有匹配的食材' }));
+    function paintCounts() {
+      if (!cat.stats) {
+        countLine.textContent = '目录加载中…';
         return;
       }
-      for (const it of items) {
-        const on = selected.some((s) => s.id === it.id);
+      const n = (v) => Number(v || 0).toLocaleString('zh-CN');
+      const sync = cat.stats.lastSyncAt ? new Date(cat.stats.lastSyncAt).toLocaleDateString('zh-CN') : '未同步';
+      const scope = cat.q ? `匹配 ${n(cat.total)} 条` : `本类 ${n(cat.total)} 条`;
+      countLine.textContent = `${scope} · 目录 ${n(cat.stats.total)} 种（有中文 ${n(cat.stats.translated)}，可分析 ${n(
+        cat.stats.analyzable
+      )}）· 同步于 ${sync}`;
+    }
+
+    function paintList() {
+      clear(listBox);
+      if (cat.loading && !cat.items.length) {
+        listBox.append(h('p', { class: 'ek-hint', text: '加载中…' }));
+        return;
+      }
+      if (!cat.items.length) {
+        listBox.append(h('p', { class: 'ek-hint', text: cat.q ? `没有匹配「${cat.q}」的食材` : '没有食材' }));
+        return;
+      }
+      for (const it of cat.items) {
+        const on = selected.some((s) => s.id === it.name);
         listBox.append(
           h(
             'button',
             {
               class: `ek-item${on ? ' is-on' : ''}`,
               type: 'button',
-              title: `${it.cn}${it.foodGroup ? ` · ${it.foodGroup}` : ''}`,
-              onclick: () => (on ? removeIngredient(it.id) : addIngredient(it)),
+              title: `${it.display}${it.name !== it.display ? ` · ${it.name}` : ''} · ${it.categoryCn}${
+                it.translated ? '' : ' · 暂无中文名'
+              }`,
+              onclick: () => {
+                if (on) removeIngredient(it.name);
+                else
+                  addIngredient({
+                    id: it.name,
+                    cn: it.display,
+                    epicure: it.name,
+                    cat: null,
+                    vegetarian: it.isVegetarian,
+                    vegan: it.isVegan,
+                  });
+              },
             },
-            h('span', { class: `ek-dot cat-${it.cat}` }),
-            h('span', { class: 'ek-item__cn', text: it.cn }),
+            h('span', { class: 'ek-item__cn', text: it.display }),
+            h('span', { class: 'ek-item__meta', text: it.categoryCn }),
             on ? h('span', { class: 'ek-item__x', text: '×' }) : null
           )
         );
       }
+      moreBtn.hidden = !cat.hasMore;
     }
+
+    async function loadCatalog({ reset = false } = {}) {
+      if (cat.loading) return;
+      cat.loading = true;
+      if (reset) {
+        cat.page = 1;
+        cat.items = [];
+        moreBtn.hidden = true;
+      }
+      const params = new URLSearchParams({
+        q: cat.q,
+        category: cat.category,
+        mode: cat.mode,
+        page: String(cat.page),
+        pageSize: '30',
+        vegetarian: vegOnly ? '1' : '0',
+        vegan: plantBased ? '1' : '0',
+      });
+      try {
+        const res = await fetch(`/api/epicure/ingredients?${params}`);
+        const data = await res.json();
+        cat.stats = {
+          total: data.total,
+          translated: data.translated,
+          analyzable: data.analyzable,
+          categories: data.categories || [],
+          lastSyncAt: data.lastSyncAt,
+        };
+        cat.total = data.resultTotal ?? data.total;
+        cat.items = reset ? data.items || [] : [...cat.items, ...(data.items || [])];
+        cat.hasMore = Boolean(data.hasMore);
+        if (reset) {
+          paintCatBar();
+          statusLine.textContent = `Epicure 目录 ${data.total.toLocaleString('zh-CN')} 种 · 选食材后显示真实关联`;
+        }
+      } catch {
+        if (reset) {
+          cat.items = [];
+          cat.total = 0;
+          countLine.textContent = '食材目录加载失败，请刷新重试';
+        }
+      } finally {
+        cat.loading = false;
+        paintCounts();
+        paintList();
+      }
+    }
+
+    let searchTimer = 0;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        cat.q = searchInput.value.trim();
+        void loadCatalog({ reset: true });
+      }, 260);
+    });
+
+    moreBtn.addEventListener('click', () => {
+      if (!cat.hasMore || cat.loading) return;
+      cat.page += 1;
+      void loadCatalog();
+    });
 
     const catalogCard = h(
       'aside',
       { class: 'ek-card ek-catalog' },
-      h('div', { class: 'ek-card__head' }, h('b', { text: '食材库' })),
+      h('div', { class: 'ek-card__head' }, h('b', { text: '食材库' }), h('span', { class: 'ek-count', text: '' })),
       searchInput,
       tabsBar,
+      catBar,
       countLine,
-      listBox
+      listBox,
+      moreBtn
     );
 
     /* ---------------- 模式 ---------------- */
@@ -1031,14 +1139,8 @@ export default {
     paintChips();
     paintRecipe();
 
-    try {
-      const res = await fetch('/api/epicure/ingredients');
-      library = await res.json();
-      paintCatalog();
-      statusLine.textContent = `食材库 ${library.items.length} 种（Epicure 已验证 ${library.verified}）· 选食材后显示真实关联`;
-    } catch {
-      statusLine.textContent = '食材库加载失败，请刷新重试';
-    }
+    paintTabs2();
+    void loadCatalog({ reset: true });
 
     const onResize = () => graph.resize();
     window.addEventListener('resize', onResize);

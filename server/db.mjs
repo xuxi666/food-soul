@@ -71,6 +71,38 @@ db.exec(`
     updated_at INTEGER NOT NULL
   );
 
+  -- Epicure 完整食材目录（同步自官方 /api/ingredients，name 为权威标识）
+  CREATE TABLE IF NOT EXISTS epicure_catalog (
+    name TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    categories TEXT NOT NULL DEFAULT '[]',
+    is_vegan INTEGER NOT NULL DEFAULT 0,
+    is_vegetarian INTEGER NOT NULL DEFAULT 0,
+    original_count INTEGER NOT NULL DEFAULT 0,
+    cn TEXT,
+    cn_aliases TEXT NOT NULL DEFAULT '[]',
+    active INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL DEFAULT 'epicure-api',
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_epicure_catalog_cat ON epicure_catalog(category);
+  CREATE INDEX IF NOT EXISTS idx_epicure_catalog_cn ON epicure_catalog(cn);
+
+  -- 同步记录：只追加，用于追溯每次同步的结果
+  CREATE TABLE IF NOT EXISTS epicure_sync_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at INTEGER NOT NULL,
+    finished_at INTEGER,
+    total INTEGER,
+    added INTEGER,
+    updated INTEGER,
+    removed INTEGER,
+    failed INTEGER,
+    status TEXT NOT NULL,
+    note TEXT
+  );
+
   -- 社区举报
   CREATE TABLE IF NOT EXISTS reports (
     id TEXT PRIMARY KEY,

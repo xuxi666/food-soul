@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { callTool } from './epicure-client.mjs';
 import { LEXICON, CATEGORIES, findEntry } from './epicure-lexicon.mjs';
+import { findCatalogEntry, catalogReady } from './epicure-catalog.mjs';
 
 /**
  * Epicure 业务层：把「中文食材 + 用户意图」翻译成真实的工具调用，
@@ -74,11 +75,35 @@ export function resolveIngredient(input) {
   const lex = loadLexicon();
   const raw = String(input || '').trim();
   if (!raw) return null;
+
+  // 1) 中文词表（有核对过的中文名）
   const hit = lex.byCn.get(raw) || lex.byEpicure.get(raw.toLowerCase());
   if (hit) return hit;
   const src = findEntry(raw);
-  if (!src) return null;
-  return lex.byCn.get(src.cn) || lex.byEpicure.get(src.candidates[0]) || null;
+  if (src) {
+    const viaSrc = lex.byCn.get(src.cn) || lex.byEpicure.get(src.candidates[0]);
+    if (viaSrc) return viaSrc;
+  }
+
+  // 2) 完整目录兜底：目录里的官方名可直接交给 MCP 计算
+  if (catalogReady()) {
+    const c = findCatalogEntry(raw);
+    if (c) {
+      return {
+        id: c.name,
+        cn: c.display,
+        epicure: c.name,
+        cat: null,
+        aliases: [],
+        foodGroup: c.category,
+        cuisineRegion: null,
+        translated: c.translated,
+        vegetarian: c.isVegetarian,
+        vegan: c.isVegan,
+      };
+    }
+  }
+  return null;
 }
 
 /**
@@ -102,15 +127,17 @@ export async function neighborsOf(entry, topK = 8) {
   const items = r.data.neighbors
     .map((n) => {
       const known = lex.byEpicure.get(n.name);
+      const cat = known || (catalogReady() ? findCatalogEntry(n.name) : null);
       return {
         epicure: n.name,
-        cn: known?.cn || n.name,
+        cn: cat?.cn || cat?.display || n.name,
         cat: known?.cat || null,
-        known: Boolean(known),
+        known: Boolean(cat),
         sim: Number(n.sim),
         rank: n.rank,
         cuisineRegion: known?.cuisineRegion || null,
-        foodGroup: known?.foodGroup || null,
+        foodGroup: cat?.foodGroup || cat?.category || null,
+        translated: Boolean(cat?.translated),
       };
     })
     .filter((n) => n.known || Number.isFinite(n.sim));

@@ -8,6 +8,7 @@ import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
+import { queryCatalog, catalogStats, catalogCategories, syncCatalog, catalogReady } from './epicure-catalog.mjs';
 import { resolveIngredient, resolveLoose as resolveLooseIngredient, analyze as epicureAnalyze, scoreDishes, runTool, autoAddIngredients } from './epicure-service.mjs';
 import { buildCreativePrompt, buildChatFlavorContext } from './epicure-prompts.mjs';
 import { validateCreative } from './epicure-recipe-schema.mjs';
@@ -1472,8 +1473,43 @@ export async function handleApi(req, res) {
       return send(res, 200, out);
     }
     if (req.method === 'GET' && path === '/api/epicure/ingredients') {
-      const lib = ingredientLibrary();
-      return send(res, 200, lib);
+      // 首次访问若还没有目录，触发一次同步（不阻塞太久）
+      if (!catalogReady()) {
+        try {
+          await Promise.race([syncCatalog(), new Promise((r) => setTimeout(r, 8000))]);
+        } catch {
+          /* 同步失败就返回空目录，前端会提示 */
+        }
+      }
+      const stats = catalogStats();
+      const page = queryCatalog({
+        q: url.searchParams.get('q') || '',
+        category: url.searchParams.get('category') || '',
+        mode: url.searchParams.get('mode') || 'all',
+        page: url.searchParams.get('page') || 1,
+        pageSize: url.searchParams.get('pageSize') || 30,
+        vegetarian: url.searchParams.get('vegetarian') === '1',
+        vegan: url.searchParams.get('vegan') === '1',
+      });
+      return send(res, 200, {
+        ok: true,
+        ...stats,
+        // 兼容旧字段：verified 表示目录内可用食材
+        verified: stats.total,
+        categories: catalogCategories(),
+        page: page.page,
+        pageSize: page.pageSize,
+        hasMore: page.hasMore,
+        resultTotal: page.total,
+        items: page.items,
+      });
+    }
+    if (req.method === 'POST' && path === '/api/epicure/sync') {
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+      const admin = requireAdmin(req, res, send, '仅管理员可同步食材目录');
+      if (!admin) return;
+      const out = await syncCatalog();
+      return send(res, out.ok ? 200 : 500, { ...out, stats: catalogStats() });
     }
     if (req.method === 'POST' && path === '/api/epicure/network') {
       if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
