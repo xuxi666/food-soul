@@ -136,13 +136,14 @@
 }
 
 .egraph__node.lv1 circle {
-  fill: #f4f7ef;
-  stroke: #a8bb92;
+  fill: #eef4e6;
+  stroke: #8fa87a;
+  stroke-width: 1.4;
 }
 
 .egraph__node.lv2 circle {
-  fill: #fbfaf6;
-  stroke: var(--color-border);
+  fill: #fdfbf6;
+  stroke: #cbb9a0;
 }
 
 .egraph__node.is-unknown {
