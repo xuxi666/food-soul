@@ -85,14 +85,17 @@ export function resolveIngredient(input) {
     if (viaSrc) return viaSrc;
   }
 
-  // 2) 完整目录兜底：目录里的官方名可直接交给 MCP 计算
+  // 2) 完整目录兜底：优先用词表里同名食材的 MCP 已验证名
+  //    （目录名和 MCP 词表偶有拼写差异，如 szechuan peppercorn vs sichuan_peppercorn）
   if (catalogReady()) {
     const c = findCatalogEntry(raw);
     if (c) {
+      const lexSame = lex.byCn.get(c.cn || '');
+      if (lexSame) return lexSame;
       return {
         id: c.name,
         cn: c.display,
-        epicure: c.name,
+        epicure: c.mcpName || c.name,
         cat: null,
         aliases: [],
         foodGroup: c.category,
@@ -219,12 +222,15 @@ export async function buildNetwork(inputIds, opts = {}) {
     return { ...n, chinaFriendly: aff.ok, chinaReason: aff.reason };
   });
 
+  const noData = centers.filter((c) => !edges.some((e) => e.from === c.epicure)).map((c) => c.cn);
+
   return {
     ok: true,
     centers: centers.map((c) => c.epicure),
     nodes: nodeList,
     edges,
     unresolved,
+    noData,
     stats: {
       nodes: nodeList.length,
       edges: edges.length,

@@ -1,8 +1,15 @@
 import https from 'node:https';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 import { db } from './db.mjs';
 import { LEXICON } from './epicure-lexicon.mjs';
 import { CN_MAP } from './epicure-cn-map.mjs';
+
+const STATUS_FILE = path.join(ROOT, 'data', 'epicure-mcp-status.json');
 
 /**
  * Epicure 完整食材目录
@@ -243,6 +250,17 @@ export function syncCatalog() {
           else added += 1;
         }
 
+        // 套用已实测的 MCP 可解析结果（data/epicure-mcp-status.json）
+        try {
+          const status = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+          const stmt = db.prepare('UPDATE epicure_catalog SET mcp_ok = ?, mcp_name = ? WHERE name = ?');
+          for (const [name, v] of Object.entries(status.items || {})) {
+            stmt.run(v.ok === 1 ? 1 : 0, v.mcp || null, name);
+          }
+        } catch {
+          /* 没有校验文件就保持未验证状态 */
+        }
+
         // 目录里已经没有的：标记 inactive，不删数据
         const names = new Set(list.map((i) => String(i?.name || '').trim()));
         let removed = 0;
@@ -296,7 +314,10 @@ export function catalogStats() {
       `SELECT COUNT(*) AS total,
               SUM(CASE WHEN cn IS NOT NULL AND cn != '' THEN 1 ELSE 0 END) AS translated,
               SUM(CASE WHEN is_vegetarian = 1 THEN 1 ELSE 0 END) AS vegetarian,
-              SUM(CASE WHEN is_vegan = 1 THEN 1 ELSE 0 END) AS vegan
+              SUM(CASE WHEN is_vegan = 1 THEN 1 ELSE 0 END) AS vegan,
+              SUM(CASE WHEN mcp_ok = 1 THEN 1 ELSE 0 END) AS analyzable,
+              SUM(CASE WHEN mcp_ok = 0 THEN 1 ELSE 0 END) AS unanalyzable,
+              SUM(CASE WHEN mcp_ok IS NULL THEN 1 ELSE 0 END) AS unverified
          FROM epicure_catalog WHERE active = 1`
     )
     .get() || {};
@@ -309,8 +330,10 @@ export function catalogStats() {
     translated: row.translated || 0,
     vegetarian: row.vegetarian || 0,
     vegan: row.vegan || 0,
-    // 目录里的食材都有官方名，可直接交给 MCP 计算
-    analyzable: row.total || 0,
+    // 只有经过 MCP 实测能解析的才算可分析
+    analyzable: row.analyzable || 0,
+    unanalyzable: row.unanalyzable || 0,
+    unverified: row.unverified || 0,
     lastSyncAt: last?.finished_at || last?.started_at || null,
     lastSync: last
       ? {
@@ -390,6 +413,8 @@ export function queryCatalog(opts = {}) {
       originalCount: r.original_count,
       aliases: safeArray(r.cn_aliases),
       translated: Boolean(r.cn),
+      analyzable: r.mcp_ok === 1,
+      mcpName: r.mcp_name || r.name,
       popular: POPULAR_NAMES.has(normalizeName(r.name)),
     })),
   };
@@ -430,6 +455,8 @@ export function findCatalogEntry(input) {
   if (!row) return null;
   return {
     name: row.name,
+    mcpName: row.mcp_name || row.name,
+    mcpOk: row.mcp_ok,
     cn: row.cn || '',
     display: row.cn || row.name,
     category: row.category,

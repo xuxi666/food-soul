@@ -155,9 +155,13 @@ export default {
         }
         lastNet = data;
         graph.setData(data);
-        statusLine.textContent = `Epicure 实时计算 · ${data.stats.nodes} 个节点 / ${data.stats.edges} 条关联 · ${
-          (Date.now() - startedAt) / 1000
-        }s${data.unresolved?.length ? ` · 未识别：${data.unresolved.join('、')}` : ''}`;
+        if (!data.stats.edges && data.noData?.length) {
+          statusLine.textContent = `「${data.noData.join('、')}」在 Epicure 里暂时查不到风味关联（可能命名不一致或该食材无数据），未做任何推测。`;
+        } else {
+          statusLine.textContent = `Epicure 实时计算 · ${data.stats.nodes} 个节点 / ${data.stats.edges} 条关联 · ${
+            (Date.now() - startedAt) / 1000
+          }s${data.unresolved?.length ? ` · 未识别：${data.unresolved.join('、')}` : ''}`;
+        }
       } catch (err) {
         statusLine.textContent = `请求失败：${String(err.message || err).slice(0, 60)}`;
       } finally {
@@ -385,9 +389,10 @@ export default {
       const n = (v) => Number(v || 0).toLocaleString('zh-CN');
       const sync = cat.stats.lastSyncAt ? new Date(cat.stats.lastSyncAt).toLocaleDateString('zh-CN') : '未同步';
       const scope = cat.q ? `匹配 ${n(cat.total)} 条` : `本类 ${n(cat.total)} 条`;
-      countLine.textContent = `${scope} · 目录 ${n(cat.stats.total)} 种（有中文 ${n(cat.stats.translated)}，可分析 ${n(
+      const noData = Number(cat.stats.unanalyzable || 0);
+      countLine.textContent = `${scope} · 目录 ${n(cat.stats.total)} 种（有中文 ${n(cat.stats.translated)} · 可分析 ${n(
         cat.stats.analyzable
-      )}）· 同步于 ${sync}`;
+      )}${noData ? ` · 暂无风味 ${n(noData)}` : ''}）· 同步于 ${sync}`;
     }
 
     function paintList() {
@@ -406,10 +411,10 @@ export default {
           h(
             'button',
             {
-              class: `ek-item${on ? ' is-on' : ''}`,
+              class: `ek-item${on ? ' is-on' : ''}${it.analyzable ? '' : ' is-nodata'}`,
               type: 'button',
               title: `${it.display}${it.name !== it.display ? ` · ${it.name}` : ''} · ${it.categoryCn}${
-                it.translated ? '' : ' · 暂无中文名'
+                it.analyzable ? '' : ' · Epicure 暂无风味数据'
               }`,
               onclick: () => {
                 if (on) removeIngredient(it.name);
@@ -457,6 +462,7 @@ export default {
           total: data.total,
           translated: data.translated,
           analyzable: data.analyzable,
+          unanalyzable: data.unanalyzable,
           categories: data.categories || [],
           lastSyncAt: data.lastSyncAt,
         };

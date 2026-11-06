@@ -82,6 +82,8 @@ db.exec(`
     cn TEXT,
     cn_aliases TEXT NOT NULL DEFAULT '[]',
     active INTEGER NOT NULL DEFAULT 1,
+    mcp_ok INTEGER,
+    mcp_name TEXT,
     source TEXT NOT NULL DEFAULT 'epicure-api',
     updated_at INTEGER NOT NULL
   );
@@ -650,6 +652,15 @@ export function setEnabledSiteProfile(id, by = '') {
 /** 停用指定配置（用于删除前的清理） */
 export function disableSiteProfile(id) {
   db.prepare('UPDATE site_ai_profiles SET enabled = 0, updated_at = ? WHERE id = ?').run(Date.now(), String(id || ''));
+}
+
+/* ---------------- 迁移：epicure_catalog.mcp_ok ---------------- */
+try {
+  const catCols = db.prepare('PRAGMA table_info(epicure_catalog)').all().map((c) => c.name);
+  if (!catCols.includes('mcp_ok')) db.exec('ALTER TABLE epicure_catalog ADD COLUMN mcp_ok INTEGER');
+  if (!catCols.includes('mcp_name')) db.exec('ALTER TABLE epicure_catalog ADD COLUMN mcp_name TEXT');
+} catch {
+  /* 表还不存在时忽略，建表语句已含该列 */
 }
 
 export { db, DB_PATH };

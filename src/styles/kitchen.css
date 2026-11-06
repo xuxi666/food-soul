@@ -1377,3 +1377,27 @@
     transform: rotate(360deg);
   }
 }
+
+/* 目录里暂无风味数据的食材：弱化显示，避免误导 */
+.ek-item.is-nodata .ek-item__cn {
+  color: var(--color-text-muted);
+}
+
+.ek-item.is-nodata::after {
+  content: '—';
+  font-size: 10px;
+  color: var(--color-border-strong);
+  margin-left: 2px;
+}
+
+/* 目录里暂无风味数据的食材：弱化显示，避免误导 */
+.ek-item.is-nodata .ek-item__cn {
+  color: var(--color-text-muted);
+}
+
+.ek-item.is-nodata::after {
+  content: '—';
+  font-size: 10px;
+  color: var(--color-border-strong);
+  margin-left: 2px;
+}
