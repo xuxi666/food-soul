@@ -112,3 +112,104 @@ export function buildCreativePrompt(input, analysis) {
 
   return lines.join('\n');
 }
+
+/* ============================================================
+ * 聊天里的风味上下文
+ * 只在用户明确问「搭配 / 相似 / 菜系 / 差异 / 创新」时才查 Epicure，
+ * 且最多两次调用，失败静默跳过，绝不影响 SSE。
+ * ============================================================ */
+
+const INTENTS = [
+  { id: 'pair', re: /搭配|相配|搭不搭|配不配|能不能一起|合不合|配在一起/ },
+  { id: 'suggest', re: /适合.{0,6}(搭|配)|配什么|还能.{0,4}(配|搭)|和什么.{0,4}(搭|配)/ },
+  { id: 'similar', re: /相似|接近|类似.{0,6}(食材|味道|风味)|差不多|相近/ },
+  { id: 'cuisine', re: /菜系|哪个地方|哪一系|属于哪|地域/ },
+  { id: 'difference', re: /区别|差异|不同|差别|哪个更/ },
+  { id: 'innovate', re: /创新|改造|换.{0,2}方向|做出新|变个做法/ },
+];
+
+export function detectFlavorIntent(text) {
+  const t = String(text || '');
+  for (const it of INTENTS) if (it.re.test(t)) return it.id;
+  return '';
+}
+
+/** 从中文句子里找出词表里的食材（长名优先，最多 3 个） */
+export function extractIngredients(text, lexiconItems) {
+  const t = String(text || '');
+  const hits = [];
+  const sorted = [...lexiconItems].sort((a, b) => b.cn.length - a.cn.length);
+  for (const item of sorted) {
+    if (item.cn.length < 2) continue;
+    if (t.includes(item.cn) && !hits.some((h) => h.cn === item.cn || h.cn.includes(item.cn) || item.cn.includes(h.cn))) {
+      hits.push(item);
+    }
+    if (hits.length >= 3) break;
+  }
+  return hits;
+}
+
+/**
+ * 生成聊天用的 Epicure 数据块。
+ * @returns {Promise<{used:boolean, block:string, tools:string[]}>}
+ */
+export async function buildChatFlavorContext({ text, lexiconItems, runTool }) {
+  const intent = detectFlavorIntent(text);
+  if (!intent) return { used: false, block: '', tools: [] };
+
+  const ings = extractIngredients(text, lexiconItems);
+  if (!ings.length) return { used: false, block: '', tools: [] };
+
+  const lines = [];
+  const tools = [];
+  const push = (s) => lines.push(s);
+
+  try {
+    if (intent === 'pair' && ings.length >= 2) {
+      const r = await runTool('pairing_score', { ingredient_a: ings[0].cn, ingredient_b: ings[1].cn });
+      tools.push('pairing_score');
+      if (r.ok) {
+        const s = Number(r.data?.pairing_score);
+        push(`- ${ings[0].cn} × ${ings[1].cn}：搭配分 ${Number.isFinite(s) ? s.toFixed(3) : '（无）'}${r.data?.percentile_label ? `（${r.data.percentile_label}）` : ''}`);
+      }
+    } else if (intent === 'suggest' || intent === 'innovate') {
+      const r = await runTool('find_pairings', { ingredients: ings.map((i) => i.cn) });
+      tools.push('find_pairings');
+      if (r.ok && r.text) push(`- ${ings[0].cn} 的搭配图谱：${r.text.replace(/\s+/g, ' ').slice(0, 420)}`);
+    } else if (intent === 'similar') {
+      const r = await runTool('neighbors', { ingredient: ings[0].cn, top_k: 6 });
+      tools.push('neighbors');
+      if (r.ok) {
+        const list = (r.data?.neighbors || []).slice(0, 6).map((n) => `${n.name} ${Number(n.sim).toFixed(3)}`);
+        if (list.length) push(`- 与 ${ings[0].cn} 最接近的食材：${list.join('、')}`);
+      }
+    } else if (intent === 'cuisine') {
+      const r = await runTool('cultural_profile', { ingredient: ings[0].cn });
+      tools.push('cultural_profile');
+      if (r.ok && r.text) push(`- ${ings[0].cn} 的菜系关联：${r.text.replace(/\s+/g, ' ').slice(0, 360)}`);
+    } else if (intent === 'difference' && ings.length >= 2) {
+      const r = await runTool('pairing_score', { ingredient_a: ings[0].cn, ingredient_b: ings[1].cn });
+      tools.push('pairing_score');
+      if (r.ok) {
+        const s = Number(r.data?.pairing_score);
+        push(`- ${ings[0].cn} 与 ${ings[1].cn} 的余弦相似度 ${Number.isFinite(s) ? s.toFixed(3) : '（无）'}（越高说明风味越接近）`);
+      }
+    }
+  } catch {
+    return { used: false, block: '', tools: [] };
+  }
+
+  if (!lines.length) return { used: false, block: '', tools };
+
+  const block = [
+    '',
+    '## Epicure 实测数据（真实计算结果）',
+    ...lines,
+    '使用规则：',
+    '1. 只能引用上面出现的数值，不要编造其它分数、排名或百分位；',
+    '2. 这些是统计意义上的风味关联，不是营养、健康或过敏结论，不能这样解释；',
+    '3. 回答要自然融入，不要把这段数据原样念出来。',
+  ].join('\n');
+
+  return { used: true, block, tools };
+}

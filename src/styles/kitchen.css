@@ -891,3 +891,85 @@
   font-size: 11.5px;
   color: var(--color-text-muted);
 }
+
+/* ---------- Epicure 风味面板（可复用） ---------- */
+.ep-panel {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-soft);
+  background: linear-gradient(180deg, #fdfaf4, var(--color-surface));
+}
+
+.ep-panel.is-empty {
+  border-style: dashed;
+}
+
+.ep-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ep-panel__head b {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+}
+
+.ep-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  border: 1px solid #a8bb92;
+  color: #5d7449;
+  background: #f3f7ee;
+}
+
+.ep-rows {
+  display: grid;
+  gap: 5px;
+}
+
+.ep-row {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.ep-row b {
+  flex: 0 0 66px;
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+.ep-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.ep-note--dim {
+  opacity: 0.75;
+}
+
+.ep-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  border: 1px solid #a8bb92;
+  color: #5d7449;
+  background: #f3f7ee;
+  margin-left: 6px;
+}

@@ -474,3 +474,91 @@ export async function analyze(input = {}) {
     ms: used.reduce((s, u) => s + (u.ms || 0), 0),
   };
 }
+
+/* ============================================================
+ * 菜品级辅助评分（推荐用）
+ * 菜谱里的食材名是「嫩豆腐 / 郫县豆瓣」这类口语写法，先做宽松匹配。
+ * ============================================================ */
+
+/** 宽松匹配：精确 → 词表中文名被包含 → 词表项包含输入（限长度差 ≤ 2） */
+export function resolveLoose(name) {
+  const raw = String(name || '').trim();
+  if (!raw) return null;
+  const exact = resolveIngredient(raw);
+  if (exact) return exact;
+  const lex = loadLexicon();
+  let best = null;
+  for (const entry of lex.items) {
+    if (raw.includes(entry.cn)) {
+      if (!best || entry.cn.length > best.cn.length) best = entry;
+    }
+  }
+  if (best) return best;
+  for (const entry of lex.items) {
+    if (entry.cn.length >= 2 && raw.length >= 2 && entry.cn.includes(raw) && entry.cn.length - raw.length <= 2) {
+      return entry;
+    }
+  }
+  return null;
+}
+
+/** 把一道菜的食材映射成 Epicure 名，最多取 n 个 */
+export function dishIngredients(dish, n = 2) {
+  const list = Array.isArray(dish?.ingredients) ? dish.ingredients : [];
+  const out = [];
+  for (const raw of list) {
+    if (out.length >= n) break;
+    const hit = resolveLoose(raw);
+    if (hit && !out.some((o) => o.epicure === hit.epicure)) out.push({ cn: hit.cn, epicure: hit.epicure, from: raw });
+  }
+  return out;
+}
+
+/**
+ * 给推荐结果打 Epicure 辅助分。
+ * 有用户食材时：算候选菜主料与用户食材的搭配分；
+ * 没有时：用菜的主料在风味空间中的近邻做「风味典型度」参考（仅作展示，不排序）。
+ */
+export async function scoreDishes(dishes, { userIngredient = '' } = {}) {
+  const userEntry = userIngredient ? resolveLoose(userIngredient) : null;
+  const out = [];
+  for (const dish of dishes.slice(0, 3)) {
+    const ings = dishIngredients(dish, 2);
+    if (!ings.length) {
+      out.push({ id: dish.id, ok: false, reason: 'no-mapped-ingredient' });
+      continue;
+    }
+    if (userEntry) {
+      const scores = [];
+      for (const ing of ings) {
+        const r = await runTool('pairing_score', { ingredient_a: ing.cn, ingredient_b: userEntry.cn });
+        if (r.ok && Number.isFinite(Number(r.data?.pairing_score))) {
+          scores.push({ with: ing.cn, score: Number(r.data.pairing_score), label: r.data.percentile_label || '' });
+        }
+      }
+      if (!scores.length) {
+        out.push({ id: dish.id, ok: false, reason: 'pairing-failed', ingredients: ings.map((i) => i.cn) });
+        continue;
+      }
+      const avg = scores.reduce((s, x) => s + x.score, 0) / scores.length;
+      out.push({
+        id: dish.id,
+        ok: true,
+        basis: 'pairing',
+        score: Number(avg.toFixed(4)),
+        detail: scores,
+        against: userEntry.cn,
+      });
+    } else {
+      const r = await runTool('neighbors', { ingredient: ings[0].cn, top_k: 4 });
+      out.push({
+        id: dish.id,
+        ok: r.ok,
+        basis: 'neighbors',
+        ingredients: ings.map((i) => i.cn),
+        neighbors: r.ok ? (r.data?.neighbors || []).map((n) => n.name).slice(0, 4) : [],
+      });
+    }
+  }
+  return out;
+}

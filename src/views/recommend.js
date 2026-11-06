@@ -1,4 +1,5 @@
 import { h, clear, toast } from '../lib/dom.js';
+import { epicureChip } from '../components/epicure-panel.js';
 import { api } from '../lib/api.js';
 import { CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../data/cuisines.js';
 import { DIFFICULTY_LABEL } from '../data/dishes.js';
@@ -91,7 +92,7 @@ export default {
             h('h3', { class: 'pick__name', text: p.name }),
             h('span', { class: 'pick__cuisine', text: cuisine?.name || '' })
           ),
-          h('p', { class: 'pick__reason', text: p.reason }),
+          h('p', { class: 'pick__reason' }, p.reason, epicureChip(p.epicure)),
           h('div', { class: 'pick__meta' },
             ...p.tastes.map((t) => h('span', { class: 'chip' }, h('i', { class: 'tag-dot' }), TASTE_BY_ID[t]?.name || t)),
             h('span', { class: 'chip', text: `约 ${p.minutes} 分钟` }),

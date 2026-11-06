@@ -4,6 +4,7 @@ import home from './views/home.js';
 import chat from './views/chat.js';
 import recipe from './views/recipe.js';
 import kitchen from './views/kitchen.js';
+import recommend from './views/recommend.js';
 import cuisine from './views/cuisine.js';
 import taste from './views/taste.js';
 import dishes from './views/dishes.js';
@@ -34,8 +35,7 @@ const ROUTES = [
   { name: 'community', re: /^\/community$/, mod: community },
   { name: 'recipe', re: /^\/recipe$/, mod: recipe },
   { name: 'kitchen', re: /^\/kitchen$/, mod: kitchen },
-  // 旧入口保留重定向，避免收藏夹/历史链接 404
-  { name: 'recommendRedirect', re: /^\/recommend$/, mod: kitchen },
+  { name: 'recommend', re: /^\/recommend$/, mod: recommend },
   { name: 'videos', re: /^\/videos$/, mod: videos },
   { name: 'admin', re: /^\/admin$/, mod: admin },
 ];

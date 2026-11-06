@@ -20,7 +20,7 @@ const NAV_MAP = [
   { path: '/dishes', label: '美食图鉴', prefix: true },
   { path: '/recipe', label: '菜谱工作台', exact: true },
   { path: '/kitchen', label: 'Epicure 厨房', exact: true },
-  { path: '/recommend', label: 'Epicure 厨房', exact: true },
+  { path: '/recommend', label: '智能推荐', exact: true },
   { path: '/community', label: '美食社区', exact: true },
 ];
 

@@ -8,8 +8,8 @@ import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
-import { resolveIngredient, analyze as epicureAnalyze } from './epicure-service.mjs';
-import { buildCreativePrompt } from './epicure-prompts.mjs';
+import { resolveIngredient, resolveLoose as resolveLooseIngredient, analyze as epicureAnalyze, scoreDishes, runTool } from './epicure-service.mjs';
+import { buildCreativePrompt, buildChatFlavorContext } from './epicure-prompts.mjs';
 import { validateCreative } from './epicure-recipe-schema.mjs';
 import { callTool as epicureCall } from './epicure-client.mjs';
 import { demoGreeting, demoCategoryGreeting } from './demo.mjs';
@@ -354,11 +354,27 @@ async function handleChat(req, res) {
             })
           : buildDishSystemPrompt(dish, persona);
 
+    // Epicure 只在用户明确问搭配/相似/菜系/差异时补一段实测数据，失败静默跳过
+    let finalSystem = system;
+    try {
+      const flavor = await Promise.race([
+        buildChatFlavorContext({
+          text: lastUser.content,
+          lexiconItems: ingredientLibrary().items,
+          runTool,
+        }),
+        new Promise((r) => setTimeout(() => r({ used: false, block: '', tools: [] }), 5000)),
+      ]);
+      if (flavor.used && flavor.block) finalSystem = `${system}\n${flavor.block}`;
+    } catch {
+      /* Epicure 不可用不影响聊天 */
+    }
+
     await chatStream({
       baseUrl: ai.config.baseUrl,
       apiKey: ai.config.apiKey,
       model: ai.config.model,
-      system,
+      system: finalSystem,
       messages,
       signal: controller.signal,
       onDelta: (text) => sse(res, { type: 'delta', text }),
@@ -824,10 +840,60 @@ async function handleRecipe(req, res) {
 
   const searchSources = !knowledgeOnly && lookup?.status === 'ok' ? lookup.sources : [];
   const isAiSearch = !knowledgeOnly && Boolean(lookup);
+  // Epicure 辅助：只用图鉴/用户给出的真实食材，失败不影响原有生成
+  let epicureAnalysis = null;
+  let epicureBlock = '';
+  try {
+    const rawNames = [
+      ...(Array.isArray(dish?.ingredients) ? dish.ingredients : []),
+      ...String(input.ingredients || '').split(/[、,，\s]+/),
+    ].filter(Boolean);
+    const mapped = [];
+    for (const n of rawNames) {
+      const hit = resolveLooseIngredient(n);
+      if (hit && !mapped.some((m) => m.epicure === hit.epicure)) mapped.push({ cn: hit.cn, epicure: hit.epicure });
+      if (mapped.length >= 4) break;
+    }
+    if (mapped.length) {
+      const used = [];
+      const pairRes = await Promise.race([
+        runTool('find_pairings', { ingredients: mapped.map((m) => m.cn) }),
+        new Promise((r) => setTimeout(() => r({ ok: false, error: 'timeout' }), 5000)),
+      ]);
+      used.push({ tool: 'find_pairings', ok: pairRes.ok });
+      let topPair = null;
+      if (mapped.length >= 2) {
+        const ps = await runTool('pairing_score', { ingredient_a: mapped[0].cn, ingredient_b: mapped[1].cn });
+        used.push({ tool: 'pairing_score', ok: ps.ok });
+        if (ps.ok && Number.isFinite(Number(ps.data?.pairing_score))) {
+          topPair = { a: mapped[0].cn, b: mapped[1].cn, score: Number(ps.data.pairing_score), label: ps.data.percentile_label || '' };
+        }
+      }
+      if (pairRes.ok || topPair) {
+        epicureAnalysis = {
+          used: true,
+          ingredients: mapped.map((m) => m.cn),
+          topPair,
+          pairingText: pairRes.ok ? String(pairRes.text || '').slice(0, 800) : '',
+          used_tools: used,
+        };
+        const lines = ['', '## Epicure 风味参考（真实计算，非营养结论）'];
+        if (topPair) lines.push(`- ${topPair.a} × ${topPair.b} 搭配分 ${topPair.score.toFixed(3)}${topPair.label ? `（${topPair.label}）` : ''}`);
+        if (pairRes.ok && pairRes.text) lines.push(`- 搭配图谱摘要：${String(pairRes.text).replace(/\s+/g, ' ').slice(0, 360)}`);
+        lines.push('规则：只能引用上面的数值，不要编造其它分数；不要把这些数字说成营养或安全结论。');
+        epicureBlock = lines.join('\n');
+      } else {
+        epicureAnalysis = { used: false, ingredients: mapped.map((m) => m.cn), used_tools: used };
+      }
+    }
+  } catch {
+    epicureAnalysis = null;
+  }
+
   const system = buildRecipePrompt(input, dish, searchSources, {
     knowledgeOnly,
     searchIssue: knowledgeOnly ? lookup?.message || '' : '',
-  });
+  }) + epicureBlock;
   let lastIssues = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -903,6 +969,8 @@ async function handleRecipe(req, res) {
           recipe: check.recipe,
           // 图鉴已收录时前端用站内图，这里只给未收录菜品补图
           image: imageTask ? await imageTask : null,
+          // Epicure 风味参考（可选字段，前端不认就忽略）
+          epicureAnalysis,
         });
       }
       console.warn(
@@ -1060,11 +1128,32 @@ async function handleRecommend(req, res) {
     return send(res, 200, { source: 'ai', demo: false, relaxed, picks: [], message: '模型没有给出可用推荐，请重试。' });
   }
 
+  // Epicure 辅助评分：只在有真实食材映射时计算，失败不影响推荐结果
+  let epicureScores = [];
+  try {
+    epicureScores = await Promise.race([
+      scoreDishes(picks.map((p) => p.dish), { userIngredient: input.ingredients.split(/[、,，\s]+/)[0] || '' }),
+      new Promise((r) => setTimeout(() => r([]), 6000)),
+    ]);
+  } catch {
+    epicureScores = [];
+  }
+  const scoreOf = (id) => epicureScores.find((x) => x.id === id && x.ok) || null;
+  const anyPairing = epicureScores.some((x) => x.ok && x.basis === 'pairing');
+  if (anyPairing) {
+    // 只按搭配分做同档微调，不推翻用户已设定的筛选
+    picks = picks
+      .map((p, i) => ({ p, i, s: scoreOf(p.dish.id)?.score ?? -1 }))
+      .sort((a, b) => (b.s - a.s) || (a.i - b.i))
+      .map((x) => x.p);
+  }
+
   noteAIStatus(user, 'ok', null);
   send(res, 200, {
     source: 'ai',
     demo: false,
     relaxed,
+    epicure: anyPairing ? { used: true, basis: 'pairing' } : { used: epicureScores.some((x) => x.ok), basis: 'neighbors' },
     picks: picks.map((p) => ({
       id: p.dish.id,
       name: p.dish.name,
@@ -1072,6 +1161,7 @@ async function handleRecommend(req, res) {
       tastes: p.dish.tastes,
       image: p.dish.image,
       reason: p.reason,
+      epicure: scoreOf(p.dish.id),
       minutes: p.dish.prep + p.dish.cook,
       difficulty: p.dish.difficulty,
       price: p.dish.price,

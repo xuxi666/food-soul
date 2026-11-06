@@ -1,4 +1,5 @@
 import { h, clear, toast } from '../lib/dom.js';
+import { epicurePanel } from '../components/epicure-panel.js';
 import { api } from '../lib/api.js';
 import { copyText } from '../lib/clipboard.js';
 import { DISHES, DISH_BY_ID, DIFFICULTY_LABEL } from '../data/dishes.js';
@@ -283,7 +284,7 @@ export default {
             h('p', { class: 'page-head__sub', text: 'RECIPE GENERATOR · LIBRARY FIRST, THEN REAL WEB SEARCH' })
           ),
           h('div', { class: 'page-head__spacer' }),
-          h('a', { class: 'btn btn--sm', href: '/kitchen', 'data-link': '' }, '不知道做什么？')
+          h('a', { class: 'btn btn--sm', href: '/recommend', 'data-link': '' }, '不知道做什么？')
         ),
         h('div', { class: 'tool-grid' }, form, result)
       )
@@ -477,6 +478,7 @@ export default {
             dish ? h('a', { class: 'btn btn--sm btn--gold', href: `/chat/${dish.id}`, 'data-link': '' }, '继续问它') : null
           )
         ),
+        epicurePanel({ recipeAnalysis: meta.epicureAnalysis }),
         verify.level === 'model-knowledge'
           ? h('div', { class: 'verify-banner verify-banner--warn' },
               h('b', { text: verify.label || '基于模型已有知识生成 · 未联网核实' }),
