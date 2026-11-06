@@ -1,3 +1,4 @@
+import https from 'node:https';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 /**
@@ -93,37 +94,69 @@ function parseRpcPayload(text) {
   return last;
 }
 
-async function postRpc(body, { sessionId, timeout = CALL_TIMEOUT } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeout);
-  try {
-    const res = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-        ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
+/** 强制 IPv4 的 Agent：服务器到 Cloudflare 的 IPv6 常不通，undici/fetch 会一直等到超时 */
+const agentV4 = new https.Agent({ family: 4, keepAlive: true, keepAliveMsecs: 15000 });
+
+function httpPostJson(urlStr, body, headers, timeout) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const payload = Buffer.from(JSON.stringify(body), 'utf8');
+    const req = https.request(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: url.pathname + url.search,
+        method: 'POST',
+        agent: agentV4,
+        headers: { ...headers, 'content-length': payload.length },
+        timeout,
       },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          resolve({ status: res.statusCode || 0, headers: res.headers, text: Buffer.concat(chunks).toString('utf8') });
+        });
+      }
+    );
+    req.on('timeout', () => {
+      req.destroy(Object.assign(new Error('epicure-timeout'), { code: 'timeout' }));
     });
-    const sid = res.headers.get('mcp-session-id');
-    const text = await res.text();
-    if (res.status === 404) {
-      const err = new Error('session-expired');
-      err.code = 'session-expired';
-      throw err;
-    }
-    if (!res.ok) {
-      const err = new Error(`epicure-http-${res.status}`);
-      err.code = 'http';
-      err.status = res.status;
-      throw err;
-    }
-    return { payload: parseRpcPayload(text), sessionId: sid };
-  } finally {
-    clearTimeout(timer);
+    req.on('error', (err) => reject(err));
+    req.write(payload);
+    req.end();
+  });
+}
+
+async function postRpc(body, { sessionId, timeout = CALL_TIMEOUT } = {}) {
+  const headers = {
+    'content-type': 'application/json',
+    accept: 'application/json, text/event-stream',
+    ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
+  };
+  let res;
+  try {
+    res = await httpPostJson(ENDPOINT, body, headers, timeout);
+  } catch (err) {
+    const e = new Error(err?.code === 'timeout' ? 'epicure-timeout' : `epicure-network: ${err?.code || err?.message || err}`);
+    e.code = err?.code === 'timeout' ? 'timeout' : 'network';
+    throw e;
   }
+  const sid = res.headers['mcp-session-id'];
+  const text = res.text;
+  if (res.status === 404) {
+    const err = new Error('session-expired');
+    err.code = 'session-expired';
+    throw err;
+  }
+  if (res.status < 200 || res.status >= 300) {
+    const err = new Error(`epicure-http-${res.status}`);
+    err.code = 'http';
+    err.status = res.status;
+    throw err;
+  }
+  return { payload: parseRpcPayload(text), sessionId: sid };
 }
 
 let nextId = 0;
