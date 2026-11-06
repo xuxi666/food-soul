@@ -106,7 +106,7 @@ export default {
         'a',
         {
           class: 'btn btn--sm',
-          href: isCategory ? '/' : '/recommend',
+          href: isCategory ? '/' : '/kitchen',
           'data-link': '',
         },
         isCategory ? '回到首页' : '换个口味'
@@ -370,7 +370,7 @@ export default {
     function suggestionHref(s) {
       const p = s.actionPayload || {};
       if (s.actionType === 'recipe') return `/recipe?dish=${encodeURIComponent(p.dishName || '')}`;
-      if (s.actionType === 'recommend') return `/recommend?taste=${encodeURIComponent(p.taste || '')}`;
+      if (s.actionType === 'recommend') return `/kitchen?taste=${encodeURIComponent(p.taste || '')}`;
       if (s.actionType === 'video') return `/videos?q=${encodeURIComponent(p.query || '')}`;
       return '';
     }

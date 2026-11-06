@@ -6,6 +6,8 @@ import { TASTE_BY_ID, CUISINE_BY_ID, TASTES } from '../src/data/cuisines.js';
 import { buildDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildRecommendPrompt, buildSuggestionPrompt } from './prompt.mjs';
 import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
+import { epicureStatus } from './epicure-client.mjs';
+import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
 import { demoGreeting, demoCategoryGreeting } from './demo.mjs';
 import { listComments, addComment, toggleLike, reportComment, deleteComment, commentCountByDish } from './store.mjs';
 import { listPosts, addPost, toggleLike as togglePostLike, addComment as addPostComment, reportPost, removePost, saveImage, postStats, findPost, aiReplyStats, KINDS } from './community.mjs';
@@ -1305,6 +1307,40 @@ export async function handleApi(req, res) {
     if (req.method === 'POST' && path === '/api/recipe/lookup') return await handleRecipeLookup(req, res);
     if (req.method === 'POST' && path === '/api/recipe') return await handleRecipe(req, res);
     if (req.method === 'POST' && path === '/api/recommend') return await handleRecommend(req, res);
+
+    /* ---------------- Epicure 厨房 ---------------- */
+    if (req.method === 'GET' && path === '/api/epicure/status') {
+      const rl = rateLimit(req, 'epicure-status', 60, 60_000);
+      if (!rl.ok) return send(res, 429, { error: '请求过于频繁', code: 'rate_limited' });
+      return send(res, 200, await epicureStatus());
+    }
+    if (req.method === 'GET' && path === '/api/epicure/ingredients') {
+      const lib = ingredientLibrary();
+      return send(res, 200, lib);
+    }
+    if (req.method === 'POST' && path === '/api/epicure/network') {
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+      const rl = rateLimit(req, `epicure-net:${actorKey(req, getCurrentUser(req))}`, 30, 60_000);
+      if (!rl.ok) return send(res, 429, { error: `请求过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
+      const body = await readJson(req);
+      const ids = (Array.isArray(body.ids) ? body.ids : []).map((x) => String(x).slice(0, 40)).slice(0, 6);
+      if (!ids.length) return send(res, 400, { error: '请至少选择一个食材' });
+      const net = await buildNetwork(ids, {
+        depth: Number(body.depth) || 2,
+        topK: Number(body.topK) || 8,
+        expand: body.expand === undefined ? 2 : Number(body.expand),
+      });
+      if (!net.ok) return send(res, 200, { ok: false, error: net.error, unresolved: net.unresolved || [] });
+      return send(res, 200, net);
+    }
+    if (req.method === 'POST' && path === '/api/epicure/pair') {
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
+      const rl = rateLimit(req, `epicure-pair:${actorKey(req, getCurrentUser(req))}`, 40, 60_000);
+      if (!rl.ok) return send(res, 429, { error: '请求过于频繁', code: 'rate_limited' });
+      const body = await readJson(req);
+      const out = await pairingOf(String(body.a || '').slice(0, 40), String(body.b || '').slice(0, 40));
+      return send(res, 200, out);
+    }
     if (req.method === 'GET' && path === '/api/videos/search') {
       const bundle = await searchVideos({
         q: url.searchParams.get('q') || '',

@@ -4,6 +4,7 @@ import './styles/app.css';
 import './styles/community.css';
 import './styles/account.css';
 import './styles/admin.css';
+import './styles/kitchen.css';
 
 import { initRouter } from './router.js';
 import { mountMascot } from './components/mascot.js';

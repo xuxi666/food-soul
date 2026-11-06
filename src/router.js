@@ -3,7 +3,7 @@ import { syncNavActive } from './lib/nav-active.js';
 import home from './views/home.js';
 import chat from './views/chat.js';
 import recipe from './views/recipe.js';
-import recommend from './views/recommend.js';
+import kitchen from './views/kitchen.js';
 import cuisine from './views/cuisine.js';
 import taste from './views/taste.js';
 import dishes from './views/dishes.js';
@@ -33,7 +33,9 @@ const ROUTES = [
   { name: 'dishDetail', re: /^\/dishes\/([\w-]+)$/, mod: dishDetail },
   { name: 'community', re: /^\/community$/, mod: community },
   { name: 'recipe', re: /^\/recipe$/, mod: recipe },
-  { name: 'recommend', re: /^\/recommend$/, mod: recommend },
+  { name: 'kitchen', re: /^\/kitchen$/, mod: kitchen },
+  // 旧入口保留重定向，避免收藏夹/历史链接 404
+  { name: 'recommendRedirect', re: /^\/recommend$/, mod: kitchen },
   { name: 'videos', re: /^\/videos$/, mod: videos },
   { name: 'admin', re: /^\/admin$/, mod: admin },
 ];

@@ -1,0 +1,1539 @@
+{
+ "generatedAt": "2026-11-06T01:01:07.178Z",
+ "epicureTools": [
+  "compare_on_axis",
+  "pairing_score",
+  "find_pairings",
+  "flavour_correlations",
+  "cultural_profile",
+  "neighbors",
+  "morph",
+  "list_targets",
+  "list_factors",
+  "ingredient_on_factor",
+  "pareto_navigate",
+  "closest_mode",
+  "where_on_atlas"
+ ],
+ "total": 106,
+ "verified": 104,
+ "failed": 2,
+ "categories": [
+  {
+   "id": "meat",
+   "name": "肉类"
+  },
+  {
+   "id": "seafood",
+   "name": "水产"
+  },
+  {
+   "id": "veg",
+   "name": "蔬菜"
+  },
+  {
+   "id": "fungi",
+   "name": "菌菇"
+  },
+  {
+   "id": "grain",
+   "name": "谷物"
+  },
+  {
+   "id": "soy",
+   "name": "豆制品"
+  },
+  {
+   "id": "dairy",
+   "name": "蛋奶"
+  },
+  {
+   "id": "seasoning",
+   "name": "调味料"
+  },
+  {
+   "id": "spice",
+   "name": "香辛料"
+  }
+ ],
+ "items": [
+  {
+   "id": "zhurou",
+   "cn": "猪肉",
+   "cat": "meat",
+   "epicure": "pork",
+   "matchedFrom": "pork",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.3307,
+    8.0877
+   ],
+   "ms": 350
+  },
+  {
+   "id": "wuhuarou",
+   "cn": "五花肉",
+   "cat": "meat",
+   "epicure": "pork",
+   "matchedFrom": "pork",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.3307,
+    8.0877
+   ],
+   "ms": 350
+  },
+  {
+   "id": "niurou",
+   "cn": "牛肉",
+   "cat": "meat",
+   "epicure": "beef",
+   "matchedFrom": "beef",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.271,
+    6.0695
+   ],
+   "ms": 1036
+  },
+  {
+   "id": "yangrou",
+   "cn": "羊肉",
+   "cat": "meat",
+   "epicure": "lamb",
+   "matchedFrom": "lamb",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.3887,
+    6.6752
+   ],
+   "ms": 983
+  },
+  {
+   "id": "jirou",
+   "cn": "鸡肉",
+   "cat": "meat",
+   "epicure": "chicken",
+   "matchedFrom": "chicken",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.482,
+    6.7732
+   ],
+   "ms": 403
+  },
+  {
+   "id": "jitui",
+   "cn": "鸡腿",
+   "cat": "meat",
+   "epicure": "chicken",
+   "matchedFrom": "chicken",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.482,
+    6.7732
+   ],
+   "ms": 403
+  },
+  {
+   "id": "yarou",
+   "cn": "鸭肉",
+   "cat": "meat",
+   "epicure": "duck",
+   "matchedFrom": "duck",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    4.6388,
+    8.5609
+   ],
+   "ms": 403
+  },
+  {
+   "id": "huotui",
+   "cn": "火腿",
+   "cat": "meat",
+   "epicure": "ham",
+   "matchedFrom": "ham",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.3237,
+    5.8624
+   ],
+   "ms": 402
+  },
+  {
+   "id": "larou",
+   "cn": "腊肉",
+   "cat": "meat",
+   "epicure": "chinese_cured_pork",
+   "matchedFrom": "cured_pork",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    5.5089,
+    9.1116
+   ],
+   "ms": 396
+  },
+  {
+   "id": "xiangchang",
+   "cn": "香肠",
+   "cat": "meat",
+   "epicure": "sausage",
+   "matchedFrom": "sausage",
+   "cuisineRegion": "universal",
+   "foodGroup": "Meat",
+   "atlasXY": [
+    6.4288,
+    6.2106
+   ],
+   "ms": 367
+  },
+  {
+   "id": "yu",
+   "cn": "鱼",
+   "cat": "seafood",
+   "epicure": "fish",
+   "matchedFrom": "fish",
+   "cuisineRegion": "universal",
+   "foodGroup": "Fish",
+   "atlasXY": [
+    6.213,
+    7.6093
+   ],
+   "ms": 360
+  },
+  {
+   "id": "luyu",
+   "cn": "鲈鱼",
+   "cat": "seafood",
+   "epicure": "sea_bass",
+   "matchedFrom": "sea_bass",
+   "cuisineRegion": "universal",
+   "foodGroup": "Fish",
+   "atlasXY": [
+    6.2666,
+    8.0059
+   ],
+   "ms": 373
+  },
+  {
+   "id": "caoyu",
+   "cn": "草鱼",
+   "cat": "seafood",
+   "epicure": "carp",
+   "matchedFrom": "carp",
+   "cuisineRegion": "Eastern_European;East_Asian",
+   "foodGroup": "Fish",
+   "atlasXY": [
+    6.4924,
+    9.122
+   ],
+   "ms": 356
+  },
+  {
+   "id": "xia",
+   "cn": "虾",
+   "cat": "seafood",
+   "epicure": "shrimp",
+   "matchedFrom": "shrimp",
+   "cuisineRegion": "universal",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    6.2127,
+    7.5435
+   ],
+   "ms": 360
+  },
+  {
+   "id": "xieren",
+   "cn": "蟹",
+   "cat": "seafood",
+   "epicure": "crab",
+   "matchedFrom": "crab",
+   "cuisineRegion": "universal",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    6.1694,
+    7.4005
+   ],
+   "ms": 379
+  },
+  {
+   "id": "geli",
+   "cn": "蛤蜊",
+   "cat": "seafood",
+   "epicure": "clam",
+   "matchedFrom": "clam",
+   "cuisineRegion": "universal",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    6.1357,
+    7.5208
+   ],
+   "ms": 377
+  },
+  {
+   "id": "shanbei",
+   "cn": "扇贝",
+   "cat": "seafood",
+   "epicure": "scallop",
+   "matchedFrom": "scallop",
+   "cuisineRegion": "universal",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    6.1283,
+    7.4575
+   ],
+   "ms": 345
+  },
+  {
+   "id": "youyu",
+   "cn": "鱿鱼",
+   "cat": "seafood",
+   "epicure": "squid",
+   "matchedFrom": "squid",
+   "cuisineRegion": "universal",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    6.155,
+    8.1038
+   ],
+   "ms": 415
+  },
+  {
+   "id": "haishen",
+   "cn": "海参",
+   "cat": "seafood",
+   "epicure": "sea_cucumber",
+   "matchedFrom": "sea_cucumber",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    4.639,
+    9.1552
+   ],
+   "ms": 365
+  },
+  {
+   "id": "zicai",
+   "cn": "紫菜",
+   "cat": "seafood",
+   "epicure": "nori",
+   "matchedFrom": "nori",
+   "cuisineRegion": "Japanese",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    5.7327,
+    8.32
+   ],
+   "ms": 407
+  },
+  {
+   "id": "xiami",
+   "cn": "虾米",
+   "cat": "seafood",
+   "epicure": "dried_shrimp",
+   "matchedFrom": "dried_shrimp",
+   "cuisineRegion": "East_Asian;Southeast_Asian;Latin_American",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    5.8414,
+    8.7232
+   ],
+   "ms": 371
+  },
+  {
+   "id": "baicai",
+   "cn": "白菜",
+   "cat": "veg",
+   "epicure": "napa_cabbage",
+   "matchedFrom": "napa_cabbage",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.7977,
+    8.7116
+   ],
+   "ms": 369
+  },
+  {
+   "id": "xiaobaicai",
+   "cn": "小白菜",
+   "cat": "veg",
+   "epicure": "bok_choy",
+   "matchedFrom": "bok_choy",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.7591,
+    8.7527
+   ],
+   "ms": 386
+  },
+  {
+   "id": "luobo",
+   "cn": "萝卜",
+   "cat": "veg",
+   "epicure": "daikon",
+   "matchedFrom": "daikon",
+   "cuisineRegion": "Japanese;East_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.0052,
+    8.4259
+   ],
+   "ms": 340
+  },
+  {
+   "id": "huluobo",
+   "cn": "胡萝卜",
+   "cat": "veg",
+   "epicure": "carrot",
+   "matchedFrom": "carrot",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2653,
+    6.3653
+   ],
+   "ms": 406
+  },
+  {
+   "id": "tudou",
+   "cn": "土豆",
+   "cat": "veg",
+   "epicure": "potato",
+   "matchedFrom": "potato",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2847,
+    6.2201
+   ],
+   "ms": 386
+  },
+  {
+   "id": "qiezi",
+   "cn": "茄子",
+   "cat": "veg",
+   "epicure": "eggplant",
+   "matchedFrom": "eggplant",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.05,
+    6.3452
+   ],
+   "ms": 401
+  },
+  {
+   "id": "fanqie",
+   "cn": "番茄",
+   "cat": "veg",
+   "epicure": "tomato",
+   "matchedFrom": "tomato",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2407,
+    6.0196
+   ],
+   "ms": 386
+  },
+  {
+   "id": "huanggua",
+   "cn": "黄瓜",
+   "cat": "veg",
+   "epicure": "cucumber",
+   "matchedFrom": "cucumber",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.3733,
+    7.487
+   ],
+   "ms": 420
+  },
+  {
+   "id": "donggua",
+   "cn": "冬瓜",
+   "cat": "veg",
+   "epicure": "winter_melon",
+   "matchedFrom": "winter_melon",
+   "cuisineRegion": "East_Asian;Southeast_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    4.4803,
+    9.0251
+   ],
+   "ms": 396
+  },
+  {
+   "id": "nangua",
+   "cn": "南瓜",
+   "cat": "veg",
+   "epicure": "pumpkin",
+   "matchedFrom": "pumpkin",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    1.8045,
+    6.5082
+   ],
+   "ms": 395
+  },
+  {
+   "id": "sigua",
+   "cn": "丝瓜",
+   "cat": "veg",
+   "epicure": "luffa",
+   "matchedFrom": "luffa",
+   "cuisineRegion": "East_Asian;South_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.6024,
+    8.6892
+   ],
+   "ms": 364
+  },
+  {
+   "id": "kugua",
+   "cn": "苦瓜",
+   "cat": "veg",
+   "epicure": "bitter_melon",
+   "matchedFrom": "bitter_melon",
+   "cuisineRegion": "East_Asian;Southeast_Asian;South_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.3941,
+    8.7319
+   ],
+   "ms": 395
+  },
+  {
+   "id": "lianou",
+   "cn": "莲藕",
+   "cat": "veg",
+   "epicure": "lotus_root",
+   "matchedFrom": "lotus_root",
+   "cuisineRegion": "East_Asian;Japanese",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.1193,
+    8.6369
+   ],
+   "ms": 383
+  },
+  {
+   "id": "zhusun",
+   "cn": "竹笋",
+   "cat": "veg",
+   "epicure": "bamboo_shoot",
+   "matchedFrom": "bamboo_shoot",
+   "cuisineRegion": "East_Asian;Southeast_Asian;Japanese",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.9943,
+    8.6269
+   ],
+   "ms": 400
+  },
+  {
+   "id": "douya",
+   "cn": "豆芽",
+   "cat": "veg",
+   "epicure": "bean_sprout",
+   "matchedFrom": "bean_sprout",
+   "cuisineRegion": "East_Asian;Southeast_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2088,
+    8.3265
+   ],
+   "ms": 373
+  },
+  {
+   "id": "jiucai",
+   "cn": "韭菜",
+   "cat": "veg",
+   "epicure": "leek",
+   "matchedFrom": "leek",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.4711,
+    8.1131
+   ],
+   "ms": 395
+  },
+  {
+   "id": "bocai",
+   "cn": "菠菜",
+   "cat": "veg",
+   "epicure": "spinach",
+   "matchedFrom": "spinach",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.8149,
+    6.0327
+   ],
+   "ms": 387
+  },
+  {
+   "id": "shengcai",
+   "cn": "生菜",
+   "cat": "veg",
+   "epicure": "lettuce",
+   "matchedFrom": "lettuce",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.4135,
+    6.5788
+   ],
+   "ms": 351
+  },
+  {
+   "id": "qincai",
+   "cn": "芹菜",
+   "cat": "veg",
+   "epicure": "celery",
+   "matchedFrom": "celery",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.099,
+    5.9573
+   ],
+   "ms": 435
+  },
+  {
+   "id": "qingjiao",
+   "cn": "青椒",
+   "cat": "veg",
+   "epicure": "bell_pepper",
+   "matchedFrom": "green_bell_pepper",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2851,
+    6.0596
+   ],
+   "ms": 375
+  },
+  {
+   "id": "yangcong",
+   "cn": "洋葱",
+   "cat": "veg",
+   "epicure": "onion",
+   "matchedFrom": "onion",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2799,
+    6.0619
+   ],
+   "ms": 374
+  },
+  {
+   "id": "wosun",
+   "cn": "莴笋",
+   "cat": "veg",
+   "epicure": "celtuce",
+   "matchedFrom": "celtuce",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.1563,
+    9.1644
+   ],
+   "ms": 356
+  },
+  {
+   "id": "xianggu",
+   "cn": "香菇",
+   "cat": "fungi",
+   "epicure": "shiitake_mushroom",
+   "matchedFrom": "shiitake_mushroom",
+   "cuisineRegion": "East_Asian;Japanese",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.1391,
+    8.2842
+   ],
+   "ms": 359
+  },
+  {
+   "id": "muer",
+   "cn": "木耳",
+   "cat": "fungi",
+   "epicure": "wood_ear_mushroom",
+   "matchedFrom": "wood_ear",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.9607,
+    8.8111
+   ],
+   "ms": 378
+  },
+  {
+   "id": "jinzhengu",
+   "cn": "金针菇",
+   "cat": "fungi",
+   "epicure": "enoki_mushroom",
+   "matchedFrom": "enoki_mushroom",
+   "cuisineRegion": "East_Asian;Japanese",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.9942,
+    8.6842
+   ],
+   "ms": 361
+  },
+  {
+   "id": "pinggu",
+   "cn": "平菇",
+   "cat": "fungi",
+   "epicure": "oyster_mushroom",
+   "matchedFrom": "oyster_mushroom",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.8705,
+    8.8527
+   ],
+   "ms": 391
+  },
+  {
+   "id": "yiner",
+   "cn": "银耳",
+   "cat": "fungi",
+   "epicure": "snow_fungus",
+   "matchedFrom": "snow_fungus",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    3.1463,
+    8.844
+   ],
+   "ms": 358
+  },
+  {
+   "id": "dami",
+   "cn": "大米",
+   "cat": "grain",
+   "epicure": "rice",
+   "matchedFrom": "rice",
+   "cuisineRegion": "universal",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    6.3603,
+    7.0476
+   ],
+   "ms": 400
+  },
+  {
+   "id": "mianfen",
+   "cn": "面粉",
+   "cat": "grain",
+   "epicure": "flour",
+   "matchedFrom": "flour",
+   "cuisineRegion": "universal",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    1.8204,
+    6.3712
+   ],
+   "ms": 365
+  },
+  {
+   "id": "miantiao",
+   "cn": "面条",
+   "cat": "grain",
+   "epicure": "egg_noodle",
+   "matchedFrom": "egg_noodle",
+   "cuisineRegion": "universal",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    6.0352,
+    4.0729
+   ],
+   "ms": 379
+  },
+  {
+   "id": "xiaomi",
+   "cn": "小米",
+   "cat": "grain",
+   "epicure": "millet",
+   "matchedFrom": "millet",
+   "cuisineRegion": "universal",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    3.3425,
+    8.5477
+   ],
+   "ms": 393
+  },
+  {
+   "id": "yumi",
+   "cn": "玉米",
+   "cat": "grain",
+   "epicure": "corn",
+   "matchedFrom": "corn",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.4122,
+    6.5651
+   ],
+   "ms": 357
+  },
+  {
+   "id": "nuomi",
+   "cn": "糯米",
+   "cat": "grain",
+   "epicure": "glutinous_rice",
+   "matchedFrom": "glutinous_rice",
+   "cuisineRegion": "East_Asian;Southeast_Asian",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    3.2503,
+    8.3474
+   ],
+   "ms": 345
+  },
+  {
+   "id": "niangao",
+   "cn": "年糕",
+   "cat": "grain",
+   "epicure": "rice_cake",
+   "matchedFrom": "rice_cake",
+   "cuisineRegion": "East_Asian;Japanese",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    6.0115,
+    8.6534
+   ],
+   "ms": 335
+  },
+  {
+   "id": "doufu",
+   "cn": "豆腐",
+   "cat": "soy",
+   "epicure": "tofu",
+   "matchedFrom": "tofu",
+   "cuisineRegion": "universal",
+   "foodGroup": "Legume",
+   "atlasXY": [
+    6.3102,
+    8.468
+   ],
+   "ms": 365
+  },
+  {
+   "id": "doupí",
+   "cn": "豆皮",
+   "cat": "soy",
+   "epicure": "tofu_skin",
+   "matchedFrom": "tofu_skin",
+   "cuisineRegion": "East_Asian;Japanese",
+   "foodGroup": "Legume",
+   "atlasXY": [
+    5.6921,
+    8.7912
+   ],
+   "ms": 363
+  },
+  {
+   "id": "dougan",
+   "cn": "豆干",
+   "cat": "soy",
+   "epicure": "dried_tofu",
+   "matchedFrom": "dried_tofu",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Legume",
+   "atlasXY": [
+    5.8873,
+    8.9549
+   ],
+   "ms": 354
+  },
+  {
+   "id": "doujiang",
+   "cn": "豆浆",
+   "cat": "soy",
+   "epicure": "soy_milk",
+   "matchedFrom": "soy_milk",
+   "cuisineRegion": "universal",
+   "foodGroup": "Beverage",
+   "atlasXY": [
+    2.483,
+    7.0655
+   ],
+   "ms": 956
+  },
+  {
+   "id": "douchi",
+   "cn": "豆豉",
+   "cat": "soy",
+   "epicure": "fermented_black_bean",
+   "matchedFrom": "fermented_black_bean",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Legume",
+   "atlasXY": [
+    6.3433,
+    8.8574
+   ],
+   "ms": 383
+  },
+  {
+   "id": "jidan",
+   "cn": "鸡蛋",
+   "cat": "dairy",
+   "epicure": "egg",
+   "matchedFrom": "egg",
+   "cuisineRegion": "universal",
+   "foodGroup": "Dairy",
+   "atlasXY": [
+    1.8161,
+    6.3576
+   ],
+   "ms": 395
+  },
+  {
+   "id": "xiandan",
+   "cn": "咸蛋",
+   "cat": "dairy",
+   "epicure": "egg",
+   "matchedFrom": "salted_egg",
+   "cuisineRegion": "universal",
+   "foodGroup": "Dairy",
+   "atlasXY": [
+    1.8161,
+    6.3576
+   ],
+   "ms": 388
+  },
+  {
+   "id": "pidan",
+   "cn": "皮蛋",
+   "cat": "dairy",
+   "epicure": "century_egg",
+   "matchedFrom": "century_egg",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Dairy",
+   "atlasXY": [
+    5.7503,
+    8.9074
+   ],
+   "ms": 404
+  },
+  {
+   "id": "niunai",
+   "cn": "牛奶",
+   "cat": "dairy",
+   "epicure": "milk",
+   "matchedFrom": "milk",
+   "cuisineRegion": "universal",
+   "foodGroup": "Dairy",
+   "atlasXY": [
+    1.6652,
+    6.3683
+   ],
+   "ms": 358
+  },
+  {
+   "id": "jiangyou",
+   "cn": "酱油",
+   "cat": "seasoning",
+   "epicure": "soy_sauce",
+   "matchedFrom": "soy_sauce",
+   "cuisineRegion": "universal",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.4245,
+    8.226
+   ],
+   "ms": 381
+  },
+  {
+   "id": "shengchou",
+   "cn": "生抽",
+   "cat": "seasoning",
+   "epicure": "light_soy_sauce",
+   "matchedFrom": "light_soy_sauce",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.3338,
+    8.552
+   ],
+   "ms": 386
+  },
+  {
+   "id": "laochou",
+   "cn": "老抽",
+   "cat": "seasoning",
+   "epicure": "dark_soy_sauce",
+   "matchedFrom": "dark_soy_sauce",
+   "cuisineRegion": "East_Asian;Southeast_Asian",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.429,
+    8.6529
+   ],
+   "ms": 389
+  },
+  {
+   "id": "cu",
+   "cn": "醋",
+   "cat": "seasoning",
+   "epicure": "vinegar",
+   "matchedFrom": "vinegar",
+   "cuisineRegion": "universal",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.5065,
+    8.1385
+   ],
+   "ms": 372
+  },
+  {
+   "id": "michu",
+   "cn": "米醋",
+   "cat": "seasoning",
+   "epicure": "rice_vinegar",
+   "matchedFrom": "rice_vinegar",
+   "cuisineRegion": "East_Asian;Japanese",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.0988,
+    8.1795
+   ],
+   "ms": 351
+  },
+  {
+   "id": "liaojiu",
+   "cn": "料酒",
+   "cat": "seasoning",
+   "epicure": "rice_wine",
+   "matchedFrom": "rice_wine",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Beverage",
+   "atlasXY": [
+    6.2967,
+    8.4436
+   ],
+   "ms": 408
+  },
+  {
+   "id": "doubanjiang",
+   "cn": "豆瓣酱",
+   "cat": "seasoning",
+   "epicure": "doubanjiang",
+   "matchedFrom": "doubanjiang",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.2271,
+    8.7138
+   ],
+   "ms": 374
+  },
+  {
+   "id": "tianmianjiang",
+   "cn": "甜面酱",
+   "cat": "seasoning",
+   "epicure": "sweet_bean_sauce",
+   "matchedFrom": "sweet_bean_sauce",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.2547,
+    8.9084
+   ],
+   "ms": 356
+  },
+  {
+   "id": "haoyou",
+   "cn": "蚝油",
+   "cat": "seasoning",
+   "epicure": "oyster_sauce",
+   "matchedFrom": "oyster_sauce",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.3626,
+    8.5196
+   ],
+   "ms": 362
+  },
+  {
+   "id": "zhimayou",
+   "cn": "芝麻油",
+   "cat": "seasoning",
+   "epicure": "sesame_oil",
+   "matchedFrom": "sesame_oil",
+   "cuisineRegion": "universal",
+   "foodGroup": "Fat/Oil",
+   "atlasXY": [
+    6.2396,
+    8.2873
+   ],
+   "ms": 354
+  },
+  {
+   "id": "baitang",
+   "cn": "白糖",
+   "cat": "seasoning",
+   "epicure": "sugar",
+   "matchedFrom": "sugar",
+   "cuisineRegion": "universal",
+   "foodGroup": "Sweet",
+   "atlasXY": [
+    1.5258,
+    6.3605
+   ],
+   "ms": 367
+  },
+  {
+   "id": "bingtang",
+   "cn": "冰糖",
+   "cat": "seasoning",
+   "epicure": "rock_sugar",
+   "matchedFrom": "rock_sugar",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Sweet",
+   "atlasXY": [
+    3.3636,
+    8.9465
+   ],
+   "ms": 370
+  },
+  {
+   "id": "yan",
+   "cn": "盐",
+   "cat": "seasoning",
+   "epicure": "salt",
+   "matchedFrom": "salt",
+   "cuisineRegion": "universal",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.5401,
+    7.5286
+   ],
+   "ms": 387
+  },
+  {
+   "id": "weijing",
+   "cn": "味精",
+   "cat": "seasoning",
+   "epicure": "msg",
+   "matchedFrom": "msg",
+   "cuisineRegion": "universal",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.431,
+    8.3431
+   ],
+   "ms": 381
+  },
+  {
+   "id": "dianfen",
+   "cn": "淀粉",
+   "cat": "seasoning",
+   "epicure": "starch",
+   "matchedFrom": "starch",
+   "cuisineRegion": "universal",
+   "foodGroup": "Pantry",
+   "atlasXY": [
+    6.4685,
+    8.5047
+   ],
+   "ms": 355
+  },
+  {
+   "id": "hujiaofen",
+   "cn": "胡椒粉",
+   "cat": "seasoning",
+   "epicure": "white_pepper",
+   "matchedFrom": "white_pepper",
+   "cuisineRegion": "universal",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.4387,
+    8.1231
+   ],
+   "ms": 371
+  },
+  {
+   "id": "huajiao",
+   "cn": "花椒",
+   "cat": "spice",
+   "epicure": "sichuan_peppercorn",
+   "matchedFrom": "sichuan_peppercorn",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.2761,
+    8.6583
+   ],
+   "ms": 394
+  },
+  {
+   "id": "bajiao",
+   "cn": "八角",
+   "cat": "spice",
+   "epicure": "star_anise",
+   "matchedFrom": "star_anise",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.4504,
+    8.5428
+   ],
+   "ms": 389
+  },
+  {
+   "id": "guipi",
+   "cn": "桂皮",
+   "cat": "spice",
+   "epicure": "cinnamon",
+   "matchedFrom": "cinnamon",
+   "cuisineRegion": "universal",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    1.6609,
+    5.6323
+   ],
+   "ms": 387
+  },
+  {
+   "id": "xiangye",
+   "cn": "香叶",
+   "cat": "spice",
+   "epicure": "bay_leaf",
+   "matchedFrom": "bay_leaf",
+   "cuisineRegion": "universal",
+   "foodGroup": "Herb",
+   "atlasXY": [
+    6.3082,
+    6.4127
+   ],
+   "ms": 351
+  },
+  {
+   "id": "lajiao",
+   "cn": "辣椒",
+   "cat": "spice",
+   "epicure": "chili_pepper",
+   "matchedFrom": "chili_pepper",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.51,
+    8.0574
+   ],
+   "ms": 353
+  },
+  {
+   "id": "ganlajiao",
+   "cn": "干辣椒",
+   "cat": "spice",
+   "epicure": "chili_pepper",
+   "matchedFrom": "dried_chili_pepper",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.51,
+    8.0574
+   ],
+   "ms": 351
+  },
+  {
+   "id": "lajiaoyou",
+   "cn": "辣椒油",
+   "cat": "spice",
+   "epicure": "chili_oil",
+   "matchedFrom": "chili_oil",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Fat/Oil",
+   "atlasXY": [
+    6.1817,
+    8.6978
+   ],
+   "ms": 367
+  },
+  {
+   "id": "wuxiangfen",
+   "cn": "五香粉",
+   "cat": "spice",
+   "epicure": "five_spice_powder",
+   "matchedFrom": "five_spice",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.164,
+    8.728
+   ],
+   "ms": 398
+  },
+  {
+   "id": "cong",
+   "cn": "葱",
+   "cat": "spice",
+   "epicure": "scallion",
+   "matchedFrom": "scallion",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.4382,
+    8.266
+   ],
+   "ms": 381
+  },
+  {
+   "id": "jiang",
+   "cn": "姜",
+   "cat": "spice",
+   "epicure": "ginger",
+   "matchedFrom": "ginger",
+   "cuisineRegion": "universal",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.4608,
+    8.3757
+   ],
+   "ms": 404
+  },
+  {
+   "id": "suan",
+   "cn": "蒜",
+   "cat": "spice",
+   "epicure": "garlic",
+   "matchedFrom": "garlic",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.5515,
+    6.9467
+   ],
+   "ms": 376
+  },
+  {
+   "id": "xiangcai",
+   "cn": "香菜",
+   "cat": "spice",
+   "epicure": "coriander",
+   "matchedFrom": "coriander",
+   "cuisineRegion": "universal",
+   "foodGroup": "Herb",
+   "atlasXY": [
+    6.6145,
+    6.9058
+   ],
+   "ms": 404
+  },
+  {
+   "id": "lajiaomian",
+   "cn": "辣椒面",
+   "cat": "spice",
+   "epicure": "chili_powder",
+   "matchedFrom": "chili_powder",
+   "cuisineRegion": "universal",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.6542,
+    6.8233
+   ],
+   "ms": 391
+  },
+  {
+   "id": "ziran",
+   "cn": "孜然",
+   "cat": "spice",
+   "epicure": "cumin",
+   "matchedFrom": "cumin",
+   "cuisineRegion": "universal",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.5384,
+    6.6157
+   ],
+   "ms": 372
+  },
+  {
+   "id": "heihujiao",
+   "cn": "黑胡椒",
+   "cat": "spice",
+   "epicure": "black_pepper",
+   "matchedFrom": "black_pepper",
+   "cuisineRegion": "universal",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.2213,
+    6.067
+   ],
+   "ms": 391
+  },
+  {
+   "id": "fensi",
+   "cn": "粉丝",
+   "cat": "grain",
+   "epicure": "glass_noodle",
+   "matchedFrom": "glass_noodle",
+   "cuisineRegion": "East_Asian;Southeast_Asian",
+   "foodGroup": "Grain",
+   "atlasXY": [
+    6.129,
+    8.7083
+   ],
+   "ms": 364
+  },
+  {
+   "id": "xingbaogu",
+   "cn": "杏鲍菇",
+   "cat": "fungi",
+   "epicure": "king_oyster_mushroom",
+   "matchedFrom": "king_oyster_mushroom",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    5.9311,
+    8.7257
+   ],
+   "ms": 361
+  },
+  {
+   "id": "shaoxingjiu",
+   "cn": "绍兴酒",
+   "cat": "seasoning",
+   "epicure": "shaoxing_wine",
+   "matchedFrom": "shaoxing_wine",
+   "cuisineRegion": "East_Asian",
+   "foodGroup": "Beverage",
+   "atlasXY": [
+    6.4007,
+    8.5843
+   ],
+   "ms": 391
+  },
+  {
+   "id": "xiaomila",
+   "cn": "小米辣",
+   "cat": "spice",
+   "epicure": "birds_eye_chili",
+   "matchedFrom": "birds_eye_chili",
+   "cuisineRegion": "Southeast_Asian",
+   "foodGroup": "Spice",
+   "atlasXY": [
+    6.3563,
+    8.4693
+   ],
+   "ms": 385
+  },
+  {
+   "id": "suantai",
+   "cn": "蒜薹",
+   "cat": "veg",
+   "epicure": "garlic_scape",
+   "matchedFrom": "garlic_scape",
+   "cuisineRegion": "universal",
+   "foodGroup": "Vegetable",
+   "atlasXY": [
+    6.2271,
+    8.839
+   ],
+   "ms": 390
+  },
+  {
+   "id": "shiyongyou",
+   "cn": "食用油",
+   "cat": "seasoning",
+   "epicure": "oil",
+   "matchedFrom": "oil",
+   "cuisineRegion": "universal",
+   "foodGroup": "Fat/Oil",
+   "atlasXY": [
+    6.4821,
+    8.0316
+   ],
+   "ms": 377
+  },
+  {
+   "id": "haidai",
+   "cn": "海带",
+   "cat": "veg",
+   "epicure": "kelp",
+   "matchedFrom": "kelp",
+   "cuisineRegion": "Japanese;East_Asian",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    5.768,
+    8.6439
+   ],
+   "ms": 367
+  },
+  {
+   "id": "xiebang",
+   "cn": "蟹棒",
+   "cat": "seafood",
+   "epicure": "crab_stick",
+   "matchedFrom": "crab_stick",
+   "cuisineRegion": "Japanese;East_Asian",
+   "foodGroup": "Seafood",
+   "atlasXY": [
+    5.7803,
+    7.9801
+   ],
+   "ms": 372
+  },
+  {
+   "id": "huangyou",
+   "cn": "黄油",
+   "cat": "dairy",
+   "epicure": "butter",
+   "matchedFrom": "butter",
+   "cuisineRegion": "universal",
+   "foodGroup": "Dairy",
+   "atlasXY": [
+    1.8238,
+    6.0831
+   ],
+   "ms": 396
+  }
+ ],
+ "unresolved": [
+  {
+   "id": "paigu",
+   "cn": "排骨",
+   "cat": "meat",
+   "tried": [
+    "pork_ribs",
+    "spare_ribs",
+    "ribs"
+   ]
+  },
+  {
+   "id": "fuzhu",
+   "cn": "腐竹",
+   "cat": "soy",
+   "tried": [
+    "dried_tofu_stick",
+    "tofu_stick",
+    "yuba"
+   ]
+  }
+ ]
+}
