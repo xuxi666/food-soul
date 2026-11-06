@@ -1187,13 +1187,81 @@
 }
 
 /* 食材目录：分类横滑条 + 加载更多 */
+/* 分类：可折叠面板（默认收起，点「全部分类」向下展开） */
 .ek-catbar {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
   margin-bottom: 6px;
-  scrollbar-width: thin;
+}
+
+.ek-cathead {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.ek-cathead:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-cathead.is-open {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-cathead__cur {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 10.5px;
+}
+
+.ek-cathead__arrow {
+  font-style: normal;
+  line-height: 1;
+  transition: transform 0.22s var(--ease);
+}
+
+.ek-cathead.is-open .ek-cathead__arrow {
+  transform: rotate(180deg);
+}
+
+/* 0fr → 1fr 的展开动画，高度随内容自适应，不遮挡下方列表 */
+.ek-catpanel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s var(--ease);
+}
+
+.ek-catpanel.is-open {
+  grid-template-rows: 1fr;
+}
+
+.ek-catpanel__inner {
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease);
+}
+
+.ek-catpanel.is-open .ek-catpanel__inner {
+  opacity: 1;
+}
+
+.ek-catgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 6px;
+  padding: 8px 0 2px;
 }
 
 .ek-catbar::-webkit-scrollbar {
@@ -1206,19 +1274,22 @@
 }
 
 .ek-cat {
-  flex: 0 0 auto;
-  padding: 4px 9px;
+  padding: 5px 8px;
   border-radius: 999px;
   border: 1px solid var(--color-border);
-  background: transparent;
+  background: var(--color-surface-soft);
   color: var(--color-text-secondary);
-  font-size: 11px;
-  white-space: nowrap;
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-align: center;
+  word-break: break-word;
   cursor: pointer;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease);
 }
 
 .ek-cat:hover {
   border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .ek-cat.is-on {
@@ -1251,13 +1322,81 @@
 }
 
 /* 食材目录：分类横滑条 + 加载更多 */
+/* 分类：可折叠面板（默认收起，点「全部分类」向下展开） */
 .ek-catbar {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
   margin-bottom: 6px;
-  scrollbar-width: thin;
+}
+
+.ek-cathead {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.ek-cathead:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-cathead.is-open {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.ek-cathead__cur {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 10.5px;
+}
+
+.ek-cathead__arrow {
+  font-style: normal;
+  line-height: 1;
+  transition: transform 0.22s var(--ease);
+}
+
+.ek-cathead.is-open .ek-cathead__arrow {
+  transform: rotate(180deg);
+}
+
+/* 0fr → 1fr 的展开动画，高度随内容自适应，不遮挡下方列表 */
+.ek-catpanel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s var(--ease);
+}
+
+.ek-catpanel.is-open {
+  grid-template-rows: 1fr;
+}
+
+.ek-catpanel__inner {
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease);
+}
+
+.ek-catpanel.is-open .ek-catpanel__inner {
+  opacity: 1;
+}
+
+.ek-catgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 6px;
+  padding: 8px 0 2px;
 }
 
 .ek-catbar::-webkit-scrollbar {
@@ -1270,19 +1409,22 @@
 }
 
 .ek-cat {
-  flex: 0 0 auto;
-  padding: 4px 9px;
+  padding: 5px 8px;
   border-radius: 999px;
   border: 1px solid var(--color-border);
-  background: transparent;
+  background: var(--color-surface-soft);
   color: var(--color-text-secondary);
-  font-size: 11px;
-  white-space: nowrap;
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-align: center;
+  word-break: break-word;
   cursor: pointer;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease);
 }
 
 .ek-cat:hover {
   border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .ek-cat.is-on {
@@ -1400,4 +1542,26 @@
   font-size: 10px;
   color: var(--color-border-strong);
   margin-left: 2px;
+}
+
+/* 分类展开时给食材库多一点高度，列表不至于被压扁 */
+.ek-catalog.is-catopen {
+  max-height: 780px;
+}
+
+@media (max-width: 1080px) {
+  .ek-catalog.is-catopen {
+    max-height: none;
+  }
+}
+
+/* 分类展开时给食材库多一点高度，列表不至于被压扁 */
+.ek-catalog.is-catopen {
+  max-height: 780px;
+}
+
+@media (max-width: 1080px) {
+  .ek-catalog.is-catopen {
+    max-height: none;
+  }
 }

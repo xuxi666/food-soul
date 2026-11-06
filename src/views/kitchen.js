@@ -79,6 +79,7 @@ export default {
     let pickedCard = 0;
     let advOpen = false;
     let activeTab = 'popular';
+    let catOpen = false;
     let searchText = '';
     let generating = false;
     let genError = '';
@@ -357,18 +358,44 @@ export default {
       }
     }
 
+    /** 分类面板：默认收起，点「全部分类」展开；分类数据全部来自接口，新增分类自动出现 */
     function paintCatBar() {
       clear(catBar);
-      const list = [{ id: 'all', name: '全部分类' }, ...(cat.stats?.categories || [])];
-      for (const c of list) {
-        catBar.append(
+      const list = cat.stats?.categories || [];
+      const current = cat.category === 'all' ? null : list.find((c) => c.id === cat.category);
+
+      // 头部：切换展开 / 收起（只控制展开，不改筛选）
+      catBar.append(
+        h(
+          'button',
+          {
+            class: `ek-cathead${catOpen ? ' is-open' : ''}`,
+            type: 'button',
+            'aria-expanded': catOpen ? 'true' : 'false',
+            onclick: () => {
+              catOpen = !catOpen;
+              paintCatBar();
+            },
+          },
+          h('span', { class: 'ek-cathead__text', text: `全部分类（${list.length}）` }),
+          current ? h('span', { class: 'ek-cathead__cur', text: current.name }) : null,
+          h('em', { class: 'ek-cathead__arrow', text: '⌄' })
+        )
+      );
+
+      // 展开面板：全部 + 各分类，自动换行
+      const grid = h('div', { class: 'ek-catgrid' });
+      const chips = [{ id: 'all', name: '全部', count: 0 }, ...list];
+      for (const c of chips) {
+        grid.append(
           h(
             'button',
             {
               class: `ek-cat${cat.category === c.id ? ' is-on' : ''}`,
               type: 'button',
-              title: c.count ? `${c.count} 种` : '',
+              title: c.count ? `${c.count} 种食材` : '不限分类',
               onclick: () => {
+                if (cat.category === c.id) return;
                 cat.category = c.id;
                 paintCatBar();
                 void loadCatalog({ reset: true });
@@ -378,6 +405,16 @@ export default {
           )
         );
       }
+
+      catBar.append(
+        h('div', { class: `ek-catpanel${catOpen ? ' is-open' : ''}` }, h('div', { class: 'ek-catpanel__inner' }, grid))
+      );
+
+      // 展开时把食材库整体放高一点，避免列表被压得太扁
+      document.querySelector('.ek-catalog')?.classList.toggle('is-catopen', catOpen);
+
+      // 展开时把食材库整体放高一点，避免列表被压得太扁
+      document.querySelector('.ek-catalog')?.classList.toggle('is-catopen', catOpen);
     }
 
     function paintCounts() {
