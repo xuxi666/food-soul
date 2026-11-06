@@ -384,7 +384,7 @@ export function queryCatalog(opts = {}) {
 
   // 按指定中文名批量取（起点推荐用），保持传入顺序
   if (Array.isArray(opts.names) && opts.names.length) {
-    const names = opts.names.map((n) => String(n).slice(0, 20)).slice(0, 20);
+    const names = opts.names.map((n) => String(n).slice(0, 20)).slice(0, 200);
     const ph = names.map(() => '?').join(',');
     const rows = db
       .prepare(`SELECT * FROM epicure_catalog WHERE active = 1 AND cn IN (${ph})`)
@@ -492,6 +492,66 @@ export function catalogCategories() {
     name: CATEGORY_CN[c] || c,
     count: map.get(c) || 0,
   }));
+}
+
+/** 中国常用食材候选池（只存中文名，运行时到目录里查） */
+let commonPoolCache = null;
+function loadCommonPool() {
+  if (commonPoolCache) return commonPoolCache;
+  try {
+    const file = path.join(process.cwd(), 'data', 'epicure-common-cn.json');
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const groups = Object.entries(raw).filter(([k]) => !k.startsWith('_'));
+    commonPoolCache = [...new Set(groups.flatMap(([, v]) => (Array.isArray(v) ? v : [])))];
+  } catch {
+    commonPoolCache = [];
+  }
+  return commonPoolCache;
+}
+
+/**
+ * 随机起点：从中国常用食材池里抽 count 个真实存在、且能算风味的食材。
+ * @returns {{items:Array, poolSize:number}}
+ */
+export function randomStarters(count = 10) {
+  const n = Math.min(12, Math.max(4, Number(count) || 10));
+  const names = loadCommonPool();
+  if (!names.length) return { items: [], poolSize: 0 };
+
+  const ph = names.map(() => '?').join(',');
+  const rows = db
+    .prepare(`SELECT * FROM epicure_catalog WHERE active = 1 AND mcp_ok = 1 AND cn IN (${ph})`)
+    .all(...names);
+
+  // 同一中文名多个官方条目时只留一条
+  const byCn = new Map();
+  for (const r of rows) if (!byCn.has(r.cn)) byCn.set(r.cn, r);
+  const pool = [...byCn.values()];
+
+  // Fisher–Yates 洗牌
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  // 尽量覆盖不同类别：按分类轮转取，避免一批全是调味料
+  const buckets = new Map();
+  for (const r of pool) {
+    if (!buckets.has(r.category)) buckets.set(r.category, []);
+    buckets.get(r.category).push(r);
+  }
+  const picked = [];
+  const keys = [...buckets.keys()];
+  let guard = 0;
+  while (picked.length < n && guard < 200) {
+    guard += 1;
+    for (const k of keys) {
+      const list = buckets.get(k);
+      if (list?.length && picked.length < n) picked.push(list.shift());
+    }
+  }
+
+  return { items: picked.map(mapRow), poolSize: pool.length };
 }
 
 /** 按名称/中文名找一条（供网络与生成用） */

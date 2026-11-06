@@ -8,7 +8,7 @@ import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
-import { queryCatalog, catalogStats, catalogCategories, syncCatalog, catalogReady } from './epicure-catalog.mjs';
+import { queryCatalog, catalogStats, catalogCategories, syncCatalog, catalogReady, randomStarters } from './epicure-catalog.mjs';
 import { resolveIngredient, resolveLoose as resolveLooseIngredient, analyze as epicureAnalyze, scoreDishes, runTool, autoAddIngredients } from './epicure-service.mjs';
 import { buildCreativePrompt, buildChatFlavorContext } from './epicure-prompts.mjs';
 import { validateCreative } from './epicure-recipe-schema.mjs';
@@ -1504,6 +1504,12 @@ export async function handleApi(req, res) {
         resultTotal: page.total,
         items: page.items,
       });
+    }
+    if (req.method === 'GET' && path === '/api/epicure/starters') {
+      // 空状态随机起点：从中国常用食材池里抽，每次请求都是一批新的
+      const count = Math.min(12, Math.max(4, Number(url.searchParams.get('count')) || 10));
+      const out = randomStarters(count);
+      return send(res, 200, { ok: true, ...out });
     }
     if (req.method === 'POST' && path === '/api/epicure/sync') {
       if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });

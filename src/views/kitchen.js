@@ -45,8 +45,8 @@ const COMPLEXITY = [
 
 const FLAVORS = ['咸鲜', '甜润'];
 
-/** 空状态起点：按顺序取，目录里查不到的自动跳过 */
-const STARTER_NAMES = ['辣椒', '阿魏', '土豆', '番茄', '洋葱', '姜', '蒜', '花生', '柠檬', '茉莉花茶'];
+/** 空状态随机起点：每次从中国常用食材池里抽一批 */
+const STARTER_COUNT = 10;
 
 /** 8 张快速开始卡：菜式 × 定位 的随机配对，分咸鲜/甜润两组 */
 function buildQuickStart() {
@@ -102,25 +102,36 @@ export default {
     const graph = createGraph(graphHost);
     const graphLoading = h('div', { class: 'ek-graphloading', hidden: true }, h('span', { class: 'ek-spinner' }), '正在计算风味关联…');
 
-    /* ---- 空状态引导 ---- */
+    /* ---- 空状态引导（随机起点） ---- */
     const starterBox = h('div', { class: 'ek-empty__chips' });
+    const refreshBtn = h('button', { class: 'ek-empty__refresh', type: 'button', title: '换一批常用食材' }, '换一批');
+    let startersLoaded = false;
+    let wasEmpty = true;
+
     const emptyBox = h(
       'div',
       { class: 'ek-empty' },
       h('p', { class: 'ek-empty__title', text: '选择一种食材。' }),
       h('p', { class: 'ek-empty__desc', text: 'Epicure 将揭示其最接近的风味关系以及值得探索的路径。' }),
-      h('p', { class: 'ek-empty__label', text: '以下是几个起点' }),
+      h('div', { class: 'ek-empty__labelrow' }, h('span', { class: 'ek-empty__label', text: '以下是几个起点' }), refreshBtn),
       starterBox
     );
 
     function paintEmpty() {
       const isEmpty = selected.length === 0;
       emptyBox.hidden = !isEmpty;
+      // 从「有食材」回到「空状态」时换一批，避免每次都看到同一组
+      if (isEmpty && !wasEmpty) void loadStarters(true);
+      wasEmpty = isEmpty;
     }
 
-    async function loadStarters() {
+    /** 抽一批随机起点；只换按钮，不动已选食材 */
+    async function loadStarters(force = false) {
+      if (startersLoaded && !force) return;
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = '换一批中…';
       try {
-        const res = await fetch(`/api/epicure/ingredients?names=${encodeURIComponent(STARTER_NAMES.join(','))}`);
+        const res = await fetch(`/api/epicure/starters?count=${STARTER_COUNT}`);
         const data = await res.json();
         const items = (data.items || []).filter((i) => i.display);
         clear(starterBox);
@@ -131,7 +142,7 @@ export default {
               {
                 class: 'ek-empty__chip',
                 type: 'button',
-                title: `${it.display} · ${it.categoryCn}${it.analyzable ? '' : ' · 暂无风味数据'}`,
+                title: `${it.display} · ${it.categoryCn}`,
                 onclick: () =>
                   addIngredient({
                     id: it.name,
@@ -147,10 +158,16 @@ export default {
           );
         }
         if (!items.length) starterBox.append(h('span', { class: 'ek-hint', text: '起点食材加载失败' }));
+        startersLoaded = true;
       } catch {
-        starterBox.append(h('span', { class: 'ek-hint', text: '起点食材加载失败' }));
+        if (!starterBox.childElementCount) starterBox.append(h('span', { class: 'ek-hint', text: '起点食材加载失败' }));
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = '换一批';
       }
     }
+
+    refreshBtn.addEventListener('click', () => void loadStarters(true));
     const statusLine = h('p', { class: 'ek-status', text: '选择食材后显示 Epicure 计算的真实关联' });
 
     graph.onPick((n) => {
@@ -1251,7 +1268,7 @@ export default {
 
     paintTabs2();
     paintEmpty();
-    void loadStarters();
+    void loadStarters(true);
     void loadCatalog({ reset: true });
 
     const onResize = () => graph.resize();
