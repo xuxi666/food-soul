@@ -42,8 +42,10 @@ function handleStatic(req, res) {
 
   // 运行时写入 public/ 的资源：上传图、AI 补全菜品图、菜谱配图
   // 这些目录在构建之后才会产生文件，dist 里没有，必须直接读 public/
-  const RUNTIME_PREFIXES = ['/uploads/', '/dishes/'];
-  if (RUNTIME_PREFIXES.some((p) => decoded.startsWith(p))) {
+  // 只有带扩展名的 /dishes/xxx.jpg 才当静态资源；/dishes/mapo-tofu 是页面路由，要交给 SPA 回退
+  const RUNTIME_PREFIXES = ['/uploads/'];
+  const isDishAsset = decoded.startsWith('/dishes/') && /\.[a-z0-9]{2,5}$/i.test(decoded);
+  if (RUNTIME_PREFIXES.some((p) => decoded.startsWith(p)) || isDishAsset) {
     const up = path.resolve(publicDir, '.' + decoded);
     if (up !== publicDir && !up.startsWith(publicDir + path.sep)) {
       res.statusCode = 403;
