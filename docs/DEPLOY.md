@@ -9,13 +9,27 @@ npm run ship -- -m "feat: 这次改了什么"
 
 ---
 
+## 0. 交接速览
+
+| 项目 | 值 |
+| --- | --- |
+| 线上地址 | <http://47.93.33.108/> |
+| 代码仓库 | <https://github.com/xuxi666/food-soul.git>（分支 `main`） |
+| 服务器 | `root@47.93.33.108:22`，应用目录 `/opt/food-soul` |
+| 进程 | pm2 名称 `food-soul`，Node 监听 `127.0.0.1:5190`，nginx 反代 80 端口 |
+| 部署私钥 | 本机 `~/.ssh/food_soul_deploy`（由 `.deploy.env` 的 `DEPLOY_KEY` 指定） |
+| 配置来源 | 本机 `.deploy.env`（不入库）是服务器地址的唯一事实来源 |
+| 最近校验 | 2026-11-07：本地 `HEAD`、服务器工作区、GitHub `main` 三者同为 `e2edecb`；构建 ✓、重启 ✓、健康检查 200、GitHub 已同步 |
+
+> 旧版本文档里出现过的 `39.106.251.146` 已不是本项目服务器：该地址 80 端口无响应、SSH 用部署密钥被拒。**一切以 `.deploy.env` 的 `DEPLOY_HOST` 为准**，换服务器只改这一行。
+
 ## 1. 三段式结构
 
 ```
 本机工作区 (F:\AIweb\美食1.0\aimeishi2.0)
    │  ① git commit + bundle 传输（SSH）
    ▼
-线上服务器 /opt/food-soul   39.106.251.146
+线上服务器 /opt/food-soul   47.93.33.108
    │  ② 部署钩子：构建 → pm2 重启 → 健康检查
    │  ③ git push origin main（部署密钥）
    ▼
@@ -32,11 +46,18 @@ GitHub xuxi666/food-soul
 | --- | --- |
 | `npm run ship -- -m "feat: xxx"` | 提交本地改动 → 发布到服务器（构建 + 重启）→ 同步 GitHub |
 | `npm run deploy` | 不提交，直接发布当前 HEAD（工作区有改动会中止） |
-| `npm run deploy:status` | 查看服务器上一次部署结果 |
+| `npm run deploy:status` | 查看服务器上一次部署结果，并打印线上地址 |
 | `npm run deploy:setup` | 首次接管服务器：建仓库 + 装钩子（幂等，可重复跑） |
-| `node scripts/ship.mjs --install-hook` | 只重装部署钩子 |
-| `node scripts/ship.mjs --github-setup` | 生成 GitHub 部署密钥并打印公钥 |
+| `npm run deploy:hook` | 只重装部署钩子 |
+| `npm run deploy:github` | 生成 GitHub 部署密钥并打印公钥 |
 | `node scripts/ship.mjs --via=git` | 改用 `git push deploy main` 传输（默认是 bundle + scp） |
+
+Windows 上如果 PowerShell 禁止运行 `npm.ps1`（报「禁止运行脚本」），用下面任一种写法绕过：
+
+```bat
+npm.cmd run ship -- -m "feat: xxx"
+ship.cmd -m "feat: xxx"
+```
 
 发布成功的输出长这样：
 
@@ -51,10 +72,10 @@ GitHub xuxi666/food-soul
 
 ## 3. 本机配置
 
-`.deploy.env`（**不入库**）：
+`.deploy.env`（**不入库**，`.gitignore` 已忽略）：
 
 ```ini
-DEPLOY_HOST=39.106.251.146
+DEPLOY_HOST=47.93.33.108
 DEPLOY_USER=root
 DEPLOY_PORT=22
 DEPLOY_APP=/opt/food-soul
@@ -62,7 +83,7 @@ DEPLOY_KEY=$HOME/.ssh/food_soul_deploy
 ```
 
 `DEPLOY_KEY` 指向服务器免密登录私钥。`ship.mjs` 会自动把 `deploy` 远程写成
-`ssh://root@39.106.251.146:22/opt/food-soul`，并把 `core.sshCommand` 指向这把私钥。
+`ssh://root@<DEPLOY_HOST>:<DEPLOY_PORT><DEPLOY_APP>`，并把本仓库的 `core.sshCommand` 指向这把私钥。
 
 ## 4. 服务器端机制
 
@@ -95,7 +116,7 @@ node scripts/ship.mjs --github-setup
 验证：
 
 ```bash
-ssh -i ~/.ssh/food_soul_deploy root@39.106.251.146 \
+ssh -i ~/.ssh/food_soul_deploy root@47.93.33.108 \
   "cd /opt/food-soul && GIT_SSH_COMMAND='ssh -o BatchMode=yes' git ls-remote origin main"
 ```
 
@@ -112,11 +133,12 @@ ssh -i ~/.ssh/food_soul_deploy root@39.106.251.146 \
 
 | 现象 | 处理 |
 | --- | --- |
-| `GnuTLS recv error` / `Failed to connect to github.com` | 服务器直连 GitHub 偶发中断，`bootstrap.sh` 已内置 4 次重试；部署钩子失败不影响线上，重跑 `npm run deploy` 即可补推 GitHub |
+| `GnuTLS recv error` / `Failed to connect to github.com` | 服务器直连 GitHub 偶发中断，钩子已内置 3 次重试；部署不会因此失败，重跑 `npm run deploy` 补推即可 |
 | `untracked working tree files would be overwritten` | 服务器上存在与仓库同名的未跟踪文件，先登录服务器 `rm` 掉那个文件再发布 |
-| 部署成功但 GitHub 显示 `鉴权失败` | 部署密钥未添加或未勾选 write access，重跑 `--github-setup` 后到 GitHub 添加 |
+| 部署成功但 GitHub 显示「鉴权失败」 | 部署密钥未添加或未勾选 write access，重跑 `npm run deploy:github` 后到 GitHub 添加 |
 | 构建失败 | 看服务器 `.deploy/build.log`；本地先 `npm run build` 复现 |
 | 页面没变化 | 浏览器缓存；确认 `dist/assets/index-*.js` 的 hash 变了 |
+| 换服务器 IP | 只改本机 `.deploy.env` 的 `DEPLOY_HOST`，再跑一次 `npm run deploy:setup`（幂等） |
 | 想回滚 | 本地 `git revert` 后重新 `npm run ship`；不要在服务器上改代码 |
 
 ## 6. 安全约定

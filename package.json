@@ -8,7 +8,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "ship": "node scripts/ship.mjs",
+    "deploy": "node scripts/ship.mjs --push-only",
+    "deploy:status": "node scripts/ship.mjs --status",
+    "deploy:setup": "node scripts/ship.mjs --bootstrap",
+    "deploy:hook": "node scripts/ship.mjs --install-hook",
+    "deploy:github": "node scripts/ship.mjs --github-setup"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1",
