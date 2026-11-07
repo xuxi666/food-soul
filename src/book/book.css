@@ -335,24 +335,9 @@ body.is-book {
   -webkit-transform-style: preserve-3d;
 }
 
-/* 页码 */
+/* 页码：界面不再显示（保留空结构以便旧样式引用不报错，元素本身已从 shell 移除） */
 .bk-folio {
-  position: absolute;
-  bottom: 16px;
-  z-index: 620;
-  font-size: 10.5px;
-  letter-spacing: 0.18em;
-  color: var(--color-text-muted);
-  pointer-events: none;
-  transition: opacity 220ms ease;
-}
-
-.bk-folio--left {
-  left: 34px;
-}
-
-.bk-folio--right {
-  right: 34px;
+  display: none;
 }
 
 /* 暂存区：整章模块先按「一页纸」的尺寸在这里排版，再切成左右两页 */
@@ -528,9 +513,44 @@ body.is-book {
 /* 定制双页（菜系 / 口味 / 视频）自己已经排好版，纸面只当画框 */
 /* 满版排版的页面也给纸边留出安全区：内容不贴边、不压到装帧框 */
 .bk-pageface--bare .bk-pageface__inner {
-  padding: 10px;
+  padding: 14px;
   min-height: 0;
   height: 100%;
+}
+
+/* 图鉴这类「直接贴在纸面上」的定制页：同样留出纸边安全区，
+   图片与卡片不贴到边框、不压中缝 */
+.bk-sheet__face > .atlas-page {
+  padding: 16px;
+}
+
+/* ---------- 纸面内容：不再铺「白色网页底板」 ---------- */
+/*
+ * 书里的「白」统一成纸色（#FFFCF5），大面板改成半透明暖白，
+ * 让纸张本身的米白与纹理透上来 —— 内容是印在纸上的，不是浮在纸上的一张网页。
+ */
+.bk-stage {
+  --color-surface: #fffcf5;
+  --color-surface-soft: #fdf6ea;
+  --color-surface-hover: #fbf1e0;
+}
+
+.bk-pageface .post,
+.bk-pageface .community-note,
+.bk-pageface .composer-box,
+.bk-pageface .community-stats,
+.bk-pageface .community-tips,
+.bk-pageface .tool-form,
+.bk-pageface .ek-card,
+.bk-pageface .recipe-result,
+.bk-pageface .empty-state,
+.bk-pageface .catb__lead,
+.bk-pageface .bk-card,
+.bk-pageface .account-card,
+.bk-pageface .admin-card {
+  background: rgba(255, 252, 245, 0.6);
+  border-color: rgba(200, 166, 108, 0.34);
+  box-shadow: none;
 }
 
 .bk-pageface--bare .bk-pageface__inner > .vid__page,
@@ -1107,49 +1127,7 @@ body.is-book {
   color: var(--color-primary);
 }
 
-/* ---------- 页脚翻页按钮 ---------- */
-.bk-turn {
-  position: absolute;
-  bottom: 20px;
-  z-index: 70;
-  padding: 7px 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(200, 166, 108, 0.55);
-  background: rgba(255, 253, 246, 0.92);
-  color: #7a5330;
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 300ms ease, transform 180ms var(--ease), border-color 180ms var(--ease);
-}
-
-.bk-stage.is-open .bk-turn {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.bk-turn:hover:not(:disabled) {
-  border-color: #c2452d;
-  color: #c2452d;
-  transform: translateY(-1px);
-}
-
-.bk-turn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.bk-turn--prev {
-  left: 2px;
-  bottom: -42px;
-}
-
-.bk-turn--next {
-  right: 2px;
-  bottom: -42px;
-}
+/* 页脚「上一页 / 下一页」按钮已移除：翻页走书页本身与书签 */
 
 /* 书页内的模块容器 */
 .bk-content .page {
@@ -1556,16 +1534,7 @@ body.is-book {
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
-/* 翻页按钮落在书内下沿 */
-.bk-stage.is-reading .bk-turn {
-  bottom: 6px;
-  padding: 5px 13px;
-  font-size: 11px;
-  background: rgba(255, 253, 246, 0.92);
-  box-shadow: 0 2px 8px rgba(120, 82, 56, 0.1);
-}
-
-/* 印章让开右侧页码 */
+/* 印章落在右上，不再需要避开页码与翻页按钮 */
 .bk-stage.is-reading .bk-tools {
   top: 10px;
   right: 12px;
@@ -1576,30 +1545,4 @@ body.is-book {
   height: 34px;
   font-size: 14px;
   background: rgba(255, 253, 246, 0.9);
-}
-
-
-/* 阅读态细节：翻页按钮避开小精灵，页码避开按钮 */
-.bk-stage.is-reading .bk-turn--next {
-  right: 92px;
-}
-
-.bk-stage.is-reading .bk-folio--left {
-  left: 110px;
-}
-
-.bk-stage.is-reading .bk-folio--right {
-  right: 8px;
-}
-
-/* 单页模式：只有一个页码，放到底部居中，避开翻页按钮与小精灵 */
-.bk-stage.is-single.is-reading .bk-folio--left {
-  display: none;
-}
-
-.bk-stage.is-single.is-reading .bk-folio--right {
-  left: 50%;
-  right: auto;
-  bottom: 38px;
-  transform: translateX(-50%);
 }

@@ -181,13 +181,6 @@ export function createAtlas({ onChange } = {}) {
     clear(page.grid);
     items.forEach((d) => page.grid.append(card(d)));
     if (!items.length) page.grid.append(h('p', { class: 'atlas__empty', text: '没有符合条件的菜' }));
-    if (page.foot) {
-      clear(page.foot);
-      page.foot.append(
-        h('span', { class: 'atlas__pagenum', text: `第 ${page.idx + 1} 页 · 共 ${pageCount()} 页` }),
-        h('span', { class: 'atlas__pagetip', text: filterLine() })
-      );
-    }
   }
 
   /** 生成第 idx 页的纸面（side: 'left' | 'right'） */
@@ -203,14 +196,9 @@ export function createAtlas({ onChange } = {}) {
     if (side === 'left' && idx === 0) {
       filterBox = h('div', { class: 'atlas-page__filter' });
     }
-    const head = h(
-      'div',
-      { class: 'atlas-page__head' },
-      h('p', { class: 'atlas-page__kicker', text: side === 'left' ? '中国美食图鉴 · 左页' : '中国美食图鉴 · 右页' })
-    );
-    const foot = h('div', { class: 'atlas-page__foot' });
-    const el = h('div', { class: 'atlas-page' }, head, filterBox, grid, foot);
-    const pageRec = { el, grid, foot, idx, filterBox };
+    // 纸页上不再有页眉 / 页脚小字：四角只留纸张边框，页码与「第几页」全部去掉
+    const el = h('div', { class: 'atlas-page' }, filterBox, grid);
+    const pageRec = { el, grid, idx, filterBox };
     pages.set(key, pageRec);
     if (filterBox) paintFilters(filterBox);
     paintPage(pageRec);

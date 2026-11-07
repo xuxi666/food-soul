@@ -152,7 +152,7 @@ export function mountCategory(el, kind, id) {
     clear(listBox);
     slice.forEach((d) => listBox.append(card(d)));
     if (!slice.length) listBox.append(h('p', { class: 'catb__empty', text: '这个分类暂时没有菜' }));
-    countLine.textContent = `共 ${list.length} 道 · 第 ${state.page + 1} / ${pages} 页`;
+    countLine.textContent = `共 ${list.length} 道`;
     clear(pager);
     if (pages > 1) {
       pager.append(

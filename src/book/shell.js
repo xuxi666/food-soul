@@ -54,9 +54,8 @@ export function createShell(root) {
   const pageR = h('section', { class: 'bk-page bk-page--right', 'aria-label': '右页' });
 
   // 纸张栈的宿主：透视挂在这里，四张纸都在里面绕书脊转
-  const folioL = h('span', { class: 'bk-folio bk-folio--left' });
-  const folioR = h('span', { class: 'bk-folio bk-folio--right' });
-  const content = h('div', { class: 'bk-content' }, folioL, folioR);
+  // 页码不再显示给用户（内部页码仍由 pages.js 维护，供书签定位与翻页使用）
+  const content = h('div', { class: 'bk-content' });
 
   // 暂存区：整章模块先在这里按「一页纸」的尺寸排版，再切成左右两页
   const staging = h('div', { class: 'bk-staging', 'aria-hidden': 'true' });
@@ -95,10 +94,7 @@ export function createShell(root) {
   );
   const tools = h('div', { class: 'bk-tools' }, sealBtn, sealPanel);
 
-  /* ---------- 页脚翻页 ---------- */
-  const prevBtn = h('button', { class: 'bk-turn bk-turn--prev', type: 'button', 'aria-label': '上一页' }, '‹ 上一页');
-  const nextBtn = h('button', { class: 'bk-turn bk-turn--next', type: 'button', 'aria-label': '下一页' }, '下一页 ›');
-
+  /* ---------- 合上画册 ---------- */
   const backBtn = h(
     'button',
     { class: 'bk-back', type: 'button', 'aria-label': '合上画册' },
@@ -106,12 +102,9 @@ export function createShell(root) {
     h('span', { class: 'bk-back__label', text: '合上' })
   );
 
-  // 翻页按钮放进相机内，随书本一起位移、缩放
-  camera.append(prevBtn, nextBtn);
-
   const stage = h(
     'div',
-    { class: 'bk-stage', 'data-book-build': 'sheet-2.1' },
+    { class: 'bk-stage', 'data-book-build': 'sheet-2.2' },
     h('div', { class: 'bk-ambient', 'aria-hidden': 'true' }),
     h('div', { class: 'bk-mountains', 'aria-hidden': 'true' }),
     camera,
@@ -132,22 +125,17 @@ export function createShell(root) {
     content,
     cover,
     staging,
-    folios: { left: folioL, right: folioR },
     attachMarks,
     get marks() {
       return markApi;
     },
     sealBtn,
     sealPanel,
-    prevBtn,
-    nextBtn,
     backBtn,
     setActive(id) {
       markApi?.setActive(id);
     },
-    setFolio(left, right) {
-      folioL.textContent = left || '';
-      folioR.textContent = right || '';
-    },
+    /* 页码已不显示：保留空实现，免得旧调用点报错（内部索引在 pages.js） */
+    setFolio() {},
   };
 }

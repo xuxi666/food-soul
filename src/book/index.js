@@ -140,7 +140,7 @@ export function initBook({ root }) {
       h('h1', { class: 'bk-titlepage__title', text: '食有灵' }),
       h('p', { class: 'bk-titlepage__sub', text: '中国美食典藏 · 扉页' }),
       h('span', { class: 'bk-titlepage__rule' }),
-      h('p', { class: 'bk-titlepage__note', text: '左页书签翻章 · 页脚翻页' })
+      h('p', { class: 'bk-titlepage__note', text: '左页书签翻章' })
     )
   );
 
@@ -328,24 +328,9 @@ export function initBook({ root }) {
     return true;
   }
 
-  /* ---------------- 页脚 / 页码 / 导航条 ---------------- */
-  const pad2 = (n) => String(n).padStart(2, '0');
-
-  function chapterLabelOfPage(n) {
-    if (inner) return '菜品详情';
-    if (n <= 1) return '';
-    const list = book.spreads();
-    const sp = list[Math.floor((n - 2) / 2)];
-    if (!sp) return '';
-    const ch = chapterById(sp.chapter);
-    return ch ? ch.label : '';
-  }
-
-  function folioOfPage(n) {
-    const label = chapterLabelOfPage(n);
-    if (!label || n < 2) return '';
-    return `${label} · P${pad2(n)}`;
-  }
+  /* ---------------- 页码：只保留内部索引，界面上不再显示 ---------------- */
+  // 页码仍由 pages.js / position 维护，用于书签锚点与翻页定位；
+  // 纸面、页脚、四角都不再渲染任何页码文字。
 
   function syncChrome() {
     const list = book.spreads();
@@ -353,13 +338,8 @@ export function initBook({ root }) {
     shell.content.dataset.chapter = chapterId;
     currentKey = inner ? 'dishDetail' : chapterId;
 
-    const [l, r] = pagesHere();
-    if (position.single) shell.setFolio('', folioOfPage(position.value));
-    else shell.setFolio(folioOfPage(l), folioOfPage(r));
-
     shell.setActive(chapterId);
     updateBackLabel();
-    updatePager();
 
     // 地址跟着书页走：翻到哪一章，地址就是那一章
     const ch = chapterById(chapterId);
@@ -378,17 +358,6 @@ export function initBook({ root }) {
       return cur;
     }
     return ch.href;
-  }
-
-  function updatePager() {
-    const total = book.totalSpreads();
-    if (position.single) {
-      shell.prevBtn.disabled = position.value <= 2;
-      shell.nextBtn.disabled = position.value >= maxPage();
-      return;
-    }
-    shell.prevBtn.disabled = position.value <= 0;
-    shell.nextBtn.disabled = position.value >= total - 1;
   }
 
   function updateBackLabel() {
@@ -438,7 +407,6 @@ export function initBook({ root }) {
 
       // 页码在书页展开的瞬间就是目标页的
       const [left, right] = pagesHere();
-      shell.setFolio(position.single ? '' : folioOfPage(left), folioOfPage(right));
 
       // 让刚贴上去的页面先完成一次布局，动画第一帧不会卡
       await wait(32);
@@ -535,9 +503,6 @@ export function initBook({ root }) {
       busy = false;
     }
   }
-
-  shell.prevBtn.addEventListener('click', () => void turn('prev'));
-  shell.nextBtn.addEventListener('click', () => void turn('next'));
 
   /* ---------------- 章节跳转（书签） ---------------- */
 
@@ -701,7 +666,7 @@ export function initBook({ root }) {
   /** 首开预热：书签、返回键、翻页键平时隐藏，第一次点封面时才在 760ms 那一刻上屏 */
   function warmOpenChrome() {
     if (mode !== 'closed' || busy || phase !== 'CLOSED_TILTED') return;
-    const els = [...shell.el.querySelectorAll('.bk-marks, .bk-back, .bk-turn')];
+    const els = [...shell.el.querySelectorAll('.bk-marks, .bk-back')];
     if (!els.length) return;
     shell.el.classList.add('is-open');
     for (const el of els) el.style.opacity = '0.01';
