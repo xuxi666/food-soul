@@ -148,6 +148,51 @@ export function createSheets(host) {
   }
 
   /**
+   * 开书用：把四张纸先全部合回 0°（书合着，全被封面挡着，看不见）。
+   * 之后 fan() 再把它们各自展开到应在的角度，书签跟着纸一起运动，
+   * 不会出现「书已经打开、书签才跳到左边」的瞬移。
+   */
+  function collapse() {
+    for (const s of [A0, A1, B, C]) applyAngle(s, 0);
+  }
+
+  /**
+   * 展开：四张纸从当前角度同时转到摊开后的角度（a0/a1 → -180°，b/c → 0°）。
+   * 逐帧驱动，hooks.onAngle 每帧回调，书签据此跟着自己的纸走。
+   */
+  async function fan(ms = 620) {
+    if (busy) return false;
+    busy = true;
+    const sheets = [A0, A1, B, C];
+    const from = sheets.map((s) => s.angle);
+    const to = [-180, -180, 0, 0];
+    try {
+      await new Promise((done) => {
+        const t0 = performance.now();
+        const dur = Math.max(200, ms);
+        const step = (now) => {
+          const p = Math.min(1, (now - t0) / dur);
+          const k = ease(p);
+          sheets.forEach((s, i) => applyAngle(s, from[i] + (to[i] - from[i]) * k));
+          hooks.onAngle?.();
+          if (p < 1) requestAnimationFrame(step);
+          else done();
+        };
+        requestAnimationFrame(step);
+      });
+      setTurned(A0, true);
+      setTurned(A1, true);
+      setTurned(B, false);
+      setTurned(C, false);
+      setZ();
+      return true;
+    } finally {
+      busy = false;
+      hooks.onAngle?.();
+    }
+  }
+
+  /**
    * 翻一页。动画期间只有一张纸在动，它的正反面内容在开始前就已经贴好。
    * @returns {Promise<boolean>} 是否真的翻动了
    */
@@ -247,6 +292,8 @@ export function createSheets(host) {
   return {
     settle,
     turn,
+    collapse,
+    fan,
     inspect,
     hooks,
     /** 当前四个槽位对应的纸（角色会互换，所以每次现取） */

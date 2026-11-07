@@ -106,6 +106,8 @@ export function initBook({ root }) {
   const CHROME_MS = 760;
   let phase = 'CLOSED_TILTED';
   let bookStateClass = 'bk-book--closed';
+  /* 开书动画进入「页已摊开」阶段后为 true：书签据此落到各自绑定的纸张上 */
+  let marksOpen = false;
   function setBookState(cls) {
     bookStateClass = cls;
     shell.book.className = `bk-book ${cls}`;
@@ -198,8 +200,8 @@ export function initBook({ root }) {
     const onSheet = pageSheetLookup();
     const current = position.value;
     // 合上 / 正在开合：所有书签都在右侧书口；只有真正摊开（open/reading）才按纸张分左右
-    const spread = bookStateClass === 'bk-book--open' || bookStateClass === 'bk-book--reading';
-    const closed = !spread || mode === 'closed';
+    const spread = marksOpen || bookStateClass === 'bk-book--open' || bookStateClass === 'bk-book--reading';
+    const closed = !spread || (mode === 'closed' && !marksOpen);
     marksApi.sync({
       closed,
       single: !!position.single,
@@ -407,26 +409,57 @@ export function initBook({ root }) {
     }
   });
 
-  async function openFirst() {
+  async function openFirst(targetSpread) {
     if (phase !== 'CLOSED_TILTED' || busy) return;
     busy = true;
     try {
-      // 先把页码定下来：书页展开的瞬间就有页脚
-      const startSpread = book.spreadOfPath(location.pathname || '/dishes');
-      const first = startSpread * 2 + 2;
-      shell.setFolio(folioOfPage(first), folioOfPage(first + 1));
+      const single = lastBox.mode === 'single';
+      const path = location.pathname || '/dishes';
+      const innerTarget = INNER_KEYS.has(moduleOf(path).key);
+      /*
+       * 预定位：先把纸张摆到目标跨页，再开书。
+       * 这样封面一掀开，看到的就是目标章节那一跨页的正反面内容，
+       * 开书过程中不需要再翻一次、也不会先露出首页。
+       */
+      const spread = typeof targetSpread === 'number' ? targetSpread : book.spreadOfPath(path);
+      const value = single ? spread * 2 + 2 : spread;
+      void book.disposeInner(inner);
+      inner = null;
+      position = { single, value };
+      await render({});
 
+      /*
+       * 纸张先全部合回 0°：书合着，全被封面挡着，看不见。
+       * 接着 fan() 在开书动画期间把它们各自旋转到应在的角度 ——
+       * 书签绑在纸上，于是跟着自己的纸从右书口一路转到目的地，
+       * 全程没有「书打开了书签才跳过去」的瞬移。
+       */
+      sheets.collapse();
+
+      // 页码在书页展开的瞬间就是目标页的
+      const [left, right] = pagesHere();
+      shell.setFolio(position.single ? '' : folioOfPage(left), folioOfPage(right));
+
+      // 让刚贴上去的页面先完成一次布局，动画第一帧不会卡
+      await wait(32);
       setPhase('OPENING');
       setBookState('bk-book--opening');
+      marksOpen = true;
+      syncMarks();
+      const fanning = sheets.fan(OPEN_MS - 160);
       await wait(CHROME_MS);
       blendShadowTo(1, 520);
       shell.el.classList.add('is-open');
       setPhase('EXPANDING');
-      await wait(OPEN_MS - CHROME_MS);
+      await wait(Math.max(0, OPEN_MS - CHROME_MS - 80));
+      await fanning;
       setPhase('READING');
       setBookState('bk-book--reading');
       mode = 'open';
-      await showPath(location.pathname || '/dishes', { flip: false });
+      syncChrome();
+      syncMarks();
+      // 内页（菜品详情 / 后台等）仍然走模块页
+      if (innerTarget) await showPath(path, { flip: false });
     } finally {
       busy = false;
     }
@@ -509,22 +542,38 @@ export function initBook({ root }) {
   /* ---------------- 章节跳转（书签） ---------------- */
 
   /**
-   * 书签点击：先把书翻开（若合着），再一张一张真实地翻过去。
-   * 距离近就整段翻；距离远就先翻两张真纸、剩下的直接落位（画册快速翻章的感觉），
-   * 不会出现「书已经翻完、书签还停在原处」的错位。
+   * 书签点击：
+   * - 书合着 → 先算出这个书签绑定的章节跨页，把它预先摆成纸张内容，再执行「一次」开书动画；
+   *   动画结束时书就停在目标章节上，不经过首页，也不再有第二次翻页。
+   * - 书已经打开 → 按真实纸张一页一页翻过去（书签跟着各自的纸张动），
+   *   距离超出纸页栈范围时再落位。
    */
+  /* 动画途中又点了别的书签：记下最后一个，当前这段动画走完再接着去（不会竞态、不会丢点击） */
+  let pendingChapter = null;
+  function flushPendingChapter() {
+    const id = pendingChapter;
+    pendingChapter = null;
+    if (!id) return;
+    setTimeout(() => void openChapter(id), 0);
+  }
+
   async function openChapter(id) {
     const chapter = chapterById(id);
     if (!chapter) return;
+    if (busy) { pendingChapter = id; return; }
+    const target = book.spreadOfChapter(id);
+
     if (mode === 'closed') {
-      await openFirst();
+      if (phase !== 'CLOSED_TILTED') return;
+      await openFirst(target);
       if (mode !== 'open') return;
+      history.replaceState({ chapter: id }, '', location.pathname.startsWith(chapter.href) ? location.href : chapter.href);
+      flushPendingChapter();
+      return;
     }
-    if (busy) return;
     busy = true;
     try {
       const single = lastBox.mode === 'single';
-      const target = book.spreadOfChapter(id);
       const targetValue = single ? target * 2 + 2 : target;
       void book.disposeInner(inner);
       inner = null;
@@ -545,6 +594,7 @@ export function initBook({ root }) {
       history.pushState({ chapter: id }, '', location.pathname.startsWith(chapter.href) ? location.href : chapter.href);
     } finally {
       busy = false;
+      flushPendingChapter();
     }
   }
 
@@ -557,6 +607,9 @@ export function initBook({ root }) {
     try {
       setPhase('SHRINKING');
       setBookState('bk-book--open');
+      pendingChapter = null;
+      marksOpen = false;
+      syncMarks();
       await wait(520);
       setPhase('CLOSING');
       blendShadowTo(0, 520);

@@ -778,7 +778,7 @@ body.is-book {
 /* 跳章 / 开合这类「整本瞬间变化」：书签在 320ms 内摆到新的一侧。
  * 翻页动画期间不加过渡（JS 在 busy 时关掉 is-settling），保证逐帧跟手、不飘。 */
 .bk-marks.is-settling .bk-mark-rig {
-  transition: transform 320ms var(--ease);
+  transition: transform 240ms var(--ease);
 }
 
 .bk-mark {
