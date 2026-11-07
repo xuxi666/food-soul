@@ -15,10 +15,13 @@ const RATIO = {
   single: { min: 1.05, max: 1.8 },
 };
 
-/** 四周留白：按视口比例给，最少 8px */
-function padding(vw, vh) {
+/** 右侧书口要留出书签露出的位置（书签不压内容、不出屏） */
+const TAB_ROOM = { spread: 48, single: 34 };
+
+/** 四周留白：按视口比例给，最少 8px；右侧再留出书签露出的宽度 */
+function padding(vw, vh, mode = 'spread') {
   return {
-    x: Math.max(8, Math.round(vw * 0.02)),
+    x: Math.max(8, Math.round(vw * 0.02)) + TAB_ROOM[mode],
     y: Math.max(8, Math.round(vh * 0.03)),
   };
 }
@@ -39,7 +42,7 @@ export function computeLayout() {
   // 手机竖屏 / 窄屏走单页；横屏但够宽（≥720）仍用双页，避免书被压成一条
   const portraitNarrow = vw < BREAKPOINT && vw <= vh;
   const mode = vw >= BREAKPOINT || (!portraitNarrow && vw >= 720) ? 'spread' : 'single';
-  const pad = padding(vw, vh);
+  const pad = padding(vw, vh, mode);
 
   let w = Math.max(200, vw - pad.x * 2);
   let h = Math.max(160, vh - pad.y * 2);

@@ -1,6 +1,6 @@
-/* ============================================
-   食有灵 · 典藏画册外壳
-   暖米白纸 + 淡金细线 + 朱红章节标记
+﻿/* ============================================
+   椋熸湁鐏?路 鍏歌棌鐢诲唽澶栧３
+   鏆栫背鐧界焊 + 娣￠噾缁嗙嚎 + 鏈辩孩绔犺妭鏍囪
    ============================================ */
 
 body.is-book {
@@ -24,7 +24,7 @@ body.is-book {
   -webkit-user-select: none;
 }
 
-/* 背景柔光与远山，沿用站点米白基调 */
+/* 鑳屾櫙鏌斿厜涓庤繙灞憋紝娌跨敤绔欑偣绫崇櫧鍩鸿皟 */
 .bk-ambient {
   position: absolute;
   inset: 0;
@@ -49,47 +49,42 @@ body.is-book {
   filter: blur(1px);
 }
 
-/* ---------- 镜头 ---------- */
+/* ---------- 闀滃ご ---------- */
 .bk-camera {
   position: relative;
   transform: none;
   transform-origin: center center;
 }
 
-/* ---------- 书 ---------- */
+/* ---------- 涔?---------- */
 .bk-book {
   --closed-tx: calc(var(--closed-scale, 0.52) * -25%);
   position: relative;
   width: var(--book-w, 1100px);
   height: var(--book-h, 720px);
   transform-style: preserve-3d;
-  /* 合书/回退用的过渡；开书走下面那条 keyframes，不依赖中途切 class */
+  /* 鍚堜功/鍥為€€鐢ㄧ殑杩囨浮锛涘紑涔﹁蛋涓嬮潰閭ｆ潯 keyframes锛屼笉渚濊禆涓€斿垏 class */
   transition: transform 560ms cubic-bezier(0.25, 0.7, 0.3, 1);
   will-change: transform;
 }
 
-/* 合上：左移让封面居中，顺时针倾斜 15°，并缩到小书尺寸 */
+/* 鍚堜笂锛氬乏绉昏灏侀潰灞呬腑锛岄『鏃堕拡鍊炬枩 15掳锛屽苟缂╁埌灏忎功灏哄 */
 .bk-book--closed {
   transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
 }
 
-/* 回正：保持小书尺寸，只把 15° 收回 0° */
+/* 鍥炴锛氫繚鎸佸皬涔﹀昂瀵革紝鍙妸 15掳 鏀跺洖 0掳 */
 .bk-book--straight {
   transform: translateX(var(--closed-tx)) rotateZ(0deg) scale(var(--closed-scale, 0.52));
 }
 
-/* 展开：双页露出，略大于小书 */
+/* 灞曞紑锛氬弻椤甸湶鍑猴紝鐣ュぇ浜庡皬涔?*/
 .bk-book--open {
   transform: translateX(0) rotateZ(0deg) scale(var(--open-scale, 0.66));
 }
 
 /*
- * 开书：一条时间轴跑完整段。
- * 0–58%（约 754ms）15° → 0°，同时 0.52 → 0.70；
- * 58–100%（约 546ms）继续放大到 1，接上"书页铺满视口"。
- * 回正和放大写在同一条 @keyframes 里，过程不需要切换 class，
- * 所以不会出现"回正完了停一下再放大"的空档。
- */
+ * 寮€涔︼細涓€鏉℃椂闂磋酱璺戝畬鏁存銆? * 0鈥?8%锛堢害 754ms锛?5掳 鈫?0掳锛屽悓鏃?0.52 鈫?0.70锛? * 58鈥?00%锛堢害 546ms锛夌户缁斁澶у埌 1锛屾帴涓?涔﹂〉閾烘弧瑙嗗彛"銆? * 鍥炴鍜屾斁澶у啓鍦ㄥ悓涓€鏉?@keyframes 閲岋紝杩囩▼涓嶉渶瑕佸垏鎹?class锛? * 鎵€浠ヤ笉浼氬嚭鐜?鍥炴瀹屼簡鍋滀竴涓嬪啀鏀惧ぇ"鐨勭┖妗ｃ€? */
 @keyframes bk-book-open {
   0% {
     transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
@@ -106,12 +101,12 @@ body.is-book {
   animation: bk-book-open 1300ms cubic-bezier(0.4, 0.05, 0.2, 1) forwards;
 }
 
-/* 阅读：书页本身放大到铺满视口（展开动画收尾时切过来，几何完全一致，不会跳） */
+/* 闃呰锛氫功椤垫湰韬斁澶у埌閾烘弧瑙嗗彛锛堝睍寮€鍔ㄧ敾鏀跺熬鏃跺垏杩囨潵锛屽嚑浣曞畬鍏ㄤ竴鑷达紝涓嶄細璺筹級 */
 .bk-book--reading {
   transform: translateX(0) rotateZ(0deg) scale(1);
 }
 
-/* 合上时只留封面：左页、中缝、内容层淡出 */
+/* 鍚堜笂鏃跺彧鐣欏皝闈細宸﹂〉銆佷腑缂濄€佸唴瀹瑰眰娣″嚭 */
 .bk-page--left,
 .bk-gutter,
 .bk-content {
@@ -128,7 +123,7 @@ body.is-book {
   pointer-events: none;
 }
 
-/* 掀封面的同时书页从下面显出来：晚 120ms 淡入，避免"书还没开、左页先亮" */
+/* 鎺€灏侀潰鐨勫悓鏃朵功椤典粠涓嬮潰鏄惧嚭鏉ワ細鏅?120ms 娣″叆锛岄伩鍏?涔﹁繕娌″紑銆佸乏椤靛厛浜? */
 .bk-book--opening .bk-page--left,
 .bk-book--opening .bk-gutter,
 .bk-book--opening .bk-content {
@@ -136,7 +131,7 @@ body.is-book {
   transition: opacity 440ms ease 120ms;
 }
 
-/* 合书时反过来：等封面快盖住了再把书页收走，不出现空书页闪一下 */
+/* 鍚堜功鏃跺弽杩囨潵锛氱瓑灏侀潰蹇洊浣忎簡鍐嶆妸涔﹂〉鏀惰蛋锛屼笉鍑虹幇绌轰功椤甸棯涓€涓?*/
 .bk-book--straight .bk-page--left,
 .bk-book--straight .bk-gutter,
 .bk-book--straight .bk-content {
@@ -144,12 +139,11 @@ body.is-book {
 }
 
 /*
- * ---------- 环境阴影（独立层） ----------
- * 与 .bk-book 是兄弟节点、位于书本之下，由 JS 按「可见物体」的包围盒摆放：
- *   - 只接收平移 + 尺寸，没有任何 rotateZ
- *   - 书合上倾斜 15° 时，影子仍横铺在背景上
- * 两层：接触阴影（贴书底、范围小、略实）
- *       环境投影（范围大、模糊、很淡，表现环境光）
+ * ---------- 鐜闃村奖锛堢嫭绔嬪眰锛?----------
+ * 涓?.bk-book 鏄厔寮熻妭鐐广€佷綅浜庝功鏈箣涓嬶紝鐢?JS 鎸夈€屽彲瑙佺墿浣撱€嶇殑鍖呭洿鐩掓憜鏀撅細
+ *   - 鍙帴鏀跺钩绉?+ 灏哄锛屾病鏈変换浣?rotateZ
+ *   - 涔﹀悎涓婂€炬枩 15掳 鏃讹紝褰卞瓙浠嶆í閾哄湪鑳屾櫙涓? * 涓ゅ眰锛氭帴瑙﹂槾褰憋紙璐翠功搴曘€佽寖鍥村皬銆佺暐瀹烇級
+ *       鐜鎶曞奖锛堣寖鍥村ぇ銆佹ā绯娿€佸緢娣★紝琛ㄧ幇鐜鍏夛級
  */
 .bk-shadow {
   position: absolute;
@@ -161,18 +155,12 @@ body.is-book {
   transform: none;
   transition: opacity 420ms ease;
   /*
-   * 不要在这里写 will-change: left, top, width, height。
-   * 阴影每帧都在改这四个值（跟着书走），一旦声明 will-change 就会每帧重建图层，
-   * 实测开书动画在 781 / 1369 / 1450 / 1507ms 处掉 57–106ms 的帧；去掉后 0 掉帧。
-   */
+   * 涓嶈鍦ㄨ繖閲屽啓 will-change: left, top, width, height銆?   * 闃村奖姣忓抚閮藉湪鏀硅繖鍥涗釜鍊硷紙璺熺潃涔﹁蛋锛夛紝涓€鏃﹀０鏄?will-change 灏变細姣忓抚閲嶅缓鍥惧眰锛?   * 瀹炴祴寮€涔﹀姩鐢诲湪 781 / 1369 / 1450 / 1507ms 澶勬帀 57鈥?06ms 鐨勫抚锛涘幓鎺夊悗 0 鎺夊抚銆?   */
 }
 
 /*
- * 第一层：接触阴影 —— 小而实，贴着书底。
- * 不用 filter: blur()：GPU 每帧都要重栅格化这块模糊层，开书动画里会掉 100ms 的帧
- * （实测 blur 版本 rAF 有 782ms/1369ms/1457ms 三处 76–103ms 空洞，去掉后为 0）。
- * 柔和感改由更多档位的径向渐变换取——纯渐变不需要滤镜，代价几乎为零。
- */
+ * 绗竴灞傦細鎺ヨЕ闃村奖 鈥斺€?灏忚€屽疄锛岃创鐫€涔﹀簳銆? * 涓嶇敤 filter: blur()锛欸PU 姣忓抚閮借閲嶆爡鏍煎寲杩欏潡妯＄硦灞傦紝寮€涔﹀姩鐢婚噷浼氭帀 100ms 鐨勫抚
+ * 锛堝疄娴?blur 鐗堟湰 rAF 鏈?782ms/1369ms/1457ms 涓夊 76鈥?03ms 绌烘礊锛屽幓鎺夊悗涓?0锛夈€? * 鏌斿拰鎰熸敼鐢辨洿澶氭。浣嶇殑寰勫悜娓愬彉鎹㈠彇鈥斺€旂函娓愬彉涓嶉渶瑕佹护闀滐紝浠ｄ环鍑犱箮涓洪浂銆? */
 .bk-shadow__contact {
   position: absolute;
   bottom: -1%;
@@ -191,7 +179,7 @@ body.is-book {
   );
 }
 
-/* 第二层：环境投影 —— 大而淡，方向固定在背景坐标系 */
+/* 绗簩灞傦細鐜鎶曞奖 鈥斺€?澶ц€屾贰锛屾柟鍚戝浐瀹氬湪鑳屾櫙鍧愭爣绯?*/
 .bk-shadow__ambient {
   position: absolute;
   bottom: -9%;
@@ -210,20 +198,19 @@ body.is-book {
   );
 }
 
-/* 阅读态：书页铺满视口，影子退到纸下 */
+/* 闃呰鎬侊細涔﹂〉閾烘弧瑙嗗彛锛屽奖瀛愰€€鍒扮焊涓?*/
 .bk-stage.is-reading .bk-shadow {
   opacity: 0;
 }
 
-/* ---------- 双页 ---------- */
+/* ---------- 鍙岄〉 ---------- */
 .bk-spread {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 10px 1fr;
   width: 100%;
   height: 100%;
-  /* 裁切放在这里：不能和 preserve-3d 放在同一个元素上，
-     否则部分浏览器会把 3D 上下文压平，纸张正反面就失效了 */
+  /* 瑁佸垏鏀惧湪杩欓噷锛氫笉鑳藉拰 preserve-3d 鏀惧湪鍚屼竴涓厓绱犱笂锛?     鍚﹀垯閮ㄥ垎娴忚鍣ㄤ細鎶?3D 涓婁笅鏂囧帇骞筹紝绾稿紶姝ｅ弽闈㈠氨澶辨晥浜?*/
   overflow: hidden;
 }
 
@@ -250,7 +237,7 @@ body.is-book {
     inset 18px 0 26px -22px rgba(120, 82, 56, 0.35);
 }
 
-/* 纸纹 */
+/* 绾哥汗 */
 .bk-page::after {
   content: '';
   position: absolute;
@@ -261,9 +248,8 @@ body.is-book {
     repeating-linear-gradient(0deg, rgba(196, 168, 120, 0.045) 0, rgba(196, 168, 120, 0.045) 1px, transparent 1px, transparent 4px);
 }
 
-/* 纸张栈宿主：四张纸都在这里绕书脊转，透视挂在宿主上。
-   这里不能加 overflow/filter/opacity —— 任何一个都会把 3D 上下文压平，
-   合成后的效果就是「转过中缝仍然显示正面」。裁切交给外面的 .bk-spread。 */
+/* 绾稿紶鏍堝涓伙細鍥涘紶绾搁兘鍦ㄨ繖閲岀粫涔﹁剨杞紝閫忚鎸傚湪瀹夸富涓娿€?   杩欓噷涓嶈兘鍔?overflow/filter/opacity 鈥斺€?浠讳綍涓€涓兘浼氭妸 3D 涓婁笅鏂囧帇骞筹紝
+   鍚堟垚鍚庣殑鏁堟灉灏辨槸銆岃浆杩囦腑缂濅粛鐒舵樉绀烘闈€嶃€傝鍒囦氦缁欏闈㈢殑 .bk-spread銆?*/
 .bk-content {
   position: absolute;
   inset: 0;
@@ -274,7 +260,7 @@ body.is-book {
   -webkit-transform-style: preserve-3d;
 }
 
-/* 页码 */
+/* 椤电爜 */
 .bk-folio {
   position: absolute;
   bottom: 16px;
@@ -294,7 +280,7 @@ body.is-book {
   right: 34px;
 }
 
-/* 暂存区：整章模块先按「一页纸」的尺寸在这里排版，再切成左右两页 */
+/* 鏆傚瓨鍖猴細鏁寸珷妯″潡鍏堟寜銆屼竴椤电焊銆嶇殑灏哄鍦ㄨ繖閲屾帓鐗堬紝鍐嶅垏鎴愬乏鍙充袱椤?*/
 .bk-staging {
   position: absolute;
   top: 0;
@@ -307,7 +293,7 @@ body.is-book {
   overflow: hidden;
 }
 
-/* ---------- 中缝 ---------- */
+/* ---------- 涓紳 ---------- */
 .bk-gutter {
   position: relative;
   z-index: 3;
@@ -339,8 +325,8 @@ body.is-book {
   background: linear-gradient(to right, rgba(120, 82, 56, 0.14), transparent);
 }
 
-/* ---------- 纸张（正反两面） ---------- */
-/* 一张纸占右半页，绕书脊（左边缘）转；正面是奇数页，背面是偶数页 */
+/* ---------- 绾稿紶锛堟鍙嶄袱闈級 ---------- */
+/* 涓€寮犵焊鍗犲彸鍗婇〉锛岀粫涔﹁剨锛堝乏杈圭紭锛夎浆锛涙闈㈡槸濂囨暟椤碉紝鑳岄潰鏄伓鏁伴〉 */
 .bk-sheet {
   position: absolute;
   top: 0;
@@ -366,12 +352,12 @@ body.is-book {
     inset 0 0 46px rgba(196, 168, 120, 0.05);
 }
 
-/* 背面：预先翻 180°，纸转过去时正好正着朝上 */
+/* 鑳岄潰锛氶鍏堢炕 180掳锛岀焊杞繃鍘绘椂姝ｅソ姝ｇ潃鏈濅笂 */
 .bk-sheet__face--back {
   transform: rotateY(180deg);
 }
 
-/* 书脊一侧的阴影：正面靠左，背面（已翻 180°）靠右 */
+/* 涔﹁剨涓€渚х殑闃村奖锛氭闈㈤潬宸︼紝鑳岄潰锛堝凡缈?180掳锛夐潬鍙?*/
 .bk-sheet__spine {
   position: absolute;
   top: 0;
@@ -388,7 +374,7 @@ body.is-book {
   background: linear-gradient(to left, rgba(120, 82, 56, 0.24), rgba(120, 82, 56, 0.04) 62%, transparent);
 }
 
-/* 外侧纸边：一道很细的暗线 + 高光，让纸看起来有厚度 */
+/* 澶栦晶绾歌竟锛氫竴閬撳緢缁嗙殑鏆楃嚎 + 楂樺厜锛岃绾哥湅璧锋潵鏈夊帤搴?*/
 .bk-sheet__edge {
   position: absolute;
   top: 0;
@@ -406,7 +392,7 @@ body.is-book {
   background: linear-gradient(to right, rgba(140, 108, 74, 0.22), rgba(255, 255, 255, 0));
 }
 
-/* 翻动中的纸：靠近书脊的一侧压暗，像纸被弯起来 */
+/* 缈诲姩涓殑绾革細闈犺繎涔﹁剨鐨勪竴渚у帇鏆楋紝鍍忕焊琚集璧锋潵 */
 .bk-sheet.is-turning .bk-sheet__face--front::after,
 .bk-sheet.is-turning .bk-sheet__face--back::after {
   content: '';
@@ -420,8 +406,8 @@ body.is-book {
   background: linear-gradient(to right, rgba(80, 54, 34, 0.16), transparent 48%);
 }
 
-/* ---------- 纸面内容 ---------- */
-/* 每一页都是独立可滚动的纸面：左页滚左页的，右页滚右页的 */
+/* ---------- 绾搁潰鍐呭 ---------- */
+/* 姣忎竴椤甸兘鏄嫭绔嬪彲婊氬姩鐨勭焊闈細宸﹂〉婊氬乏椤电殑锛屽彸椤垫粴鍙抽〉鐨?*/
 .bk-pageface {
   position: absolute;
   inset: 0;
@@ -446,7 +432,7 @@ body.is-book {
   padding: 24px 30px 38px;
 }
 
-/* 定制双页（菜系 / 口味 / 视频）自己已经排好版，纸面只当画框 */
+/* 瀹氬埗鍙岄〉锛堣彍绯?/ 鍙ｅ懗 / 瑙嗛锛夎嚜宸卞凡缁忔帓濂界増锛岀焊闈㈠彧褰撶敾妗?*/
 .bk-pageface--bare .bk-pageface__inner {
   padding: 0;
   min-height: 0;
@@ -460,7 +446,7 @@ body.is-book {
   flex: 1 1 auto;
 }
 
-/* 扉页 */
+/* 鎵夐〉 */
 .bk-pageface--title {
   display: flex;
   align-items: center;
@@ -505,7 +491,7 @@ body.is-book {
   letter-spacing: 0.16em;
 }
 
-/* ---------- 封面 ---------- */
+/* ---------- 灏侀潰 ---------- */
 .bk-cover {
   position: absolute;
   top: 0;
@@ -525,9 +511,8 @@ body.is-book {
 }
 
 /*
- * 掀封面：与回正同一帧启动（同一个 class），比整段开书略短，
- * 让封面在书页还在放大时就完成翻转，形成连续的收尾。
- */
+ * 鎺€灏侀潰锛氫笌鍥炴鍚屼竴甯у惎鍔紙鍚屼竴涓?class锛夛紝姣旀暣娈靛紑涔︾暐鐭紝
+ * 璁╁皝闈㈠湪涔﹂〉杩樺湪鏀惧ぇ鏃跺氨瀹屾垚缈昏浆锛屽舰鎴愯繛缁殑鏀跺熬銆? */
 @keyframes bk-cover-open {
   from {
     transform: translateZ(-3px) rotateY(0deg);
@@ -683,7 +668,7 @@ body.is-book {
     radial-gradient(ellipse 52% 70% at 78% 120%, rgba(120, 100, 70, 0.14) 0%, transparent 62%);
 }
 
-/* 封面内侧（扉页） */
+/* 灏侀潰鍐呬晶锛堟墘椤碉級 */
 .bk-cover__inner {
   position: absolute;
   inset: 0;
@@ -719,9 +704,7 @@ body.is-book {
 }
 
 /*
- * 悬停反馈：只提亮封面 + 让提示文字更明显，绝不触发开书。
- * 提示文字本身在 .bk-cover__hint（带 bk-breathe 呼吸动画）。
- */
+ * 鎮仠鍙嶉锛氬彧鎻愪寒灏侀潰 + 璁╂彁绀烘枃瀛楁洿鏄庢樉锛岀粷涓嶈Е鍙戝紑涔︺€? * 鎻愮ず鏂囧瓧鏈韩鍦?.bk-cover__hint锛堝甫 bk-breathe 鍛煎惛鍔ㄧ敾锛夈€? */
 .bk-cover:hover .bk-cover__front {
   filter: brightness(1.035);
 }
@@ -734,94 +717,139 @@ body.is-book {
   box-shadow: 0 18px 44px rgba(120, 82, 56, 0.24), 0 0 0 2px rgba(194, 69, 45, 0.55);
 }
 
-/* ---------- 书签 ---------- */
+/* ---------- 涔︾锛氫功鍙ｇ焊璐ㄧ储寮?----------
+ * 鍏ㄩ儴鎸傚湪涔﹀唴鍙充晶锛屽悎涓婃椂浠庡皝闈㈣竟缂橀湶鍑猴紝鎵撳紑鍚庝粠鍙抽〉澶栫紭闇插嚭銆? * 浣嶇疆浠?.bk-book 涓哄噯锛堜笉鏄祻瑙堝櫒绐楀彛锛夛紝鎵€浠ヤ功鐨勭缉鏀?/ 15掳 鍊炬枩 / 寮€鍚堜綅绉婚兘浼氬甫涓婂畠銆? * 姣忎釜涔︾閮界粦瀹氱湡瀹炵珷鑺傝捣濮嬮〉锛涚炕椤垫椂缁戝畾椤垫墍鍦ㄧ殑绾镐細鎶婅繖鏋氫功绛句竴璧峰甫璧般€? */
 .bk-marks {
   position: absolute;
   top: 50%;
-  z-index: 90;
+  right: 0;
+  z-index: 700;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  z-index: 20;
-  opacity: 0;
-  transition: opacity 320ms ease;
-}
-
-.bk-book--open ~ .bk-marks,
-.bk-stage.is-open .bk-marks {
-  opacity: 1;
-}
-
-.bk-marks--left {
-  left: -62px;
-  transform: translateY(-50%);
   align-items: flex-end;
-}
-
-.bk-marks--right {
-  right: -62px;
+  gap: 6px;
   transform: translateY(-50%);
-  align-items: flex-start;
+  transform-style: preserve-3d;
+  perspective: 1400px;
+  pointer-events: none;
+  transition: transform 300ms var(--ease);
 }
 
 .bk-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border: 1px solid rgba(200, 166, 108, 0.55);
-  background: linear-gradient(180deg, #fffdf6 0%, #f7ecd8 100%);
-  color: #7a5330;
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(120, 82, 56, 0.1);
-  transition: transform 200ms var(--ease), box-shadow 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
-}
-
-.bk-mark--left {
-  border-radius: 3px 0 0 3px;
+  --mark-tint: #b5452f;
+  --mark-jog: 0px;
+  --ride-deg: 0deg;
+  position: relative;
+  display: block;
+  pointer-events: auto;
+  width: 34px;
+  margin-right: calc(-34px - var(--mark-jog));
+  padding: 13px 0 13px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 12.5px;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  color: #6d4a2c;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, #fffdf7 0%, #f8efdd 55%, #f3e6cd 100%);
+  border: 1px solid rgba(196, 158, 100, 0.55);
   border-right: 0;
-  padding-right: 14px;
+  border-radius: 5px 0 0 5px;
+  box-shadow:
+    -2px 3px 9px rgba(118, 82, 52, 0.13),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  transform-origin: right center;
+  transform: translateX(0) rotateY(var(--ride-deg));
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  cursor: pointer;
+  transition:
+    transform 220ms var(--ease),
+    box-shadow 220ms var(--ease),
+    background 220ms var(--ease),
+    color 220ms var(--ease),
+    margin 220ms var(--ease);
 }
 
-.bk-mark--right {
-  border-radius: 0 3px 3px 0;
-  border-left: 0;
-  padding-left: 14px;
+/* 涔﹀彛闇插嚭鐨勫僵鑹插嵃鍒疯竟锛堝儚涔﹀彛涓婄殑鑹叉爣锛?*/
+.bk-mark__edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--mark-tint);
+  opacity: 0.72;
+  border-radius: 0 4px 4px 0;
 }
 
-.bk-mark__num {
-  font-size: 9.5px;
-  opacity: 0.6;
-  letter-spacing: 0.08em;
+/* 杞诲井閿欏眰锛氱浉閭讳功绛鹃湶鍑洪暱搴︿笉鍚岋紝鍍忕湡鐨勫す鍦ㄧ焊閲?*/
+.bk-mark:nth-child(3n + 2) {
+  --mark-jog: 3px;
 }
 
-.bk-mark:hover {
-  transform: translateX(0) scale(1.03);
-  box-shadow: 0 5px 14px rgba(120, 82, 56, 0.16);
+.bk-mark:nth-child(3n + 3) {
+  --mark-jog: 6px;
 }
 
-.bk-mark--left:hover {
-  transform: translateX(-3px);
+/* 鍚堜笂鏃讹細涔︾璺熺潃涔︿竴璧风缉鍒?0.52锛岃繖閲岃ˉ涓€鐐规斁澶э紝淇濊瘉灏侀潰涓婄殑鏍囩浠嶇劧鐪嬪緱娓?*/
+.bk-book--closed .bk-marks,
+.bk-book--straight .bk-marks {
+  transform: translateY(-50%) scale(1.45);
 }
 
-.bk-mark--right:hover {
-  transform: translateX(3px);
+/* 鎮仠锛氬悜鍙充几鍑恒€佽交杞绘姮璧枫€佺焊鑹叉彁浜?*/
+.bk-mark:hover,
+.bk-mark:focus-visible {
+  transform: translateX(7px) rotateY(0deg);
+  box-shadow:
+    -5px 6px 16px rgba(118, 82, 52, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, #fffefb 0%, #fbf3e3 55%, #f6ead4 100%);
+  color: #54351a;
+  outline: none;
 }
 
+/* 褰撳墠绔犺妭锛氬厠鍒剁殑鏈辩孩锛屼笉鍐嶉棯鍔?*/
 .bk-mark.is-on {
-  background: linear-gradient(180deg, #d9543a 0%, #c2452d 100%);
-  border-color: #b23a24;
-  color: #fff6ea;
-  box-shadow: 0 4px 12px rgba(194, 69, 45, 0.3);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(180deg, #c4503a 0%, #b0402c 100%);
+  color: #fff5e8;
+  border-color: rgba(140, 46, 30, 0.55);
+  box-shadow:
+    -3px 4px 12px rgba(150, 52, 34, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
-.bk-mark.is-on .bk-mark__num {
-  opacity: 0.8;
+.bk-mark.is-on .bk-mark__edge {
+  background: #7d2a18;
+  opacity: 0.55;
 }
 
-/* ---------- 印章 ---------- */
+/* 缈婚〉涓細缁戝畾椤垫鍦ㄧ炕鐨勮繖鏋氫功绛撅紝鍜岀焊鍏变韩鍚屼竴涓搴︼紙閫愬抚鍐?--ride-deg锛?*/
+.bk-mark.is-riding {
+  transition: none;
+  box-shadow:
+    -6px 8px 18px rgba(118, 82, 52, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* 瑙︽懜璁惧锛氭病鏈夋偓鍋滀篃瑕佽兘鐐癸紝淇濇寔鍙偣灏哄 */
+@media (hover: none) {
+  .bk-mark {
+    width: 38px;
+    padding: 15px 0;
+    font-size: 12.5px;
+  }
+}
+
+/* ---------- 鍗扮珷 ---------- */
 .bk-tools {
   position: absolute;
   top: 22px;
@@ -878,7 +906,7 @@ body.is-book {
   }
 }
 
-/* ---------- 合上按钮 ---------- */
+/* ---------- 鍚堜笂鎸夐挳 ---------- */
 .bk-back {
   position: absolute;
   top: 22px;
@@ -910,7 +938,7 @@ body.is-book {
   color: var(--color-primary);
 }
 
-/* ---------- 页脚翻页按钮 ---------- */
+/* ---------- 椤佃剼缈婚〉鎸夐挳 ---------- */
 .bk-turn {
   position: absolute;
   bottom: 20px;
@@ -954,7 +982,7 @@ body.is-book {
   bottom: -42px;
 }
 
-/* 书页内的模块容器 */
+/* 涔﹂〉鍐呯殑妯″潡瀹瑰櫒 */
 .bk-content .page {
   min-height: 0;
   padding: 0;
@@ -985,7 +1013,7 @@ body.is-book {
   display: none;
 }
 
-/* 模块外壳允许跨栏断开，卡片本身不要被切开 */
+/* 妯″潡澶栧３鍏佽璺ㄦ爮鏂紑锛屽崱鐗囨湰韬笉瑕佽鍒囧紑 */
 .bk-content > .page,
 .bk-content .page > .wrap {
   break-inside: auto;
@@ -1000,7 +1028,7 @@ body.is-book {
   break-inside: avoid;
 }
 
-/* ---------- 移动端：单页模式 ---------- */
+/* ---------- 绉诲姩绔細鍗曢〉妯″紡 ---------- */
 @media (max-width: 720px), (max-width: 860px) and (orientation: portrait) {
   .bk-spread {
     grid-template-columns: 1fr;
@@ -1011,7 +1039,7 @@ body.is-book {
     display: none;
   }
 
-  /* 单页模式：一张纸就是整页，翻过去的纸落到左侧之后不再显示 */
+  /* 鍗曢〉妯″紡锛氫竴寮犵焊灏辨槸鏁撮〉锛岀炕杩囧幓鐨勭焊钀藉埌宸︿晶涔嬪悗涓嶅啀鏄剧ず */
   .bk-sheet {
     width: 100%;
   }
@@ -1038,7 +1066,7 @@ body.is-book {
     width: 100%;
   }
 
-  /* 手机端同样是合拢倾斜 15°，只是不左移（单页没有左右之分） */
+  /* 鎵嬫満绔悓鏍锋槸鍚堟嫝鍊炬枩 15掳锛屽彧鏄笉宸︾Щ锛堝崟椤垫病鏈夊乏鍙充箣鍒嗭級 */
   .bk-book {
     --closed-tx: 0%;
   }
@@ -1051,28 +1079,17 @@ body.is-book {
     transform: rotateZ(0deg) scale(var(--closed-scale, 0.52));
   }
 
-  .bk-marks--left {
-    display: none;
-  }
-
-  .bk-marks--right {
-    right: -6px;
-    transform: translateY(-50%) scale(0.92);
+  /* 鍗曢〉锛氫功绛惧悓鏍峰湪鍙充晶锛岀獎涓€鐐广€佸瓧鍙峰皬涓€鐐癸紝浣嗕笉鍑哄睆 */
+  .bk-marks {
+    gap: 5px;
   }
 
   .bk-mark {
-    padding: 6px 9px;
-    font-size: 11px;
-  }
-
-  .bk-mark__label {
-    display: none;
-  }
-
-  .bk-mark--right {
-    border-radius: 3px 0 0 3px;
-    border-left: 1px solid rgba(200, 166, 108, 0.55);
-    border-right: 0;
+    width: 30px;
+    margin-right: calc(-28px - var(--mark-jog));
+    padding: 11px 0;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
   }
 
   .bk-turn--prev {
@@ -1094,16 +1111,16 @@ body.is-book {
 }
 
 /* ============================================
-   按章节的双页版式
+   鎸夌珷鑺傜殑鍙岄〉鐗堝紡
    ============================================ */
 
-/* 章节内容统一贴边，内边距交给各章节自己的容器 */
+/* 绔犺妭鍐呭缁熶竴璐磋竟锛屽唴杈硅窛浜ょ粰鍚勭珷鑺傝嚜宸辩殑瀹瑰櫒 */
 .bk-content[data-chapter] > .bk-module > .page,
 .bk-content[data-chapter] > .page {
   padding: 0;
 }
 
-/* ---------- Epicure 厨房：左页图谱 / 右页食材库与配方 ---------- */
+/* ---------- Epicure 鍘ㄦ埧锛氬乏椤靛浘璋?/ 鍙抽〉椋熸潗搴撲笌閰嶆柟 ---------- */
 .bk-content[data-chapter="kitchen"] {
   column-count: 1;
   display: block;
@@ -1173,7 +1190,7 @@ body.is-book {
   align-self: start;
 }
 
-/* ---------- 社区：左页写与看数据 / 右页读信息流 ---------- */
+/* ---------- 绀惧尯锛氬乏椤靛啓涓庣湅鏁版嵁 / 鍙抽〉璇讳俊鎭祦 ---------- */
 .bk-content[data-chapter="community"] {
   column-count: 1;
   display: block;
@@ -1187,7 +1204,7 @@ body.is-book {
   overflow: hidden;
 }
 
-/* 社区自己的两栏结构正好对应左右两页 */
+/* 绀惧尯鑷繁鐨勪袱鏍忕粨鏋勬濂藉搴斿乏鍙充袱椤?*/
 .bk-content[data-chapter="community"] .page-head {
   display: none;
 }
@@ -1200,7 +1217,7 @@ body.is-book {
   align-items: stretch;
 }
 
-/* 每页各自滚动，翻到下一页不会把左页滚跑 */
+/* 姣忛〉鍚勮嚜婊氬姩锛岀炕鍒颁笅涓€椤典笉浼氭妸宸﹂〉婊氳窇 */
 .bk-content[data-chapter="community"] .community-main,
 .bk-content[data-chapter="community"] .community-side {
   min-height: 0;
@@ -1232,7 +1249,7 @@ body.is-book {
   border: 1px solid rgba(200, 166, 108, 0.22);
 }
 
-/* 左页的数据角：数字来自已加载的真实帖子 */
+/* 宸﹂〉鐨勬暟鎹锛氭暟瀛楁潵鑷凡鍔犺浇鐨勭湡瀹炲笘瀛?*/
 .community-stats {
   padding: 10px 12px 12px;
   border-radius: 8px;
@@ -1297,7 +1314,7 @@ body.is-book {
   font-size: 9.5px;
 }
 
-/* ---------- 菜谱：左页输入 / 右页结构化菜谱 ---------- */
+/* ---------- 鑿滆氨锛氬乏椤佃緭鍏?/ 鍙抽〉缁撴瀯鍖栬彍璋?---------- */
 .bk-content[data-chapter="recipe"] {
   column-count: 1;
   display: block;
@@ -1315,7 +1332,7 @@ body.is-book {
   display: none;
 }
 
-/* 表单落左页、结果落右页 */
+/* 琛ㄥ崟钀藉乏椤点€佺粨鏋滆惤鍙抽〉 */
 .bk-content[data-chapter="recipe"] .tool-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1329,7 +1346,7 @@ body.is-book {
   break-inside: avoid;
 }
 
-/* ---------- 手机端：各章节回到单列 ---------- */
+/* ---------- 鎵嬫満绔細鍚勭珷鑺傚洖鍒板崟鍒?---------- */
 @media (max-width: 860px) {
   .bk-content[data-chapter="community"] .community-grid,
   .bk-content[data-chapter="recipe"] .tool-grid,
@@ -1353,37 +1370,10 @@ body.is-book {
 }
 
 
-/* ---------- 阅读态：书签收进书边、翻页按钮回到书内 ---------- */
-.bk-stage.is-reading .bk-marks--left {
-  left: -10px;
-}
+/* ---------- 闃呰鎬侊細缈婚〉鎸夐挳鍥炲埌涔﹀唴 ---------- */
+/* 涔︾濮嬬粓淇濇寔涔﹀彛浣嶇疆锛岄槾褰辩瓑鐘舵€佺敱 .bk-mark 鑷繁鐨勮鍒欏喅瀹?*/
 
-.bk-stage.is-reading .bk-marks--right {
-  right: -10px;
-}
-
-.bk-stage.is-reading .bk-mark {
-  padding: 6px 9px;
-  box-shadow: 0 1px 4px rgba(120, 82, 56, 0.14);
-}
-
-.bk-stage.is-reading .bk-mark--left {
-  border-right: 1px solid rgba(200, 166, 108, 0.55);
-  border-radius: 3px;
-  padding-right: 9px;
-}
-
-.bk-stage.is-reading .bk-mark--right {
-  border-left: 1px solid rgba(200, 166, 108, 0.55);
-  border-radius: 3px;
-  padding-left: 9px;
-}
-
-.bk-stage.is-reading .bk-mark__num {
-  display: none;
-}
-
-/* 翻页按钮落在书内下沿 */
+/* 缈婚〉鎸夐挳钀藉湪涔﹀唴涓嬫部 */
 .bk-stage.is-reading .bk-turn {
   bottom: 6px;
   padding: 5px 13px;
@@ -1392,7 +1382,7 @@ body.is-book {
   box-shadow: 0 2px 8px rgba(120, 82, 56, 0.1);
 }
 
-/* 印章让开右侧页码 */
+/* 鍗扮珷璁╁紑鍙充晶椤电爜 */
 .bk-stage.is-reading .bk-tools {
   top: 10px;
   right: 12px;
@@ -1406,7 +1396,7 @@ body.is-book {
 }
 
 
-/* 阅读态细节：翻页按钮避开小精灵，页码避开按钮 */
+/* 闃呰鎬佺粏鑺傦細缈婚〉鎸夐挳閬垮紑灏忕簿鐏碉紝椤电爜閬垮紑鎸夐挳 */
 .bk-stage.is-reading .bk-turn--next {
   right: 92px;
 }
@@ -1419,7 +1409,7 @@ body.is-book {
   right: 8px;
 }
 
-/* 单页模式：只有一个页码，放到底部居中，避开翻页按钮与小精灵 */
+/* 鍗曢〉妯″紡锛氬彧鏈変竴涓〉鐮侊紝鏀惧埌搴曢儴灞呬腑锛岄伩寮€缈婚〉鎸夐挳涓庡皬绮剧伒 */
 .bk-stage.is-single.is-reading .bk-folio--left {
   display: none;
 }
@@ -1430,3 +1420,4 @@ body.is-book {
   bottom: 38px;
   transform: translateX(-50%);
 }
+

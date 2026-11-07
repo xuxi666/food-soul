@@ -14,6 +14,7 @@ import { CHAPTERS, EXTRA, chapterById, chapterIndex, moduleOf, chapterOf } from 
 import { createShell } from './shell.js';
 import { createPageBook } from './pages.js';
 import { createSheets } from './sheets.js';
+import { createBookmarks } from './bookmarks.js';
 import { computeLayout, observeLayout } from './layout.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
@@ -107,6 +108,8 @@ export function initBook({ root }) {
     if (shell.shadow) shell.shadow.className = `bk-shadow ${cls.replace('bk-book--', 'bk-shadow--')}`;
     followShadow();
     shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
+    // 合上 / 打开：书签一直留在书口，只是换一套尺寸补偿
+    shell.marks?.setClosed(cls === 'bk-book--closed' || cls === 'bk-book--straight');
   }
   function setPhase(next) {
     phase = next;
@@ -141,6 +144,50 @@ export function initBook({ root }) {
   });
   const sheets = createSheets(shell.content);
 
+  /*
+   * 章节书签：一枚书签 = 一个真实章节起始页。
+   * 书签上不印页码，页码只作为定位数据（targetPage / data-target-page）存在。
+   * 目标页始终由页面库现算，章节内容增减 / 分页变化后自动跟着变。
+   */
+  const MARK_TINT = {
+    dishes: '#b5452f',
+    cuisines: '#9a7248',
+    tastes: '#c0854a',
+    recipe: '#b08e4e',
+    kitchen: '#6f7f5f',
+    community: '#7a5a40',
+    videos: '#6e8489',
+  };
+  const MARK_LABEL = {
+    dishes: '美食图鉴',
+    cuisines: '八大菜系',
+    tastes: '口味探索',
+    recipe: '菜谱工作台',
+    kitchen: '食材厨房',
+    community: '美食社区',
+    videos: '影像视频',
+  };
+
+  const marks = createBookmarks({
+    list: CHAPTERS.map((ch) => ({
+      id: ch.id,
+      label: MARK_LABEL[ch.id] || ch.label,
+      tint: MARK_TINT[ch.id] || '#b5452f',
+      targetPage: book.spreadOfChapter(ch.id) * 2 + 2,
+    })),
+    onPick: (spec) => void openChapter(spec.id),
+  });
+  shell.attachMarks(marks);
+
+  /* 翻页时：绑定页在正在翻的纸上的书签，跟纸共享同一个角度（每帧） */
+  const pagesOfSheet = (sheet) => [
+    Number(sheet.front.firstElementChild?.dataset.globalPage || 0),
+    Number(sheet.back.firstElementChild?.dataset.globalPage || 0),
+  ];
+  sheets.hooks.onAngle = (sheet, deg) => {
+    marks.riding({ pages: pagesOfSheet(sheet), deg });
+  };
+
   const blankPage = () => null;
 
   /** 全局页码 → 页面节点：第 1 页是扉页，正文从第 2 页开始 */
@@ -169,19 +216,21 @@ export function initBook({ root }) {
     return sp ? sp.chapter : 'dishes';
   }
 
-  async function render({ animate = null } = {}) {
+  async function render({ animate = null, ms } = {}) {
     if (animate) {
       const old = position.value;
       const ok = await sheets.turn(animate, {
         resolve: resolvePage,
         spread: position.single ? old - 1 : old,
         single: position.single,
+        ms,
       });
       if (!ok) return false;
       position.value = old + (animate === 'next' ? 1 : -1);
     } else {
       await sheets.settle({ resolve: resolvePage, spread: position.single ? position.value - 1 : position.value, single: position.single });
     }
+    marks.idle();
     syncChrome();
     return true;
   }
@@ -367,32 +416,48 @@ export function initBook({ root }) {
   shell.nextBtn.addEventListener('click', () => void turn('next'));
 
   /* ---------------- 章节跳转（书签） ---------------- */
+
+  /**
+   * 书签点击：先把书翻开（若合着），再一张一张真实地翻过去。
+   * 距离近就整段翻；距离远就先翻两张真纸、剩下的直接落位（画册快速翻章的感觉），
+   * 不会出现「书已经翻完、书签还停在原处」的错位。
+   */
   async function openChapter(id) {
-    if (busy) return;
     const chapter = chapterById(id);
     if (!chapter) return;
     if (mode === 'closed') {
       await openFirst();
-      return;
+      if (mode !== 'open') return;
     }
+    if (busy) return;
     busy = true;
     try {
       const single = lastBox.mode === 'single';
-      const spreadIdx = book.spreadOfChapter(id);
+      const target = book.spreadOfChapter(id);
+      const targetValue = single ? target * 2 + 2 : target;
       void book.disposeInner(inner);
       inner = null;
-      position = { single, value: single ? spreadIdx * 2 + 2 : spreadIdx };
-      await render();
+      if (position.single !== single) position = { single, value: single ? (position.value * 2 + 2) : Math.floor((position.value - 2) / 2) };
+
+      let steps = 0;
+      const maxSteps = 3;
+      while (position.value !== targetValue && steps < maxSteps) {
+        const dir = targetValue > position.value ? 'next' : 'prev';
+        const ok = await render({ animate: dir, ms: 300 });
+        if (!ok) break;
+        steps += 1;
+      }
+      if (position.value !== targetValue) {
+        position = { single, value: targetValue };
+        await render();
+      }
       history.pushState({ chapter: id }, '', location.pathname.startsWith(chapter.href) ? location.href : chapter.href);
     } finally {
       busy = false;
     }
   }
 
-  for (const ch of CHAPTERS) {
-    const btn = shell.marks.get(ch.id);
-    btn?.addEventListener('click', () => void openChapter(ch.id));
-  }
+  /* 书签点击已在 createBookmarks 内部绑定，这里不再重复绑定 */
 
   /* ---------------- 合上 ---------------- */
   async function shut() {

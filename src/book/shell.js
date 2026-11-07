@@ -3,9 +3,10 @@
  * 只负责结构与动画，不关心章节内容。
  */
 import { h } from '../lib/dom.js';
-import { CHAPTERS } from './chapters.js';
 
 export function createShell(root) {
+  /* 书签接口由 index.js 挂载（书签需要知道章节对应第几页，那时才有页面库） */
+  let markApi = null;
   /* ---------- 封面 ---------- */
   const coverFront = h(
     'div',
@@ -79,20 +80,10 @@ export function createShell(root) {
 
   const camera = h('div', { class: 'bk-camera' }, shadow, book);
 
-  /* ---------- 书签 ---------- */
-  const marksL = h('div', { class: 'bk-marks bk-marks--left' });
-  const marksR = h('div', { class: 'bk-marks bk-marks--right' });
-  const markEls = new Map();
-
-  for (const ch of CHAPTERS) {
-    const btn = h(
-      'button',
-      { class: `bk-mark bk-mark--${ch.side}`, type: 'button', 'data-chapter': ch.id, title: ch.label },
-      h('span', { class: 'bk-mark__num', text: ch.num }),
-      h('span', { class: 'bk-mark__label', text: ch.label })
-    );
-    markEls.set(ch.id, btn);
-    (ch.side === 'left' ? marksL : marksR).append(btn);
+  /* ---------- 书签：挂在书里，跟着书缩放 / 倾斜 / 开合 ---------- */
+  function attachMarks(api) {
+    markApi = api;
+    book.append(api.layer);
   }
 
   /* ---------- 印章入口 ---------- */
@@ -115,8 +106,8 @@ export function createShell(root) {
     h('span', { class: 'bk-back__label', text: '合上' })
   );
 
-  // 书签与翻页按钮放进相机内，随书本一起位移、缩放
-  camera.append(marksL, marksR, prevBtn, nextBtn);
+  // 翻页按钮放进相机内，随书本一起位移、缩放
+  camera.append(prevBtn, nextBtn);
 
   const stage = h(
     'div',
@@ -142,14 +133,17 @@ export function createShell(root) {
     cover,
     staging,
     folios: { left: folioL, right: folioR },
-    marks: markEls,
+    attachMarks,
+    get marks() {
+      return markApi;
+    },
     sealBtn,
     sealPanel,
     prevBtn,
     nextBtn,
     backBtn,
     setActive(id) {
-      for (const [key, el] of markEls) el.classList.toggle('is-on', key === id);
+      markApi?.setActive(id);
     },
     setFolio(left, right) {
       folioL.textContent = left || '';

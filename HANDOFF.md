@@ -404,3 +404,78 @@ setBookState('bk-book--reading');  await wait(580);
 ### 13.4 备注
 
 如果浏览器里还是旧行为，先在控制台执行 `__book.build`：不是 `sheet-2.1` 就是页面还停在旧包（单页应用不会自己刷新），强制刷新即可。旧包（turn D）的翻页本来就是「单面纸 + 中途 swap」，症状正是「过了中缝还是旧页、结束时才换」。
+
+
+## 14. 章节书签：右侧书口索引（本轮重做）
+
+### 14.1 原来的问题
+
+7 个章节在 `chapters.js` 里带着 `side: 'left' | 'right'`，开书后书签被拆成左右两组，
+各自 `position: absolute` 挂在 `.bk-camera` 里的固定坐标上：既不是书的一部分（合上书就 `opacity: 0` 消失），
+也和纸页没有任何关系（纸上写的是 `p01`/`p02` 这种假编号，跟真实章节页对不上）。
+
+### 14.2 现在的结构
+
+```text
+.bk-book                      ← 书本体：缩放 / 合书 15° 倾斜 / 开合位移都在这一层
+├── .bk-spread                ← 左右两页 + 纸张栈
+├── .bk-cover                 ← 封面
+└── .bk-marks                 ← 书签层（z 700，压在封面之上）
+    ├── .bk-mark[data-chapter="dishes"]   data-target-page="2"
+    ├── .bk-mark[data-chapter="cuisines"] data-target-page="28"
+    ├── .bk-mark[data-chapter="tastes"]   data-target-page="30"
+    ├── .bk-mark[data-chapter="recipe"]   data-target-page="32"
+    ├── .bk-mark[data-chapter="kitchen"]  data-target-page="34"
+    ├── .bk-mark[data-chapter="community"]data-target-page="36"
+    └── .bk-mark[data-chapter="videos"]   data-target-page="38"
+```
+
+- 书签层是 `.bk-book` 的子节点，所以书的缩放、15° 倾斜、开合位移都自动带上书签，不需要再同步一次坐标。
+- 全部书签排在右侧书口：`margin-right: -34px`（单页模式 -28px），整枚书签露在页面外缘之外，
+  **不压正文**（实测正文最右 1363，书签最左 1363，重叠 0）。
+- 竖排文字（`writing-mode: vertical-rl`）像书口上的印刷索引，不显示任何数字页码。
+- 错层：`--mark-jog` 让相邻书签露出长度差 3px，看起来是夹在不同页里的。
+
+### 14.3 绑定关系（全部由页面库现算，不写死）
+
+| 书签 | 章节 | 绑定页 targetPage | 目标跨页 | 实测点击落点 |
+| --- | --- | --- | --- | --- |
+| 美食图鉴 | dishes | 2 | 0 | spread 0 ✓ |
+| 八大菜系 | cuisines | 28 | 13 | spread 13 ✓ |
+| 口味探索 | tastes | 30 | 14 | spread 14 ✓ |
+| 菜谱工作台 | recipe | 32 | 15 | spread 15 ✓ |
+| 食材厨房 | kitchen | 34 | 16 | spread 16 ✓ |
+| 美食社区 | community | 36 | 17 | spread 17 ✓ |
+| 影像视频 | videos | 38 | 18 | spread 18 ✓ |
+
+映射公式：`targetPage = spreadOfChapter(id) * 2 + 2`（章节第一跨页的左页）。
+章节内容增减 / 图鉴筛选改变分页后，`spreadOfChapter` 会变，书签跟着变（没有写死的下标）。
+
+### 14.4 书签跟着纸一起转
+
+`sheets.turn()` 每帧回调 `hooks.onAngle(sheet, deg)`；index 把这张纸正反面的页码交给书签层：
+
+```js
+sheets.hooks.onAngle = (sheet, deg) => marks.riding({ pages: pagesOfSheet(sheet), deg });
+```
+
+- 只有「绑定页正好在那张正在翻的纸上」的书签会进入 `is-riding`，并写入 `--ride-deg`；
+- CSS 用同一个角度做 `rotateY`（`transform-origin: right center`，书口为轴），
+  书签和纸是同一个角度、同一帧、同一条时间线，不是另外播一段动画；
+- 实测（spread 12 → 13，翻向「八大菜系」）：纸 110° 时书签 -110.45°，纸 153° 时书签 -153.01°，
+  角度中位差 < 1°，最大跟随 180°；
+- 书签始终贴着书口（最大横向偏移 37px，就是它自己的宽度），不会飞到屏幕别处；
+- 纸落定后 `marks.idle()` 清掉跟随状态，书签回到书口。
+
+### 14.5 合上也有书签
+
+`.bk-marks` 不再随开合隐藏（删掉了原来的 `opacity: 0`），合上时它就在封面右侧外缘；
+因为合书整体缩到 0.52，书签层补了 `scale(1.45)`，标签仍然清楚。
+实测：合上 1440 宽时 7 枚书签 x 811–966、390 宽手机 x 207–347，全部在视口内，且 `elementFromPoint` 都命中书签本身（没被封面盖住）。
+
+### 14.6 验收
+
+`.tmp/marks-verify.mjs`：19/19 通过（合上 5 项、打开 4 项、7 个书签逐个点击、合上点击开书、跟随翻页 3 项、缩放、手机 3 项、桌面无报错）。
+回归：`accept-turn` 10/10、19 跨页扫描全通、手机单页 2→3→4→3。
+
+截图与录屏：`.tmp/markshots/`（01-closed-full、02-closed-tabs、03-open-full、04-open-tabs、05-hover、07-after-click-videos、hover.gif、click.gif、ride.gif）。

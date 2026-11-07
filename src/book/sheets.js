@@ -72,6 +72,8 @@ export function createSheets(host) {
   for (const s of [A1, A0, C, B]) host.append(s.el);
 
   let busy = false;
+  /** 每帧回调：书签层靠它拿到「正在翻的纸 + 实时角度」，从而真正跟着纸转 */
+  const hooks = { onAngle: null };
 
   /**
    * 把一张纸摆到某个角度，并按角度决定哪一面朝上。
@@ -149,9 +151,10 @@ export function createSheets(host) {
    * 翻一页。动画期间只有一张纸在动，它的正反面内容在开始前就已经贴好。
    * @returns {Promise<boolean>} 是否真的翻动了
    */
-  async function turn(dir, { resolve, spread, single }) {
+  async function turn(dir, { resolve, spread, single, ms = TURN_MS }) {
     if (busy) return false;
     busy = true;
+    const dur = Math.max(160, ms);
     const moving = dir === 'prev' ? A0 : B;
     const from = dir === 'prev' ? -180 : 0;
     const to = dir === 'prev' ? 0 : -180;
@@ -164,8 +167,10 @@ export function createSheets(host) {
       await new Promise((done) => {
         const t0 = performance.now();
         const step = (now) => {
-          const p = Math.min(1, (now - t0) / TURN_MS);
-          applyAngle(moving, from + (to - from) * ease(p));
+          const p = Math.min(1, (now - t0) / dur);
+          const deg = from + (to - from) * ease(p);
+          applyAngle(moving, deg);
+          hooks.onAngle?.(moving, deg);
           if (p < 1) requestAnimationFrame(step);
           else done();
         };
@@ -243,6 +248,7 @@ export function createSheets(host) {
     settle,
     turn,
     inspect,
+    hooks,
     get busy() {
       return busy;
     },
