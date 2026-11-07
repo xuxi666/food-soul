@@ -199,3 +199,42 @@ GitHub xuxi666/food-soul
 - 验收（`.tmp/no-auto-open.mjs`，对线上跑，20/20 全过）：首屏合上、等 30 秒仍合上、悬停不开、点背景不开、改窗口不开、`visibilitychange/focus/pageshow` 不开、点封面开、Esc 回到合上且 12 秒不重开、连点不错乱、深链合上且点开落到 community、刷新回落合上、手机首屏合上、0 控制台报错。
 
 > 行为变化提示：以前访问 `/dishes`、`/community` 等深链会自动展开画册，现在一律停在封面等一次点击——这是需求要求的「用户不点，书永远合上」。
+
+---
+
+## 10. 开书动画合成一条时间轴（`dcbec15`）
+
+### 10.1 之前是串行的
+
+```js
+// 旧：回正 440ms → 等 → 掀封面 720ms → 等 → 放大 580ms
+setBookState('bk-book--straight'); await wait(440);
+setBookState('bk-book--open');     await wait(720);
+setBookState('bk-book--reading');  await wait(580);
+```
+用户看到的就是：先摆正、停一下、再掀盖。
+
+### 10.2 现在是一条时间轴、同帧启动
+
+- 一次 class 切换 `bk-book--opening`，两段 `@keyframes` 同时开始：
+  - `bk-book-open` 1300ms：0–58% 把 `rotateZ 15°→0` 与 `scale .52→.70` 一起做，58–100% 继续放大到 1。
+  - `bk-cover-open` 900ms：封面绕书脊（`transform-origin: left center`）`rotateY 0→-180`。
+- 中途不切 class，所以没有"回正完成 → 封面才动"的接缝。1300ms 结束才切 `--reading`，其静态变换与动画末帧完全一致（scale 1 / 0° / 封面 -180°），切过去不会跳。
+- 书签/返回键/翻页键在 760ms 之后才露出来；阴影用 `blendShadowTo()` 在 520ms 内从"封面范围"平滑过渡到"整本范围"（阴影层仍然 `transform: none`，永不旋转）。
+
+实测相位（`.tmp/open-timeline.mjs`，线上）：0ms 15°/0°、300ms 5.9°/-84°、600ms 0.4°/-167°、760ms 0°/ -178°、900ms 封面到位、1300ms 铺满。
+
+### 10.3 顺手修掉的两处掉帧
+
+1. `.bk-shadow` 上的 `will-change: left/top/width/height`：阴影每帧都在改这四个值，声明 will-change 会让浏览器每帧重建图层，实测开书在 781 / 1369 / 1450 / 1507ms 掉 57–106ms 的帧；删掉后（`will-change: auto`）这些洞消失。
+2. 阴影两层的 `filter: blur(8px)/blur(26px)`：换成多档位径向渐变（纯渐变不需要滤镜），保留了柔和度（实测未遮挡部分主轴 0.2°、软边 38px）。
+
+去掉这两处后，0–1300ms 整段开书实测无 >40ms 的掉帧；1300ms 之后仍有约 150–190ms 的主线程开销，那是图鉴挂载（97 张卡片 + 图片解码）导致的，属于内容加载，不在开书动画区间内（改造前同样存在）。`content-visibility: auto` 与 `decoding="async"` 已加上，收益有限。
+
+### 10.4 回归
+
+- 开书时间轴采样（`.tmp/open-timeline.mjs`）：两个变换同帧起步、单调推进、无回跳。
+- 掉帧检查（`.tmp/cold-runs.mjs`）：0–1300ms 无 >40ms 空洞。
+- 交互回归（`.tmp/no-auto-open.mjs`，线上）：20/20 通过；章节巡检 21/21；阴影 `transform: none`、`dxCenter=dyBottom=0`。
+- 手机 390×844 / 桌面 1440×900：起手 15°、开完 0° scale 1、Esc 回到 15°，0 报错。
+- 逐帧图：`.tmp/open-book-sheet.png`（9 个相位）、`.tmp/open-book.gif`。
