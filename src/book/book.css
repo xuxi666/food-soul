@@ -1042,3 +1042,7 @@ body.is-book {
 .bk-stage.is-reading .bk-page__folio--right {
   right: 8px;
 }
+
+.bk-stage.is-reading .bk-page__folio--right {
+  right: 8px;
+}
