@@ -3,6 +3,7 @@
  * 只负责结构与动画，不关心章节内容。
  */
 import { h } from '../lib/dom.js';
+import { createFoodWall } from './foodwall.js';
 
 export function createShell(root) {
   /* 书签接口由 index.js 挂载（书签需要知道章节对应第几页，那时才有页面库） */
@@ -102,9 +103,23 @@ export function createShell(root) {
     h('span', { class: 'bk-back__label', text: '合上' })
   );
 
+  /*
+   * 背景三层：美食图片墙 → 模糊 / 暖白遮罩 → 环境光。
+   * 三层都 pointer-events:none，且排在 camera 之前，所以永远在画册下面。
+   */
+  const wall = createFoodWall();
+  const veil = h(
+    'div',
+    { class: 'bk-wall__veil', 'aria-hidden': 'true' },
+    h('span', { class: 'bk-wall__blur' }),
+    h('span', { class: 'bk-wall__glow' })
+  );
+
   const stage = h(
     'div',
     { class: 'bk-stage', 'data-book-build': 'sheet-2.2' },
+    wall.el,
+    veil,
     h('div', { class: 'bk-ambient', 'aria-hidden': 'true' }),
     h('div', { class: 'bk-mountains', 'aria-hidden': 'true' }),
     camera,
@@ -116,6 +131,7 @@ export function createShell(root) {
 
   return {
     el: stage,
+    wall,
     book,
     shadow,
     camera,

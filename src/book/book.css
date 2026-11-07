@@ -29,9 +29,10 @@ body.is-book {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* 背景墙上来之后，这层只负责「画册后方那团暖光」，不能再把照片整片盖住 */
   background:
-    radial-gradient(ellipse 70% 55% at 50% 42%, rgba(255, 252, 245, 0.9) 0%, rgba(255, 248, 237, 0) 70%),
-    radial-gradient(ellipse 40% 30% at 18% 78%, rgba(217, 164, 65, 0.08) 0%, transparent 70%);
+    radial-gradient(ellipse 66% 52% at 50% 44%, rgba(255, 252, 245, 0.34) 0%, rgba(255, 250, 241, 0.16) 46%, rgba(255, 248, 237, 0) 72%),
+    radial-gradient(ellipse 40% 30% at 18% 78%, rgba(217, 164, 65, 0.06) 0%, transparent 70%);
 }
 
 .bk-mountains {
@@ -1551,3 +1552,189 @@ body.is-book {
   font-size: 14px;
   background: rgba(255, 253, 246, 0.9);
 }
+/* ==================================================================
+   首页背景：动态环形美食图片墙
+   .bk-wall        图片墙（多行，奇偶反向，匀速无缝循环）
+   .bk-wall__veil  模糊 + 暖白遮罩（画册附近模糊、外围恢复清晰）
+   ================================================================== */
+
+.bk-wall {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  contain: layout style paint;
+  /* 整面墙先压一点饱和度和亮度：真实照片的彩度对画册来说太抢 */
+  background: #faf4e9;
+}
+
+.bk-wall__row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* 两段相同内容拼成一条轨道；-50% 正好是一段的宽度（单段自带尾部间距） */
+.bk-wall__track {
+  display: flex;
+  flex: 0 0 auto;
+  width: max-content;
+  animation-duration: var(--dur, 40s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: var(--delay, 0s);
+  animation-play-state: running;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.bk-wall__track--left {
+  animation-name: bk-wall-run-left;
+}
+
+.bk-wall__track--right {
+  animation-name: bk-wall-run-right;
+}
+
+@keyframes bk-wall-run-left {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes bk-wall-run-right {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.bk-wall__set {
+  display: flex;
+  align-items: center;
+  gap: var(--gap, 14px);
+  padding-right: var(--gap, 14px);
+  flex: 0 0 auto;
+}
+
+.bk-wall__card {
+  position: relative;
+  flex: 0 0 auto;
+  width: calc(var(--tile-h, 130px) * 1.5);
+  height: var(--tile-h, 130px);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f2e6d2;
+  /* 轻微降饱和 + 提亮：照片是背景，不是主角 */
+  filter: saturate(0.82) brightness(1.02) contrast(0.97);
+}
+
+.bk-wall__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 420ms ease;
+}
+
+.bk-wall__img[src] {
+  opacity: 1;
+}
+
+.bk-wall__img.is-dead {
+  opacity: 0;
+}
+
+/* 纸页停住时（切换标签页）暂停动画，省电也省 GPU */
+.bk-wall.is-paused .bk-wall__track {
+  animation-play-state: paused;
+}
+
+/* ---------- 遮罩层：中间模糊、四周恢复清晰 ---------- */
+
+.bk-wall__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* 第一层：以画册为中心的柔和模糊，径向 mask 让模糊从中心往外逐渐消失 */
+.bk-wall__blur {
+  position: absolute;
+  inset: -2px;
+  -webkit-backdrop-filter: blur(9px) saturate(0.92);
+  backdrop-filter: blur(9px) saturate(0.92);
+  -webkit-mask-image: radial-gradient(
+    ellipse 58% 54% at 50% 47%,
+    #000 0%,
+    rgba(0, 0, 0, 0.96) 34%,
+    rgba(0, 0, 0, 0.62) 58%,
+    rgba(0, 0, 0, 0) 82%
+  );
+  mask-image: radial-gradient(
+    ellipse 58% 54% at 50% 47%,
+    #000 0%,
+    rgba(0, 0, 0, 0.96) 34%,
+    rgba(0, 0, 0, 0.62) 58%,
+    rgba(0, 0, 0, 0) 82%
+  );
+}
+
+/* 第二层：暖白柔光（大范围半透明 + 画册后方的淡光晕），四周留出呼吸 */
+.bk-wall__glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 42% 40% at 50% 47%, rgba(255, 253, 246, 0.66) 0%, rgba(255, 251, 242, 0.34) 48%, rgba(255, 248, 237, 0) 76%),
+    radial-gradient(ellipse 68% 62% at 50% 47%, rgba(255, 251, 242, 0.34) 0%, rgba(255, 249, 238, 0.16) 52%, rgba(253, 246, 233, 0.03) 78%, rgba(253, 246, 233, 0) 92%),
+    linear-gradient(180deg, rgba(255, 250, 240, 0.32) 0%, rgba(255, 250, 240, 0.12) 38%, rgba(250, 242, 229, 0.3) 100%);
+}
+
+/* 翻开画册后：背景退后半步，但不突然消失 */
+.bk-wall,
+.bk-wall__veil {
+  transition: opacity 820ms ease, filter 820ms ease;
+}
+
+.bk-stage.is-open .bk-wall {
+  opacity: 0.62;
+  filter: saturate(0.9);
+}
+
+.bk-stage.is-open .bk-wall__veil {
+  opacity: 1.06;
+}
+
+/* 手机上少一层模糊，省一点 GPU */
+@media (max-width: 640px) {
+  .bk-wall__blur {
+    -webkit-backdrop-filter: blur(6px) saturate(0.94);
+    backdrop-filter: blur(6px) saturate(0.94);
+  }
+
+  .bk-wall__card {
+    border-radius: 8px;
+  }
+}
+
+/* 用户要求减少动态效果：图片墙停住，只留静态网格 */
+@media (prefers-reduced-motion: reduce) {
+  .bk-wall__track {
+    animation: none !important;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
