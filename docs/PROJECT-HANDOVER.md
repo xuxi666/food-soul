@@ -13,7 +13,7 @@
 
 - `F:\AIweb\美食1.0`（上级目录）是一个 **git 仓库**，内容是 1.0 React/TS 版（`src/App.tsx`、`server/api.ts`、92 道菜品库 `src/data/dishes/*.ts`），当前有未提交改动。
 - `aimeishi2.0` **已是独立 git 仓库**，`origin = https://github.com/xuxi666/food-soul.git`，分支 `main`；历史已与 GitHub 对齐，换行统一为 LF（`.gitattributes`）。迁移前的本地历史保留在分支 `backup/pre-sync-20261022`。
-- 线上 `http://39.106.251.146/` 由服务器 `/opt/food-soul` 提供服务（pm2 + Nginx），该目录同时是 git 工作区，发布流程见 `docs/DEPLOY.md`：本地 `npm run ship` → 服务器构建重启 → 服务器自动 push 回 GitHub。
+- 线上 `http://47.93.33.108/`（旧地址 `39.106.251.146` 已失效，是服务器换 IP 前记录）由服务器 `/opt/food-soul` 提供服务（pm2 `food-soul` + Nginx `server_name _`，反代 `127.0.0.1:5190`），该目录同时是 git 工作区，发布流程见 `docs/DEPLOY.md`：本地 `npm run ship -- -m "..."` → 服务器构建重启 → 服务器自动 push 回 GitHub。服务器地址以本机 `.deploy.env` 的 `DEPLOY_HOST` 为准。
 - `ref-shiyouling` 是另一独立 git 仓库（参考项目）。
 - `scripts/import-dishes.mjs` 是「从 1.0 参考库迁移 92 道菜 → 2.0」的脚本（生成 `src/data/dishes/library.js` + 复制照片），**未执行完成**：`library.js` 不存在，`dishes.js` 仍是独立 16 道菜（风险点 ②）。`public/dishes/` 里 97 张 jpg = 16 张 2.0 菜品图 + 81 张 1.0 迁移残留图。
 

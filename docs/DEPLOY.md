@@ -138,7 +138,7 @@ ssh -i ~/.ssh/food_soul_deploy root@47.93.33.108 \
 | 部署成功但 GitHub 显示「鉴权失败」 | 部署密钥未添加或未勾选 write access，重跑 `npm run deploy:github` 后到 GitHub 添加 |
 | 构建失败 | 看服务器 `.deploy/build.log`；本地先 `npm run build` 复现 |
 | 页面没变化 | 浏览器缓存；确认 `dist/assets/index-*.js` 的 hash 变了 |
-| 换服务器 IP | 只改本机 `.deploy.env` 的 `DEPLOY_HOST`，再跑一次 `npm run deploy:setup`（幂等） |
+| 换服务器 IP | 只改本机 `.deploy.env` 的 `DEPLOY_HOST`，再跑一次 `npm run deploy:setup`（幂等）。nginx 已改成 `server_name _`，不会因为 IP 变化而拒答 |
 | 想回滚 | 本地 `git revert` 后重新 `npm run ship`；不要在服务器上改代码 |
 
 ## 6. 安全约定
