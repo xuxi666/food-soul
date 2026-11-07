@@ -57,7 +57,22 @@ body.is-book {
 }
 
 /* ---------- 书 ---------- */
+/*
+ * 书页装帧变量：全站每一张纸（正反两面 + 底纸）共用这一套。
+ * 想调整整本画册的纸张与边框，只改这里，不要逐模块写一套。
+ */
 .bk-book {
+  --paper-top: #fffcf5;
+  --paper-mid: #fdf8ee;
+  --paper-low: #faf2e3;
+  --page-frame: #dcc49b;          /* 主边框：暖金细线 */
+  --page-frame-soft: #ede0c9;     /* 内侧装饰线：更淡一层 */
+  --page-frame-ink: rgba(150, 112, 66, 0.5);
+  --page-tick: rgba(196, 158, 100, 0.62);
+  --page-edge: rgba(120, 82, 56, 0.1);   /* 外侧边接触阴影 */
+  --page-lip: rgba(120, 82, 56, 0.07);   /* 上下纸边 */
+  --page-gutter-shade: rgba(120, 82, 56, 0.18);
+  --page-inner-inset: 7px;        /* 内侧装饰线离纸边多远 */
   --closed-tx: calc(var(--closed-scale, 0.52) * -25%);
   position: relative;
   width: var(--book-w, 1100px);
@@ -232,22 +247,68 @@ body.is-book {
   height: 100%;
   overflow: hidden;
   background:
-    linear-gradient(180deg, #fffdf7 0%, #fdf8ee 100%);
-  box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.22), inset 0 0 60px rgba(196, 168, 120, 0.06);
+    linear-gradient(180deg, var(--paper-top) 0%, var(--paper-mid) 58%, var(--paper-low) 100%);
+  box-shadow:
+    inset 0 -14px 22px -20px var(--page-lip),
+    inset 0 14px 22px -20px var(--page-lip);
+}
+
+/* ---------- 书页装帧框 ---------- */
+/*
+ * 边框画在纸面之上（z-index 高于内容），所以不会被子页内容、翻页层或
+ * 满版图片盖住；它挂在真实的纸张元素上（.bk-sheet__face 正反面 / .bk-page 底纸），
+ * 翻页时随纸张的 rotateY 一起转，不是贴在屏幕上的装饰。
+ */
+.bk-sheet__face::before,
+.bk-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  border: 1px solid var(--page-frame);
+  border-radius: 2px;
+  outline: 1px solid var(--page-frame-soft);
+  outline-offset: calc(-1 * var(--page-inner-inset));
+  /* 四角极简细线（内侧线四角的短角标） */
+  background-image:
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick)),
+    linear-gradient(var(--page-tick), var(--page-tick));
+  background-repeat: no-repeat;
+  background-size:
+    13px 1px, 1px 13px,
+    13px 1px, 1px 13px,
+    13px 1px, 1px 13px,
+    13px 1px, 1px 13px;
+  background-position:
+    11px 11px, 11px 11px,
+    calc(100% - 24px) 11px, calc(100% - 12px) 11px,
+    11px calc(100% - 12px), 11px calc(100% - 24px),
+    calc(100% - 24px) calc(100% - 12px), calc(100% - 12px) calc(100% - 24px);
 }
 
 .bk-page--left {
   border-radius: 4px 0 0 4px;
   box-shadow:
-    inset 0 0 0 1px rgba(217, 164, 65, 0.22),
-    inset -18px 0 26px -22px rgba(120, 82, 56, 0.35);
+    inset -18px 0 26px -22px var(--page-gutter-shade),
+    inset 14px 0 22px -20px var(--page-edge),
+    inset 0 14px 22px -20px var(--page-lip),
+    inset 0 -14px 22px -20px var(--page-lip);
 }
 
 .bk-page--right {
   border-radius: 0 4px 4px 0;
   box-shadow:
-    inset 0 0 0 1px rgba(217, 164, 65, 0.22),
-    inset 18px 0 26px -22px rgba(120, 82, 56, 0.35);
+    inset 18px 0 26px -22px var(--page-gutter-shade),
+    inset -14px 0 22px -20px var(--page-edge),
+    inset 0 14px 22px -20px var(--page-lip),
+    inset 0 -14px 22px -20px var(--page-lip);
 }
 
 /* 纸纹 */
@@ -360,10 +421,28 @@ body.is-book {
   overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  background: linear-gradient(180deg, #fffdf7 0%, #fdf8ee 52%, #fbf3e4 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(217, 164, 65, 0.2),
-    inset 0 0 46px rgba(196, 168, 120, 0.05);
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-mid) 52%, var(--paper-low) 100%);
+  box-shadow: inset 0 0 46px rgba(196, 168, 120, 0.05);
+}
+
+/* 纸边接触阴影：外侧边最重，上下纸边很轻，让纸从背景里浮出一层而不是变卡片 */
+.bk-sheet__face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(to left, var(--page-edge), rgba(120, 82, 56, 0) 26px),
+    linear-gradient(180deg, var(--page-lip), rgba(120, 82, 56, 0) 20px),
+    linear-gradient(0deg, var(--page-lip), rgba(120, 82, 56, 0) 22px);
+}
+
+.bk-sheet__face--back::after {
+  background:
+    linear-gradient(to right, var(--page-edge), rgba(120, 82, 56, 0) 26px),
+    linear-gradient(180deg, var(--page-lip), rgba(120, 82, 56, 0) 20px),
+    linear-gradient(0deg, var(--page-lip), rgba(120, 82, 56, 0) 22px);
 }
 
 /* 背面：预先翻 180°，纸转过去时正好正着朝上 */
@@ -447,8 +526,9 @@ body.is-book {
 }
 
 /* 定制双页（菜系 / 口味 / 视频）自己已经排好版，纸面只当画框 */
+/* 满版排版的页面也给纸边留出安全区：内容不贴边、不压到装帧框 */
 .bk-pageface--bare .bk-pageface__inner {
-  padding: 0;
+  padding: 10px;
   min-height: 0;
   height: 100%;
 }
