@@ -87,6 +87,7 @@ export function initBook({ root }) {
     lastBox = box;
     fitShadow();
     syncMarks();
+    fitMarks();
   }
 
   fit();
@@ -190,13 +191,15 @@ export function initBook({ root }) {
   });
   shell.attachMarks(marks);
   marksApi = marks;
+  requestAnimationFrame(() => fitMarks());
 
   function syncMarks() {
     if (!marksApi) return;
     const onSheet = pageSheetLookup();
     const current = position.value;
-    // 合上 / 正在合上：所有书签都在右侧书口
-    const closed = bookStateClass === 'bk-book--closed' || bookStateClass === 'bk-book--straight' || mode === 'closed';
+    // 合上 / 正在开合：所有书签都在右侧书口；只有真正摊开（open/reading）才按纸张分左右
+    const spread = bookStateClass === 'bk-book--open' || bookStateClass === 'bk-book--reading';
+    const closed = !spread || mode === 'closed';
     marksApi.sync({
       closed,
       single: !!position.single,
@@ -232,6 +235,49 @@ export function initBook({ root }) {
   /* 翻页每一帧：按纸张的实时角度重排书签（书签的联动杆就是这个角度） */
   sheets.hooks.onAngle = () => syncMarks();
   syncMarks();
+
+  /**
+   * 合上时书签要沿封面右侧那条书口排开：
+   * 书口长度 = 书高（合上时整体缩到 CLOSED_SCALE），书签列的自然高度是固定像素，
+   * 两者一比就知道该放大/缩小多少，保证上端不出书角、下端不落到书外。
+   * 一切都是相对书本体的，窗口变化时 fit() 会重算。
+   */
+  const CLOSED_SCALE = 0.52;
+  function fitMarks() {
+    if (!marksApi || !lastBox) return;
+    const layer = marksApi.layer;
+    const bookH = lastBox.h;
+    if (!bookH) return;
+    // 1) 先按书页高度收字号：书小时书签跟着收，保证整列不越过书页上下沿
+    const BASE = 12.5;
+    shell.el.style.setProperty('--mk-font', `${BASE}px`);
+    shell.el.style.setProperty('--mk-pad', '13px');
+    shell.el.style.setProperty('--mk-gap', '6px');
+    let h = layer.offsetHeight || 0;
+    if (!h) return;
+    const target = bookH * 0.94;
+    // 1) 书小时先收字号
+    if (h > target) {
+      const fs = Math.max(8.5, BASE * (target / h));
+      shell.el.style.setProperty('--mk-font', `${fs.toFixed(2)}px`);
+      h = layer.offsetHeight || h;
+    }
+    // 2) 还不够就收内边距和间距（竖排文字的高度主要由这两项撑起来）
+    let pad = 13;
+    let gap = 6;
+    while (h > target && pad > 5) {
+      pad = Math.max(5, pad - 2);
+      gap = Math.max(2, gap - 1);
+      shell.el.style.setProperty('--mk-pad', `${pad}px`);
+      shell.el.style.setProperty('--mk-gap', `${gap}px`);
+      h = layer.offsetHeight || h;
+    }
+    // 2) 合上时再按封面书口长度放大：整列正好落在封面右缘那条书口上
+    const fore = bookH * CLOSED_SCALE;
+    const native = (layer.offsetHeight || h) * CLOSED_SCALE;
+    const scale = Math.min(1.35, Math.max(0.78, (fore * 0.92) / native));
+    shell.el.style.setProperty('--mk-scale', scale.toFixed(3));
+  }
 
   const blankPage = () => null;
 

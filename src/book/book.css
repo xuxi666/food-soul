@@ -752,10 +752,14 @@ body.is-book {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: var(--mk-gap, 6px);
   transform: translateY(-50%);
+  /* 缩放原点固定在书口（右侧书边）：开合过渡期间不会把书签推离书边 */
+  transform-origin: 100% 50%;
   transform-style: preserve-3d;
   pointer-events: none;
+  /* 开书 / 合书时书签跟着书的缩放一起过渡，不会在动画结束后才跳到位 */
+  transition: transform 520ms var(--ease);
 }
 
 /* 联动杆：从书脊到书页外缘，右端挂着书签 */
@@ -786,10 +790,13 @@ body.is-book {
   display: block;
   pointer-events: auto;
   width: 34px;
-  padding: 13px 0;
+  /* 内侧插进书页 4px：书签是夹在纸里的，不是贴在外面 */
+  margin-right: 4px;
+  padding: var(--mk-pad, 13px) 0;
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  font-size: 12.5px;
+  /* 字号由 JS 按书页高度收起（--mk-font），小窗口时书签列不会越过书页上下沿 */
+  font-size: var(--mk-font, 12.5px);
   line-height: 1;
   letter-spacing: 0.2em;
   color: #6d4a2c;
@@ -826,6 +833,32 @@ body.is-book {
   border-radius: 3px;
 }
 
+/* 夹在书页里的那一段：内侧压暗 + 一线淡金，做出一层纸的接触层次 */
+.bk-mark::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 9px;
+  background: linear-gradient(90deg, rgba(108, 74, 45, 0.16), rgba(108, 74, 45, 0) 78%);
+  border-left: 1px solid rgba(198, 164, 110, 0.45);
+  border-radius: 5px 0 0 5px;
+  pointer-events: none;
+}
+
+/* 根部接触阴影：只在书签与纸相接的一侧，很轻，不做悬浮投影 */
+.bk-mark::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: -4px;
+  width: 4px;
+  background: linear-gradient(90deg, rgba(96, 68, 42, 0.22), rgba(96, 68, 42, 0));
+  pointer-events: none;
+}
+
 /* 已经翻到左侧的书签：往左伸、外沿在左边 */
 .bk-mark.is-left {
   --mark-lift: -7px;
@@ -843,10 +876,28 @@ body.is-book {
   border-radius: 3px;
 }
 
-/* 合上时：书签跟着书一起缩到 0.52，这里补一点放大，保证封面上的标签仍看得清 */
+.bk-mark.is-left::before {
+  left: auto;
+  right: 0;
+  background: linear-gradient(270deg, rgba(108, 74, 45, 0.16), rgba(108, 74, 45, 0) 78%);
+  border-left: 0;
+  border-right: 1px solid rgba(198, 164, 110, 0.45);
+  border-radius: 0 5px 5px 0;
+}
+
+.bk-mark.is-left::after {
+  left: auto;
+  right: -4px;
+  background: linear-gradient(270deg, rgba(96, 68, 42, 0.22), rgba(96, 68, 42, 0));
+}
+
+/* 合上时：书签跟着书一起缩到 0.52。放大量由 JS 按「封面书口长度」算出来
+ * （--mk-scale），保证整列书签正好落在封面右侧那条书口上：
+ * 上端不出书角、下端不落到书外，也不会像以书中心为原点那样被推出去。 */
 .bk-book--closed .bk-marks,
 .bk-book--straight .bk-marks {
-  transform: translateY(-50%) scale(1.45);
+  transform-origin: 100% 50%;
+  transform: translateY(-50%) scale(var(--mk-scale, 1.1));
 }
 
 /* 悬停：向外伸出、轻轻抬起、纸色提亮 */
@@ -1125,8 +1176,8 @@ body.is-book {
 
   .bk-mark {
     width: 30px;
-    padding: 11px 0;
-    font-size: 11.5px;
+    padding: var(--mk-pad, 11px) 0;
+    font-size: var(--mk-font, 11.5px);
     letter-spacing: 0.16em;
   }
 
