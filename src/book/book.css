@@ -786,3 +786,109 @@ body.is-book {
     display: block;
   }
 }
+
+/* ============================================
+   按章节的双页版式
+   ============================================ */
+
+/* 章节内容统一贴边，内边距交给各章节自己的容器 */
+.bk-content[data-chapter] > .bk-module > .page,
+.bk-content[data-chapter] > .page {
+  padding: 0;
+}
+
+/* ---------- Epicure 厨房：左页图谱 / 右页食材库与配方 ---------- */
+.bk-content[data-chapter="kitchen"] {
+  column-count: 1;
+  display: block;
+  padding: 0;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-page .wrap {
+  padding: 0;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-page .page-head {
+  display: none;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-flow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 372px auto auto;
+  gap: 12px 58px;
+  height: 100%;
+  padding: 22px 30px 42px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-row {
+  display: contents;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-graph-card {
+  grid-column: 1;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-catalog {
+  grid-column: 2;
+  max-height: 372px;
+  height: 372px;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-modes {
+  grid-column: 1;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-recipe {
+  grid-column: 2;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-result {
+  grid-column: 2;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-graph-card {
+  max-height: 372px;
+  height: 372px;
+  min-height: 0;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-catalog {
+  min-height: 0;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-modes {
+  align-self: start;
+}
+
+.bk-content[data-chapter="kitchen"] .ek-recipe {
+  align-self: start;
+}
+
+/* ---------- 社区：左页信息流 / 右页发帖与话题 ---------- */
+.bk-content[data-chapter="community"] {
+  column-count: 1;
+  display: block;
+  padding: 0;
+}
+
+.bk-content[data-chapter="community"] .page > .wrap {
+  padding: 22px 30px 42px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* ---------- 菜谱：左页输入 / 右页结果 ---------- */
+.bk-content[data-chapter="recipe"] {
+  column-count: 1;
+  display: block;
+  padding: 0;
+}
+
+.bk-content[data-chapter="recipe"] .page > .wrap {
+  padding: 22px 30px 42px;
+  height: 100%;
+  overflow-y: auto;
+}

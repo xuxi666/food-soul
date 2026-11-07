@@ -11,9 +11,11 @@ import { h, clear } from '../lib/dom.js';
 import { CHAPTERS, EXTRA, chapterOf, chapterById, chapterIndex, moduleOf } from './chapters.js';
 import { createShell } from './shell.js';
 import { createAtlas } from './atlas.js';
+import { mountCategory } from './category.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
 import './atlas.css';
+import './category.css';
 
 const FLIP_MS = 660;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -72,6 +74,19 @@ export function initBook({ root }) {
     }
     entry.ready = true;
     return entry;
+  }
+
+  /* ---------------- 菜系 / 口味（定制双页） ---------------- */
+  let catChapter = null;
+  function ensureCategory(kind, id) {
+    if (!catChapter) {
+      catChapter = mountCategory(shell.content, kind, id);
+      catChapter.setSwitchHandler((href) => history.pushState({ path: href }, '', href));
+    } else {
+      catChapter.update(kind, id);
+    }
+    if (!catChapter.el.parentNode) shell.content.append(catChapter.el);
+    return catChapter;
   }
 
   /* ---------------- 图鉴（自带分页） ---------------- */
@@ -137,6 +152,26 @@ export function initBook({ root }) {
     const info = moduleOf(path);
     const chapterId = chapterOf(path);
     const chapter = chapterById(chapterId);
+    shell.content.dataset.chapter = chapterId;
+
+    // 菜系 / 口味：左页索引与介绍，右页代表菜
+    if (info.key === 'cuisines' || info.key === 'tastes') {
+      const kind = info.key === 'tastes' ? 'taste' : 'cuisine';
+      const id = info.params[0];
+      const apply = () => {
+        detachAll();
+        shell.content.classList.add('is-split');
+        ensureCategory(kind, id);
+        shell.setActive(chapterId);
+        const label = chapter ? chapter.label : '';
+        shell.setFolio(`${label} · 索引`, `${label} · 代表菜`);
+      };
+      if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
+      else apply();
+      currentKey = info.key;
+      updatePager();
+      return;
+    }
 
     // 图鉴章节走自己的分页布局
     if (info.key === 'dishes') {
@@ -155,7 +190,8 @@ export function initBook({ root }) {
       return;
     }
 
-    shell.content.classList.remove('is-split');
+    const wantSplit = chapter?.layout !== 'flow';
+    shell.content.classList.toggle('is-split', wantSplit);
     const entry = await ensureModule(info.key, info.params);
     if (!entry) return;
 
@@ -183,6 +219,7 @@ export function initBook({ root }) {
 
   function detachAll() {
     if (atlas?.el.parentNode) atlas.el.remove();
+    if (catChapter?.el.parentNode) catChapter.el.remove();
     for (const [, entry] of hosts) if (entry.el.parentNode) entry.el.remove();
   }
 
