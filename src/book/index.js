@@ -2,27 +2,26 @@
  * 画册编排
  * ------------------------------------------------------------
  * closed：合上的书，只见封面
- * open  ：展开的双页，模块真实挂在书页内容层里
+ * open  ：展开的双页，每一页都是真实的一张纸面
  *
- * 章节切换 = 翻页 + 换内容 + 镜头推进
- * 模块只挂载一次（keep-alive），切走只脱离 DOM，状态不丢
+ * 翻页 = 一张有正反面的纸绕书脊转过去，不是「换一张单面纸再贴内容」：
+ *   正面 = 现在右页（奇数页），背面 = 下一跨页的左页（偶数页），
+ *   纸下面还压着下一张纸的右页 —— 纸一转开就露出来。
+ * 正反面内容在动画开始前就贴好，动画中途只改纸张角度，不再替换内容。
  */
-import { h, clear } from '../lib/dom.js';
-import { CHAPTERS, EXTRA, chapterOf, chapterById, chapterIndex, moduleOf } from './chapters.js';
+import { h } from '../lib/dom.js';
+import { CHAPTERS, EXTRA, chapterById, chapterIndex, moduleOf, chapterOf } from './chapters.js';
 import { createShell } from './shell.js';
-import { createAtlas } from './atlas.js';
-import { mountCategory } from './category.js';
-import { mountVideos } from './videos.js';
-import { computeLayout, observeLayout, BREAKPOINT } from './layout.js';
+import { createPageBook } from './pages.js';
+import { createSheets } from './sheets.js';
+import { computeLayout, observeLayout } from './layout.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
 import './atlas.css';
 import './category.css';
 import './videos.css';
 
-const FLIP_MS = 660;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
 export function initBook({ root }) {
   document.body.classList.add('is-book');
@@ -34,8 +33,6 @@ export function initBook({ root }) {
   // 每帧读取「可见物体」的屏幕包围盒（合上=封面，展开=双页），
   // 把它作为阴影层的 left/top/width/height —— 只跟随位置与尺寸，方向永远水平。
   let shadowRaf = 0;
-  // 阴影跟「封面」还是跟「整本双页」：0 = 只看封面，1 = 整本。
-  // 开书时按封面掀起的节奏从 0 过渡到 1，影子慢慢铺开，不会在某一帧突然变宽。
   let shadowBlend = 0;
   let blendRaf = 0;
   function blendShadowTo(to, ms = 460) {
@@ -70,7 +67,6 @@ export function initBook({ root }) {
     sh.style.width = `${a.width + (b.width - a.width) * k}px`;
     sh.style.height = `${a.height + (b.height - a.height) * k}px`;
   }
-  /** 过渡期间逐帧贴合，过渡结束就停 */
   function followShadow(ms = 800) {
     cancelAnimationFrame(shadowRaf);
     const t0 = performance.now();
@@ -95,91 +91,174 @@ export function initBook({ root }) {
   const stopObserve = observeLayout(() => {
     const before = lastBox;
     fit();
-    // 布局变化时把当前状态重放一次，避免书页停在旧尺寸上
     if (before && (before.mode !== lastBox.mode || before.w !== lastBox.w || before.h !== lastBox.h)) {
       shell.content.dataset.fitted = `${lastBox.w}x${lastBox.h}`;
-      // 单双页切换后，图鉴每屏数量要跟着变
-      if (before.mode !== lastBox.mode) atlas?.repaint();
+      if (before.mode !== lastBox.mode) void reflow();
     }
   });
 
-  /* ---------------- 书籍状态机 ---------------- */
+  /* ---------------- 状态机 ---------------- */
   // CLOSED_TILTED → OPENING（回正 + 掀封面，同帧启动）→ EXPANDING → READING
-  // 返回：SHRINKING → CLOSING → CLOSED_TILTED
-  const OPEN_MS = 1300; // 整段开书（回正 + 掀封面 + 放大到铺满）的一条时间轴
-  const CHROME_MS = 760; // 书签/翻页键在书已经立起来之后才露面
+  const OPEN_MS = 1300;
+  const CHROME_MS = 760;
   let phase = 'CLOSED_TILTED';
   function setBookState(cls) {
     shell.book.className = `bk-book ${cls}`;
-    // 阴影独立层：只同步状态标记，几何位置由 fitShadow 逐帧贴合
-    if (shell.shadow) {
-      shell.shadow.className = `bk-shadow ${cls.replace('bk-book--', 'bk-shadow--')}`;
-    }
+    if (shell.shadow) shell.shadow.className = `bk-shadow ${cls.replace('bk-book--', 'bk-shadow--')}`;
     followShadow();
-    // 阅读态下书签要收进书边，翻页按钮也要落回书内
     shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
   }
   function setPhase(next) {
     phase = next;
   }
 
-  /* ---------------- 模块 keep-alive ---------------- */
-  const hosts = new Map();
-
-  async function ensureModule(key, params) {
-    if (hosts.has(key)) return hosts.get(key);
-    const def = chapterById(key) || EXTRA[key];
-    const mod = def ? await def.load() : null;
-    if (!mod) return null;
-
-    const el = h('div', { class: 'bk-module', 'data-key': key });
-    hosts.set(key, { el, instance: null, ready: false });
-    const entry = hosts.get(key);
-    try {
-      entry.instance = (await mod.mount(el, params || [])) || null;
-    } catch (err) {
-      console.warn('[book] 模块挂载失败', key, err);
-      el.append(h('p', { class: 'bk-error', text: '内容加载失败，请刷新重试' }));
-    }
-    entry.ready = true;
-    return entry;
-  }
-
-  /* ---------------- 菜系 / 口味（定制双页） ---------------- */
-  let catChapter = null;
-  function ensureCategory(kind, id) {
-    if (!catChapter) {
-      catChapter = mountCategory(shell.content, kind, id);
-      catChapter.setSwitchHandler((href) => history.pushState({ path: href }, '', href));
-    } else {
-      catChapter.update(kind, id);
-    }
-    if (!catChapter.el.parentNode) shell.content.append(catChapter.el);
-    return catChapter;
-  }
-
-  /* ---------------- 视频（定制双页） ---------------- */
-  let videoChapter = null;
-  function ensureVideos() {
-    if (!videoChapter) videoChapter = mountVideos(shell.content);
-    if (!videoChapter.el.parentNode) shell.content.append(videoChapter.el);
-    return videoChapter;
-  }
-
-  /* ---------------- 图鉴（自带分页） ---------------- */
-  let atlas = null;
-  function ensureAtlas() {
-    if (!atlas) atlas = createAtlas(shell.content);
-    // 切走时被 detach 过，回来要重新挂上，页码与筛选状态都还在
-    if (!atlas.el.parentNode) atlas.mountInto(shell.content);
-    return atlas;
-  }
-
-  /* ---------------- 状态 ---------------- */
+  /* ---------------- 页面库 + 纸页栈 ---------------- */
   let mode = 'closed';
-  let currentKey = null;
   let busy = false;
+  let currentKey = null;
+  /** 当前位置：双页模式 = 第几个跨页；单页模式 = 第几页 */
+  let position = { single: false, value: 0 };
+  /** 内页（详情 / 后台 / 404）：单独一叠纸，不参与章节顺序 */
+  let inner = null;
 
+  const titlePage = h(
+    'div',
+    { class: 'bk-pageface bk-pageface--title' },
+    h(
+      'div',
+      { class: 'bk-titlepage' },
+      h('p', { class: 'bk-titlepage__kicker', text: 'CHINESE CUISINE ATLAS' }),
+      h('h1', { class: 'bk-titlepage__title', text: '食有灵' }),
+      h('p', { class: 'bk-titlepage__sub', text: '中国美食典藏 · 扉页' }),
+      h('span', { class: 'bk-titlepage__rule' }),
+      h('p', { class: 'bk-titlepage__note', text: '左页书签翻章 · 页脚翻页' })
+    )
+  );
+
+  const book = createPageBook({
+    staging: shell.staging,
+    onAtlasChange: () => void refreshAtlas(),
+  });
+  const sheets = createSheets(shell.content);
+
+  const blankPage = () => null;
+
+  /** 全局页码 → 页面节点：第 1 页是扉页，正文从第 2 页开始 */
+  async function resolvePage(n) {
+    if (n === 1) return titlePage;
+    if (n < 1) return blankPage();
+    if (inner) {
+      if (n === 2) return inner.left;
+      if (n === 3) return inner.right;
+      return blankPage();
+    }
+    return book.pageByNumber(n);
+  }
+
+  const maxPage = () => book.totalSpreads() * 2 + 1;
+
+  function pagesHere() {
+    if (position.single) return [position.value, position.value];
+    return [position.value * 2 + 2, position.value * 2 + 3];
+  }
+
+  function chapterOfPosition() {
+    if (inner) return 'dishDetail';
+    const list = book.spreads();
+    const sp = list[position.single ? Math.floor((position.value - 2) / 2) : position.value];
+    return sp ? sp.chapter : 'dishes';
+  }
+
+  async function render({ animate = null } = {}) {
+    if (animate) {
+      const old = position.value;
+      const ok = await sheets.turn(animate, {
+        resolve: resolvePage,
+        spread: position.single ? old - 1 : old,
+        single: position.single,
+      });
+      if (!ok) return false;
+      position.value = old + (animate === 'next' ? 1 : -1);
+    } else {
+      await sheets.settle({ resolve: resolvePage, spread: position.single ? position.value - 1 : position.value, single: position.single });
+    }
+    syncChrome();
+    return true;
+  }
+
+  /* ---------------- 页脚 / 页码 / 导航条 ---------------- */
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  function chapterLabelOfPage(n) {
+    if (inner) return '菜品详情';
+    if (n <= 1) return '';
+    const list = book.spreads();
+    const sp = list[Math.floor((n - 2) / 2)];
+    if (!sp) return '';
+    const ch = chapterById(sp.chapter);
+    return ch ? ch.label : '';
+  }
+
+  function folioOfPage(n) {
+    const label = chapterLabelOfPage(n);
+    if (!label || n < 2) return '';
+    return `${label} · P${pad2(n)}`;
+  }
+
+  function syncChrome() {
+    const list = book.spreads();
+    const chapterId = chapterOfPosition();
+    shell.content.dataset.chapter = chapterId;
+    currentKey = inner ? 'dishDetail' : chapterId;
+
+    const [l, r] = pagesHere();
+    if (position.single) shell.setFolio('', folioOfPage(position.value));
+    else shell.setFolio(folioOfPage(l), folioOfPage(r));
+
+    shell.setActive(chapterId);
+    updateBackLabel();
+    updatePager();
+
+    // 地址跟着书页走：翻到哪一章，地址就是那一章
+    const ch = chapterById(chapterId);
+    if (ch && !inner && mode === 'open') {
+      const href = chapterHrefOfPage(position.single ? position.value : position.value * 2 + 2, ch);
+      if (href && location.pathname !== href) history.replaceState({ path: href }, '', href);
+    }
+    return list;
+  }
+
+  /** 同一章可能有多个地址（菜系 / 口味带 id）：翻页时保留当前 id */
+  function chapterHrefOfPage(n, ch) {
+    if (!ch) return null;
+    if (ch.id === 'cuisines' || ch.id === 'tastes') {
+      const cur = location.pathname.startsWith(ch.href.split('/').slice(0, 2).join('/')) ? location.pathname : ch.href;
+      return cur;
+    }
+    return ch.href;
+  }
+
+  function updatePager() {
+    const total = book.totalSpreads();
+    if (position.single) {
+      shell.prevBtn.disabled = position.value <= 2;
+      shell.nextBtn.disabled = position.value >= maxPage();
+      return;
+    }
+    shell.prevBtn.disabled = position.value <= 0;
+    shell.nextBtn.disabled = position.value >= total - 1;
+  }
+
+  function updateBackLabel() {
+    const label = shell.backBtn.querySelector('.bk-back__label');
+    const isDetail = currentKey === 'dishDetail';
+    shell.backBtn.dataset.action = isDetail ? 'gallery' : 'close';
+    shell.backBtn.setAttribute('aria-label', isDetail ? '返回图鉴' : '合上画册');
+    if (label) label.textContent = isDetail ? '返回图鉴' : '合上';
+  }
+
+  /* ---------------- 开书 ---------------- */
+  let coverBusy = false;
   shell.cover.addEventListener('click', () => void openFirst());
   shell.cover.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -192,26 +271,17 @@ export function initBook({ root }) {
     if (phase !== 'CLOSED_TILTED' || busy) return;
     busy = true;
     try {
-      // 0) 先把页码写上：书页展开的瞬间就有页脚，不会出现空白页码
-      shell.setFolio(...folioFor(location.pathname || '/dishes'));
+      // 先把页码定下来：书页展开的瞬间就有页脚
+      const startSpread = book.spreadOfPath(location.pathname || '/dishes');
+      const first = startSpread * 2 + 2;
+      shell.setFolio(folioOfPage(first), folioOfPage(first + 1));
 
-      /*
-       * 1) 一次 class 切换启动整段开书动画，两个变换各自分层、同帧开始：
-       *      A 书本整体：@keyframes bk-book-open —— 15°→0° 与 0.52→1 写在同一段时间轴里
-       *      B 封面：@keyframes bk-cover-open —— 绕书脊 0°→-180°
-       *    中途不再切 class，所以回正和放大之间没有接缝，也不会出现"回正完停一下"。
-       */
       setPhase('OPENING');
       setBookState('bk-book--opening');
-
-      // 2) 书立起来之后再把书签/翻页键露出来，避免它们在旋转途中闪现
       await wait(CHROME_MS);
-      // 双页露出来了，阴影从封面范围平滑过渡到整本
       blendShadowTo(1, 520);
       shell.el.classList.add('is-open');
       setPhase('EXPANDING');
-
-      // 3) 等整条时间轴走完，再切到阅读态（几何完全一致，不会跳）
       await wait(OPEN_MS - CHROME_MS);
       setPhase('READING');
       setBookState('bk-book--reading');
@@ -222,227 +292,72 @@ export function initBook({ root }) {
     }
   }
 
-  /* ---------------- 翻页纸叶 ---------------- */
-  /**
-   * 把跨页内容「贴」到正在翻的纸叶正反面：
-   *   正面 = 正在翻走的那一页（next 时是右页，prev 时是左页）
-   *   反面 = 翻过去之后露出来的那一页（换页后再贴，此时正好无缝）
-   * 只做 DOM 克隆，不做位图；内容太大（长列表）就退回素纸，避免翻页掉帧。
-   */
-  function paintLeafFace(faceEl, half) {
-    if (!faceEl) return;
-    const src = shell.content;
-    if (!src || src.querySelectorAll('*').length > 600) {
-      faceEl.replaceChildren();
-      faceEl.classList.remove('is-filled');
-      return;
-    }
-    const clone = src.cloneNode(true);
-    clone.removeAttribute('data-chapter');
-    clone.classList.add('bk-leaf__ghost');
-    clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
-    clone.setAttribute('aria-hidden', 'true');
-    clone.style.left = '0';
-    clone.style.top = '0';
-    clone.style.right = 'auto';
-    clone.style.bottom = 'auto';
-    clone.style.width = '200%';
-    clone.style.height = '100%';
-    clone.style.transform = half === 'right' ? 'translateX(-50%)' : 'translateX(0)';
-    faceEl.replaceChildren(clone);
-    faceEl.classList.add('is-filled');
-  }
-
-  async function flipLeaf(dir, swap) {
-    const leaf = shell.leaf;
-    const front = leaf.querySelector('.bk-leaf__face--front');
-    const back = leaf.querySelector('.bk-leaf__face--back');
-    const isPrev = dir === 'prev';
-    // 正面：贴住此刻正在翻走的那一页
-    paintLeafFace(front, isPrev ? 'left' : 'right');
-    if (back) {
-      back.replaceChildren();
-      back.classList.remove('is-filled');
-    }
-    leaf.classList.add('is-on');
-    leaf.classList.toggle('bk-leaf--left', isPrev);
-    const from = 'rotateY(0deg)';
-    const to = isPrev ? 'rotateY(180deg)' : 'rotateY(-180deg)';
-    leaf.style.transition = 'none';
-    leaf.style.transform = from;
-    await nextFrame();
-    leaf.style.transition = `transform ${FLIP_MS}ms cubic-bezier(0.45, 0.05, 0.35, 1)`;
-    leaf.style.transform = to;
-    await wait(FLIP_MS * 0.46);
-    swap?.();
-    // 反面：换完页立刻贴上新露出的那一页，纸叶落下时正好对得上
-    paintLeafFace(back, isPrev ? 'right' : 'left');
-    await wait(FLIP_MS * 0.54);
-    leaf.style.transition = 'none';
-    leaf.classList.remove('is-on', 'bk-leaf--left');
-    leaf.style.transform = 'rotateY(0deg)';
-    front?.replaceChildren();
-    back?.replaceChildren();
-    front?.classList.remove('is-filled');
-    back?.classList.remove('is-filled');
-  }
-
-  /* ---------------- 页码文案 ---------------- */
-  /** 路径 → 左右页页脚文案；打开画册时先预置，避免书页已经展开、页码还是空的 */
-  function folioFor(path) {
-    const info = moduleOf(path);
-    const chapter = chapterById(chapterOf(path));
-    const label = chapter ? chapter.label : '';
-    if (info.key === 'cuisines' || info.key === 'tastes') {
-      return [`${label} · 索引`, `${label} · 代表菜`];
-    }
-    if (info.key === 'videos') return ['视频 · 列表', '视频 · 选菜'];
-    if (info.key === 'dishes') {
-      return dishesFolio();
-    }
-    const one = label || (info.key === 'dishDetail' ? '菜品详情' : '后台');
-    return [one, one];
-  }
-
   /* ---------------- 显示某个路径 ---------------- */
-  async function showPath(path, { flip = true } = {}) {
+  const INNER_KEYS = new Set(['dishDetail', 'admin', 'notFound']);
+
+  async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
-    const chapterId = chapterOf(path);
-    const chapter = chapterById(chapterId);
-    shell.content.dataset.chapter = chapterId;
+    const isInner = INNER_KEYS.has(info.key);
 
-    // 菜系 / 口味：左页索引与介绍，右页代表菜
-    if (info.key === 'cuisines' || info.key === 'tastes') {
-      const kind = info.key === 'tastes' ? 'taste' : 'cuisine';
-      const id = info.params[0];
-      const apply = () => {
-        detachAll();
-        shell.content.classList.add('is-split');
-        ensureCategory(kind, id);
-        shell.setActive(chapterId);
-        shell.setFolio(...folioFor(path));
-      };
-      if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
-      else apply();
-      currentKey = info.key;
-      updateBackLabel();
-      updatePager();
+    if (isInner) {
+      // 内页：单独一叠纸，左右两页都来自这个模块
+      const entry = await book.innerPages(path);
+      void book.disposeInner(inner);
+      inner = entry;
+      position = { single: lastBox.mode === 'single', value: lastBox.mode === 'single' ? 2 : 0 };
+      await render();
       return;
     }
 
-    // 视频：左页列表、右页按菜系挑
-    if (info.key === 'videos') {
-      const apply = () => {
-        detachAll();
-        shell.content.classList.add('is-split');
-        ensureVideos();
-        shell.setActive(chapterId);
-        shell.setFolio(...folioFor(path));
-      };
-      if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
-      else apply();
-      currentKey = info.key;
-      updateBackLabel();
-      updatePager();
+    void book.disposeInner(inner);
+    inner = null;
+
+    const target = book.spreadOfPath(path);
+    const single = lastBox?.mode === 'single';
+    const value = single ? target * 2 + 2 : target;
+
+    // 尺寸模式变了（横竖屏）：重新摆一次纸，不做动画
+    const modeChanged = single !== position.single;
+    position = { single, value };
+
+    if (flip && !modeChanged && Math.abs(target - (single ? 0 : 0)) >= 0) {
+      await render();
       return;
     }
-
-    // 图鉴章节走自己的分页布局
-    if (info.key === 'dishes') {
-      const needFlip = flip && currentKey !== 'dishes';
-      const apply = () => {
-        detachAll();
-        shell.content.classList.add('is-split');
-        ensureAtlas();
-        shell.setActive('dishes');
-        shell.setFolio(...folioFor(path));
-      };
-      if (needFlip) await flipLeaf('next', apply);
-      else apply();
-      currentKey = 'dishes';
-      updateBackLabel();
-      updatePager();
-      return;
-    }
-
-    const wantSplit = chapter?.layout !== 'flow';
-    shell.content.classList.toggle('is-split', wantSplit);
-    const entry = await ensureModule(info.key, info.params);
-    if (!entry) return;
-
-    const apply = () => {
-      detachAll();
-      shell.content.append(entry.el);
-      shell.setActive(chapterId);
-      shell.setFolio(...folioFor(path));
-      shell.content.scrollTop = 0;
-    };
-
-    if (flip && currentKey && currentKey !== info.key) {
-      const from = chapterIndex(currentKey);
-      const to = chapterIndex(chapterId);
-      const dir = from !== -1 && to !== -1 && to < from ? 'prev' : 'next';
-      await flipLeaf(dir, apply);
-    } else {
-      apply();
-    }
-
-    currentKey = info.key;
-    updateBackLabel();
-    updatePager();
+    await render();
   }
 
-  function detachAll() {
-    if (atlas?.el.parentNode) atlas.el.remove();
-    if (catChapter?.el.parentNode) catChapter.el.remove();
-    if (videoChapter?.el.parentNode) videoChapter.el.remove();
-    for (const [, entry] of hosts) if (entry.el.parentNode) entry.el.remove();
+  /** 筛选变了：页数可能变化，重新摆纸 */
+  async function refreshAtlas() {
+    if (inner || position.single || currentKey !== 'dishes') return;
+    const total = book.totalSpreads();
+    position.value = Math.min(position.value, Math.max(0, total - 1));
+    await render();
   }
 
-  /* ---------------- 翻页按钮 ---------------- */
-  /** 详情页把左上角按钮切成「返回图鉴」，其余章节是「合上」 */
-  function updateBackLabel() {
-    const label = shell.backBtn.querySelector('.bk-back__label');
-    const isDetail = currentKey === 'dishDetail';
-    shell.backBtn.dataset.action = isDetail ? 'gallery' : 'close';
-    shell.backBtn.setAttribute('aria-label', isDetail ? '返回图鉴' : '合上画册');
-    if (label) label.textContent = isDetail ? '返回图鉴' : '合上';
+  /** 横竖屏切换：单页 ↔ 双页，页码换算后重新摆纸 */
+  async function reflow() {
+    if (mode !== 'open') return;
+    const single = lastBox.mode === 'single';
+    if (single === position.single) return;
+    const page = position.single ? position.value : position.value * 2 + 2;
+    position = single ? { single: true, value: page } : { single: false, value: Math.floor((page - 2) / 2) };
+    await render();
   }
 
-  function updatePager() {
-    if (currentKey === 'dishes' && atlas) {
-      shell.prevBtn.disabled = !atlas.hasPrev();
-      shell.nextBtn.disabled = !atlas.hasNext();
-      shell.setFolio(...dishesFolio());
-      return;
-    }
-    const idx = chapterIndex(currentKey);
-    shell.prevBtn.disabled = idx <= 0;
-    shell.nextBtn.disabled = idx === -1 || idx >= CHAPTERS.length - 1;
-  }
-
-  /** 图鉴页脚：真实页码，左页奇数、右页偶数 */
-  function dishesFolio() {
-    const [l, r] = atlas ? atlas.pageNumbers() : [1, 2];
-    const pad = (n) => String(n).padStart(2, '0');
-    return r ? [`图鉴 · P${pad(l)}`, `图鉴 · P${pad(r)}`] : [`图鉴 · P${pad(l)}`, '图鉴'];
-  }
-
+  /* ---------------- 翻页 ---------------- */
   async function turn(dir) {
-    if (busy) return;
+    if (mode !== 'open' || busy || inner) return;
+    const step = dir === 'next' ? 1 : -1;
+    const next = position.value + step;
+    if (position.single) {
+      if (next < 2 || next > maxPage()) return;
+    } else if (next < 0 || next >= book.totalSpreads()) {
+      return;
+    }
     busy = true;
     try {
-      if (currentKey === 'dishes' && atlas) {
-        const ok = dir === 'next' ? atlas.next() : atlas.prev();
-        if (!ok) return;
-        await flipLeaf(dir, () => atlas.repaint());
-        updatePager();
-        return;
-      }
-      const idx = chapterIndex(currentKey);
-      const target = CHAPTERS[idx + (dir === 'next' ? 1 : -1)];
-      if (!target) return;
-      await openChapter(target.id, dir);
+      await render({ animate: dir });
     } finally {
       busy = false;
     }
@@ -451,38 +366,29 @@ export function initBook({ root }) {
   shell.prevBtn.addEventListener('click', () => void turn('prev'));
   shell.nextBtn.addEventListener('click', () => void turn('next'));
 
-  /* ---------------- 章节切换 ---------------- */
-  async function openChapter(id, dir) {
+  /* ---------------- 章节跳转（书签） ---------------- */
+  async function openChapter(id) {
     if (busy) return;
     const chapter = chapterById(id);
     if (!chapter) return;
+    if (mode === 'closed') {
+      await openFirst();
+      return;
+    }
     busy = true;
     try {
-      if (mode === 'closed') {
-        await openFirst();
-        return;
-      }
-      if (currentKey === id) return;
-      const from = chapterIndex(currentKey);
-      const to = chapterIndex(id);
-      const d = dir || (from !== -1 && to < from ? 'prev' : 'next');
-
-      // 翻页中途换内容：纸叶盖住页面的一瞬间完成切换
-      let swapped = false;
-      const swap = () => {
-        if (swapped) return;
-        swapped = true;
-        void showPath(chapter.href, { flip: false });
-      };
-      await flipLeaf(d, swap);
-      if (!swapped) await showPath(chapter.href, { flip: false });
-      history.pushState({ chapter: id }, '', chapter.href);
+      const single = lastBox.mode === 'single';
+      const spreadIdx = book.spreadOfChapter(id);
+      void book.disposeInner(inner);
+      inner = null;
+      position = { single, value: single ? spreadIdx * 2 + 2 : spreadIdx };
+      await render();
+      history.pushState({ chapter: id }, '', location.pathname.startsWith(chapter.href) ? location.href : chapter.href);
     } finally {
       busy = false;
     }
   }
 
-  /* ---------------- 书签 ---------------- */
   for (const ch of CHAPTERS) {
     const btn = shell.marks.get(ch.id);
     btn?.addEventListener('click', () => void openChapter(ch.id));
@@ -493,20 +399,14 @@ export function initBook({ root }) {
     if (mode !== 'open' || busy) return;
     busy = true;
     try {
-      // 1) 书页缩回展开尺寸
       setPhase('SHRINKING');
       setBookState('bk-book--open');
       await wait(520);
-
-      // 2) 封面合上
       setPhase('CLOSING');
-      // 封面盖回去，只剩封面可见：阴影缩回封面范围
       blendShadowTo(0, 520);
       setBookState('bk-book--straight');
       shell.el.classList.remove('is-open');
       await wait(720);
-
-      // 3) 恢复 15° 倾斜
       setBookState('bk-book--closed');
       setPhase('CLOSED_TILTED');
       mode = 'closed';
@@ -547,11 +447,11 @@ export function initBook({ root }) {
     if (!link) return;
     const url = new URL(link.href, location.origin);
     if (url.origin !== location.origin) return;
+    // 书页里的链接是模块自己渲染的，翻页纸里也能点
     e.preventDefault();
     if (busy) return;
     const path = url.pathname + url.search;
     if (mode === 'closed') {
-      // 合上的书里点到链接：只记住目标地址，开书仍然只由点击封面触发
       history.pushState({ path }, '', path);
       shell.setActive(chapterOf(path));
       return;
@@ -563,7 +463,6 @@ export function initBook({ root }) {
   window.addEventListener('popstate', () => {
     if (busy) return;
     const path = location.pathname + location.search;
-    // 合上的书不因为浏览历史而变化：只更新书签高亮，开书仍然只由点击封面触发
     if (mode === 'closed') {
       shell.setActive(chapterOf(path));
       return;
@@ -590,11 +489,7 @@ export function initBook({ root }) {
   shell.setActive(chapterOf(location.pathname));
   setBookState('bk-book--closed');
 
-  /*
-   * 首开预热：书签、返回键、翻页键平时隐藏，第一次点封面时才在 760ms 那一刻上屏，
-   * 实测这一次首绘会卡 140ms（正好卡在书页开始放大的瞬间）。
-   * 空闲时先把它们用 1% 不透明度画一遍——几乎看不见，但图层/字形已经备好。
-   */
+  /** 首开预热：书签、返回键、翻页键平时隐藏，第一次点封面时才在 760ms 那一刻上屏 */
   function warmOpenChrome() {
     if (mode !== 'closed' || busy || phase !== 'CLOSED_TILTED') return;
     const els = [...shell.el.querySelectorAll('.bk-marks, .bk-back, .bk-turn')];
@@ -610,18 +505,7 @@ export function initBook({ root }) {
       })
     );
   }
-  // 这是画一遍预热帧，不是开书定时器；开书仍然只由封面点击触发
   window.setTimeout(warmOpenChrome, 600);
-
-  /*
-   * 注意：不要在这里预热图鉴。
-   * 图鉴一次要建近百张卡片，实测会形成一个 600ms 的长动画帧，
-   * 用户恰好在那一帧点击，开书就会晚半秒才开始；而它带来的收益
-   * 只是把"内容挂载"的 100ms 提前。开书流畅优先，所以内容仍然在开书后挂载。
-   */
-
-  // 深链（/dishes、/community…）只用于高亮书签；点开封面后落到该章节，
-  // 因为在 openFirst() 里是用 location.pathname 作为目标路径。
 
   window.__book = {
     get mode() {
@@ -629,6 +513,15 @@ export function initBook({ root }) {
     },
     get chapter() {
       return currentKey;
+    },
+    get spread() {
+      return position.value;
+    },
+    get sheets() {
+      return sheets;
+    },
+    get pages() {
+      return book;
     },
     open: openFirst,
     shut,

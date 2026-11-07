@@ -47,31 +47,22 @@ export function createShell(root) {
   const cover = h('div', { class: 'bk-cover', role: 'button', tabindex: '0', 'aria-label': '翻开画册' }, coverFront, coverInner);
 
   /* ---------- 书页 ---------- */
-  // 页面本身只负责纸张背景与页码；内容放在跨双页的内容层里，
-  // 由 CSS 分栏（column-count: 2）自然分成左右两页，中缝落在分栏间隙上。
-  const pageL = h(
-    'section',
-    { class: 'bk-page bk-page--left', 'aria-label': '左页' },
-    h('span', { class: 'bk-page__folio bk-page__folio--left' })
-  );
-  const pageR = h(
-    'section',
-    { class: 'bk-page bk-page--right', 'aria-label': '右页' },
-    h('span', { class: 'bk-page__folio bk-page__folio--right' })
-  );
+  // 纸面（.bk-page）只给「合上的书」和开书过程当底纸；
+  // 进入阅读态之后，看到的内容都来自盖在上面的纸张正反面。
+  const pageL = h('section', { class: 'bk-page bk-page--left', 'aria-label': '左页' });
+  const pageR = h('section', { class: 'bk-page bk-page--right', 'aria-label': '右页' });
 
-  const content = h('div', { class: 'bk-content' });
+  // 纸张栈的宿主：透视挂在这里，四张纸都在里面绕书脊转
+  const folioL = h('span', { class: 'bk-folio bk-folio--left' });
+  const folioR = h('span', { class: 'bk-folio bk-folio--right' });
+  const content = h('div', { class: 'bk-content' }, folioL, folioR);
+
+  // 暂存区：整章模块先在这里按「一页纸」的尺寸排版，再切成左右两页
+  const staging = h('div', { class: 'bk-staging', 'aria-hidden': 'true' });
 
   const gutter = h('div', { class: 'bk-gutter', 'aria-hidden': 'true' }, h('span', { class: 'bk-gutter__shade bk-gutter__shade--l' }), h('span', { class: 'bk-gutter__shade bk-gutter__shade--r' }));
 
-  const leaf = h(
-    'div',
-    { class: 'bk-leaf', 'aria-hidden': 'true' },
-    h('div', { class: 'bk-leaf__face bk-leaf__face--front' }),
-    h('div', { class: 'bk-leaf__face bk-leaf__face--back' })
-  );
-
-  const spread = h('div', { class: 'bk-spread' }, pageL, gutter, pageR, content, leaf);
+  const spread = h('div', { class: 'bk-spread' }, pageL, gutter, pageR, staging, content);
 
   /*
    * 环境阴影（独立层）：不放进 .bk-book，避免继承 15° 旋转。
@@ -149,7 +140,8 @@ export function createShell(root) {
     pageR,
     content,
     cover,
-    leaf,
+    staging,
+    folios: { left: folioL, right: folioR },
     marks: markEls,
     sealBtn,
     sealPanel,
@@ -160,8 +152,8 @@ export function createShell(root) {
       for (const [key, el] of markEls) el.classList.toggle('is-on', key === id);
     },
     setFolio(left, right) {
-      pageL.querySelector('.bk-page__folio').textContent = left || '';
-      pageR.querySelector('.bk-page__folio').textContent = right || '';
+      folioL.textContent = left || '';
+      folioR.textContent = right || '';
     },
   };
 }

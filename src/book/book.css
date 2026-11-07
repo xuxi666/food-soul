@@ -259,58 +259,48 @@ body.is-book {
     repeating-linear-gradient(0deg, rgba(196, 168, 120, 0.045) 0, rgba(196, 168, 120, 0.045) 1px, transparent 1px, transparent 4px);
 }
 
+/* 纸张栈宿主：四张纸都在这里绕书脊转，透视挂在宿主上 */
 .bk-content {
   position: absolute;
   inset: 0;
   z-index: 2;
-  padding: 26px 30px 36px;
-  /* 两栏之间的间隙 = 中缝宽度 + 两侧留白，保证内容不压中缝 */
-  column-count: 2;
-  column-gap: 58px;
-  column-fill: balance;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(196, 168, 120, 0.5) transparent;
-}
-
-.bk-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.bk-content::-webkit-scrollbar-thumb {
-  background: rgba(196, 168, 120, 0.45);
-  border-radius: 2px;
-}
-
-/* 图鉴这类需要精确左右排版的章节：单栏 + 左右两栏手动控制 */
-.bk-content.is-split {
-  column-count: 1;
-  display: block;
-  padding: 0;
-}
-
-.bk-content.is-split > .atlas {
-  height: 100%;
-  padding: 26px 30px 44px;
+  perspective: 2400px;
+  perspective-origin: 50% 50%;
+  overflow: hidden;
+  transform-style: preserve-3d;
 }
 
 /* 页码 */
-.bk-page__folio {
+.bk-folio {
   position: absolute;
-  bottom: 10px;
+  bottom: 16px;
+  z-index: 620;
   font-size: 10.5px;
   letter-spacing: 0.18em;
   color: var(--color-text-muted);
-  z-index: 2;
+  pointer-events: none;
+  transition: opacity 220ms ease;
 }
 
-.bk-page__folio--left {
-  left: 30px;
+.bk-folio--left {
+  left: 34px;
 }
 
-.bk-page__folio--right {
-  right: 30px;
+.bk-folio--right {
+  right: 34px;
+}
+
+/* 暂存区：整章模块先按「一页纸」的尺寸在这里排版，再切成左右两页 */
+.bk-staging {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 100%;
+  z-index: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 /* ---------- 中缝 ---------- */
@@ -345,55 +335,169 @@ body.is-book {
   background: linear-gradient(to right, rgba(120, 82, 56, 0.14), transparent);
 }
 
-/* ---------- 翻页纸叶 ---------- */
-.bk-leaf {
+/* ---------- 纸张（正反两面） ---------- */
+/* 一张纸占右半页，绕书脊（左边缘）转；正面是奇数页，背面是偶数页 */
+.bk-sheet {
   position: absolute;
   top: 0;
   right: 0;
-  width: calc(50% - 5px);
+  width: 50%;
   height: 100%;
   transform-origin: left center;
   transform-style: preserve-3d;
-  pointer-events: none;
-  z-index: 40;
-  opacity: 0;
+  transform: rotateY(0deg);
+  will-change: transform;
 }
 
-.bk-leaf.is-on {
-  opacity: 1;
-}
-
-.bk-leaf__face {
+.bk-sheet__face {
   position: absolute;
   inset: 0;
   overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  background: linear-gradient(180deg, #fffdf7 0%, #fbf5e9 100%);
-  box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.2);
+  background: linear-gradient(180deg, #fffdf7 0%, #fdf8ee 52%, #fbf3e4 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 164, 65, 0.2),
+    inset 0 0 46px rgba(196, 168, 120, 0.05);
 }
 
-/* 贴上去的那一页内容（克隆自跨页内容层，宽 200% 再左右各移半页） */
-.bk-leaf__ghost {
+/* 背面：预先翻 180°，纸转过去时正好正着朝上 */
+.bk-sheet__face--back {
+  transform: rotateY(180deg);
+}
+
+/* 书脊一侧的阴影：正面靠左，背面（已翻 180°）靠右 */
+.bk-sheet__spine {
   position: absolute;
   top: 0;
+  bottom: 0;
   left: 0;
-  height: 100%;
-  margin: 0;
+  width: 26px;
   pointer-events: none;
-  user-select: none;
+  background: linear-gradient(to right, rgba(120, 82, 56, 0.24), rgba(120, 82, 56, 0.04) 62%, transparent);
 }
 
-.bk-leaf__face--back {
-  transform: rotateY(180deg);
-  background: linear-gradient(180deg, #fdf8ee 0%, #fffdf7 100%);
+.bk-sheet__face--back .bk-sheet__spine {
+  left: auto;
+  right: 0;
+  background: linear-gradient(to left, rgba(120, 82, 56, 0.24), rgba(120, 82, 56, 0.04) 62%, transparent);
 }
 
-.bk-leaf__face::after {
+/* 外侧纸边：一道很细的暗线 + 高光，让纸看起来有厚度 */
+.bk-sheet__edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 3px;
+  pointer-events: none;
+  background: linear-gradient(to left, rgba(140, 108, 74, 0.22), rgba(255, 255, 255, 0));
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.7);
+}
+
+.bk-sheet__face--back .bk-sheet__edge {
+  right: auto;
+  left: 0;
+  background: linear-gradient(to right, rgba(140, 108, 74, 0.22), rgba(255, 255, 255, 0));
+}
+
+/* 翻动中的纸：靠近书脊的一侧压暗，像纸被弯起来 */
+.bk-sheet.is-turning .bk-sheet__face--front::after,
+.bk-sheet.is-turning .bk-sheet__face--back::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to left, rgba(120, 82, 56, 0.16), transparent 42%);
+  pointer-events: none;
+  background: linear-gradient(to left, rgba(80, 54, 34, 0.16), transparent 48%);
+}
+
+.bk-sheet.is-turning .bk-sheet__face--back::after {
+  background: linear-gradient(to right, rgba(80, 54, 34, 0.16), transparent 48%);
+}
+
+/* ---------- 纸面内容 ---------- */
+/* 每一页都是独立可滚动的纸面：左页滚左页的，右页滚右页的 */
+.bk-pageface {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.4) transparent;
+}
+
+.bk-pageface::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bk-pageface::-webkit-scrollbar-thumb {
+  background: rgba(196, 168, 120, 0.36);
+  border-radius: 2px;
+}
+
+.bk-pageface__inner {
+  min-height: 100%;
+  padding: 24px 30px 38px;
+}
+
+/* 定制双页（菜系 / 口味 / 视频）自己已经排好版，纸面只当画框 */
+.bk-pageface--bare .bk-pageface__inner {
+  padding: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.bk-pageface--bare .bk-pageface__inner > .vid__page,
+.bk-pageface--bare .bk-pageface__inner > .catb__page {
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* 扉页 */
+.bk-pageface--title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bk-titlepage {
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.bk-titlepage__kicker {
+  margin: 0 0 12px;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+}
+
+.bk-titlepage__title {
+  margin: 0;
+  font-size: clamp(30px, 6vh, 46px);
+  letter-spacing: 0.16em;
+  color: var(--color-text);
+}
+
+.bk-titlepage__sub {
+  margin: 10px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+}
+
+.bk-titlepage__rule {
+  display: block;
+  width: 120px;
+  height: 1px;
+  margin: 18px auto;
+  background: linear-gradient(to right, transparent, rgba(200, 166, 108, 0.6), transparent);
+}
+
+.bk-titlepage__note {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
 }
 
 /* ---------- 封面 ---------- */
@@ -902,6 +1006,29 @@ body.is-book {
     display: none;
   }
 
+  /* 单页模式：一张纸就是整页，翻过去的纸落到左侧之后不再显示 */
+  .bk-sheet {
+    width: 100%;
+  }
+
+  .bk-sheet.is-turned {
+    visibility: hidden;
+  }
+
+  .bk-staging {
+    width: 100%;
+  }
+
+  .bk-folio--left {
+    display: none;
+  }
+
+  .bk-folio--right {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+
   .bk-cover {
     width: 100%;
   }
@@ -1279,20 +1406,20 @@ body.is-book {
   right: 92px;
 }
 
-.bk-stage.is-reading .bk-page__folio--left {
+.bk-stage.is-reading .bk-folio--left {
   left: 110px;
 }
 
-.bk-stage.is-reading .bk-page__folio--right {
+.bk-stage.is-reading .bk-folio--right {
   right: 8px;
 }
 
 /* 单页模式：只有一个页码，放到底部居中，避开翻页按钮与小精灵 */
-.bk-stage.is-single.is-reading .bk-page__folio--left {
+.bk-stage.is-single.is-reading .bk-folio--left {
   display: none;
 }
 
-.bk-stage.is-single.is-reading .bk-page__folio--right {
+.bk-stage.is-single.is-reading .bk-folio--right {
   left: 50%;
   right: auto;
   bottom: 38px;

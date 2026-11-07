@@ -323,3 +323,120 @@
     padding: 0 5px;
   }
 }
+/* 图鉴页（纸张里的一页）：页头 + 2×2 卡片 + 页脚 */
+.atlas-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.atlas-page__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(200, 166, 108, 0.32);
+}
+
+.atlas-page__kicker {
+  margin: 0;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: #a9845f;
+}
+
+.atlas-page__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(200, 166, 108, 0.22);
+}
+
+.atlas-page__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  gap: 14px 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.atlas-page__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(200, 166, 108, 0.22);
+}
+
+.atlas-page__foot .atlas__pagenum {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--color-text-muted);
+}
+
+.atlas-page__foot .atlas__pagetip {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: #a9845f;
+}
+
+/* 一页 3–4 张卡：卡片撑满格子，图片按格子高度自适应 */
+.atlas-page .atlas__card {
+  min-height: 0;
+}
+
+.bk-sheet__face .atlas__card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bk-sheet__face .atlas__card .atlas__media {
+  flex: 0 0 46%;
+  min-height: 0;
+}
+
+.bk-sheet__face .atlas__card .atlas__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 纸面里的章节单页版式 */
+.bk-sheet__face .tool-form {
+  position: static;
+  top: auto;
+  max-width: none;
+}
+
+.bk-sheet__face .community-side {
+  position: static;
+  padding: 14px 16px 16px;
+  border-radius: 10px;
+}
+
+.bk-sheet__face .community-main {
+  min-width: 0;
+}
+
+.bk-sheet__face .ek-graph-card {
+  height: clamp(340px, 50vh, 540px);
+  max-height: none;
+}
+
+.bk-sheet__face .ek-modes,
+.bk-sheet__face .ek-recipe,
+.bk-sheet__face .ek-result {
+  margin-top: 10px;
+}
+
+.bk-sheet__face .ek-catalog {
+  height: auto;
+  max-height: none;
+}
+
