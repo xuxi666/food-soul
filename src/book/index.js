@@ -508,6 +508,7 @@ export function initBook({ root }) {
   window.setTimeout(warmOpenChrome, 600);
 
   window.__book = {
+    build: 'sheet-2.1',
     get mode() {
       return mode;
     },
@@ -527,6 +528,7 @@ export function initBook({ root }) {
     shut,
     goto: (path) => showPath(path),
     turn,
+    inspect: () => sheets.inspect(),
     shell,
   };
 

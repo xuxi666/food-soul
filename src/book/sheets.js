@@ -14,13 +14,41 @@
  *          A1 的背面（上一页左页）本来就压在它下面。
  *
  * 纸的正反面内容在动画开始之前就贴好；动画只改纸张的空间变换，中途不换内容。
+ *
+ * 旋转由我们自己的 rAF 循环驱动（不用 CSS transition），每一帧都按真实角度
+ * 决定露出哪一面：|角度| < 90° 只画正面，≥ 90° 只画背面。
+ * 这样即使某个浏览器在 3D 扁平化 / backface-visibility 上有 bug，
+ * 也绝不会出现「翻过中缝还是上一页」的情况。
  */
 import { h } from '../lib/dom.js';
 
-const TURN_MS = 640;
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-const BILINEAR = 'cubic-bezier(0.32, 0.05, 0.22, 1)';
+const TURN_MS = 680;
+const BEZIER = [0.32, 0.05, 0.22, 1];
+
+/** 把 time 0..1 映射成 eased 0..1（和原来 CSS 用的 cubic-bezier 一致，手感不变） */
+function cubicBezier(x1, y1, x2, y2) {
+  const cx = 3 * x1;
+  const bx = 3 * (x2 - x1) - cx;
+  const ax = 1 - cx - bx;
+  const cy = 3 * y1;
+  const by = 3 * (y2 - y1) - cy;
+  const ay = 1 - cy - by;
+  const sx = (t) => ((ax * t + bx) * t + cx) * t;
+  const sy = (t) => ((ay * t + by) * t + cy) * t;
+  const solve = (x) => {
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const dx = sx(t) - x;
+      if (Math.abs(dx) < 1e-4) break;
+      const d = (3 * ax * t + 2 * bx) * t + cx;
+      if (Math.abs(d) < 1e-6) break;
+      t -= dx / d;
+    }
+    return Math.min(1, Math.max(0, t));
+  };
+  return (x) => sy(solve(x));
+}
+const ease = cubicBezier(...BEZIER);
 
 function makeSheet(name) {
   const front = h('div', { class: 'bk-sheet__face bk-sheet__face--front' });
@@ -33,7 +61,7 @@ function makeSheet(name) {
     h('span', { class: 'bk-sheet__spine', 'aria-hidden': 'true' }),
     h('span', { class: 'bk-sheet__edge', 'aria-hidden': 'true' })
   );
-  return { el, front, back, name };
+  return { el, front, back, name, angle: 0 };
 }
 
 export function createSheets(host) {
@@ -45,10 +73,23 @@ export function createSheets(host) {
 
   let busy = false;
 
+  /**
+   * 把一张纸摆到某个角度，并按角度决定哪一面朝上。
+   * 正面只在 |angle| < 90° 时显示，背面只在 ≥ 90° 时显示；
+   * 这不是「动画结束后换内容」，两个面的内容从动画开始前就在纸上了。
+   */
+  function applyAngle(sheet, deg) {
+    sheet.angle = deg;
+    sheet.el.style.transform = `rotateY(${deg}deg)`;
+    const frontUp = Math.abs(deg) < 90;
+    sheet.front.style.visibility = frontUp ? '' : 'hidden';
+    sheet.back.style.visibility = frontUp ? 'hidden' : '';
+  }
+
   const setTurned = (sheet, turned) => {
     sheet.turned = turned;
     sheet.el.classList.toggle('is-turned', turned);
-    sheet.el.style.transform = turned ? 'rotateY(-180deg)' : 'rotateY(0deg)';
+    applyAngle(sheet, turned ? -180 : 0);
   };
 
   const setZ = () => {
@@ -65,6 +106,11 @@ export function createSheets(host) {
 
   /** 一张纸的正反面：front 是奇数页，back 是偶数页 */
   function fill(sheet, frontPage, backPage) {
+    const fp = frontPage?.dataset?.globalPage;
+    const bp = backPage?.dataset?.globalPage;
+    if (fp && bp && fp === bp) {
+      console.warn('[book] 正反面绑到了同一页', sheet.name, fp);
+    }
     put(sheet.front, frontPage);
     put(sheet.back, backPage);
   }
@@ -107,15 +153,25 @@ export function createSheets(host) {
     if (busy) return false;
     busy = true;
     const moving = dir === 'prev' ? A0 : B;
-    // 动画开始前，这张纸的正反面就已经贴好了内容（settle 时贴的）
+    const from = dir === 'prev' ? -180 : 0;
+    const to = dir === 'prev' ? 0 : -180;
     try {
       moving.el.classList.add('is-turning');
       moving.el.style.zIndex = '500';
-      await nextFrame();
-      moving.el.style.transition = `transform ${TURN_MS}ms ${BILINEAR}`;
-      moving.el.style.transform = dir === 'prev' ? 'rotateY(0deg)' : 'rotateY(-180deg)';
-      await wait(TURN_MS - 30);
-      moving.el.style.transition = 'none';
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      // 逐帧驱动旋转：每一帧都按当前角度决定露出正面还是背面
+      await new Promise((done) => {
+        const t0 = performance.now();
+        const step = (now) => {
+          const p = Math.min(1, (now - t0) / TURN_MS);
+          applyAngle(moving, from + (to - from) * ease(p));
+          if (p < 1) requestAnimationFrame(step);
+          else done();
+        };
+        requestAnimationFrame(step);
+      });
+
       moving.el.classList.remove('is-turning');
       setTurned(moving, dir !== 'prev');
 
@@ -167,9 +223,26 @@ export function createSheets(host) {
     }
   }
 
+  /** 诊断用：当前四张纸各自的正反面是哪一页 */
+  function inspect() {
+    const one = (s) => ({
+      slot: s.name,
+      angle: Math.round(s.angle),
+      turned: !!s.turned,
+      z: s.el.style.zIndex,
+      visibleFace: Math.abs(s.angle) < 90 ? 'front' : 'back',
+      front: s.front.firstElementChild?.dataset?.globalPage || null,
+      back: s.back.firstElementChild?.dataset?.globalPage || null,
+      frontVisible: getComputedStyle(s.front).visibility,
+      backVisible: getComputedStyle(s.back).visibility,
+    });
+    return { a0: one(A0), a1: one(A1), b: one(B), c: one(C), busy };
+  }
+
   return {
     settle,
     turn,
+    inspect,
     get busy() {
       return busy;
     },

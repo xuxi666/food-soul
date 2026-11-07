@@ -120,7 +120,7 @@ export function createShell(root) {
 
   const stage = h(
     'div',
-    { class: 'bk-stage' },
+    { class: 'bk-stage', 'data-book-build': 'sheet-2.1' },
     h('div', { class: 'bk-ambient', 'aria-hidden': 'true' }),
     h('div', { class: 'bk-mountains', 'aria-hidden': 'true' }),
     camera,
