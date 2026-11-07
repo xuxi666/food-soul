@@ -50,7 +50,13 @@ const SPLITTERS = {
     return { left, right };
   },
   admin(root) {
-    return { left: [root.querySelector('.page > .wrap') || root], right: [] };
+    // 后台是独立的一叠内页：左页管理导航、右页管理内容。
+    // 单页模式（手机）放不下两张纸，就在同一页里上下排：导航在上、内容在下。
+    const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
+    if (single) return { left: [root], right: [] };
+    const left = root.querySelector('.adm-side');
+    const right = root.querySelector('.adm-main');
+    return left && right ? { left: [left], right: [right] } : { left: [root], right: [] };
   },
   notFound(root) {
     return { left: [root.querySelector('.page > .wrap') || root], right: [] };
@@ -215,7 +221,14 @@ export function createPageBook({ staging, onAtlasChange }) {
     }
     const split = (SPLITTERS[id] || ((root) => ({ left: [root], right: [] })))(holder);
     const entry = { left: wrapFace(false, split.left), right: wrapFace(false, split.right), instance, holder };
-    holder.remove();
+    if (id === 'admin') {
+      // 后台两页各自整页铺满：滚动只发生在内容区，不牵动纸张
+      entry.left.classList.add('bk-pageface--adm');
+      entry.right.classList.add('bk-pageface--adm');
+    }
+    // 单页模式 / 无权限等情况下整块 holder 被搬进了纸面，这时候不能再 remove，
+    // 否则会把刚贴上去的内容一起删掉（手机上前台后台都只剩一张白纸）
+    if (!entry.left.contains(holder) && !entry.right.contains(holder)) holder.remove();
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     return entry;
   }

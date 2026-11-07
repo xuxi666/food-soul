@@ -136,10 +136,38 @@ export function mountAccount(root) {
     );
 
     if (user) {
-      // 管理后台入口：仅服务端返回 role=admin 时渲染，普通用户/未登录看不到
+      /*
+       * 管理后台入口：只有服务端 /api/auth/me 返回 role=admin 时才渲染。
+       * 前端没有任何「假设自己是管理员」的开关；入口本身也只是一枚印章菜单项，
+       * 真正的守卫在服务端 requireAdmin（/api/admin/* 全部 401/403）。
+       */
       if (user.role === 'admin') {
         bar.append(
-          h('a', { class: 'account-btn account-btn--admin', href: '/admin', 'data-link': '', title: '进入管理后台' }, '管理后台')
+          h(
+            'a',
+            {
+              class: 'seal-entry',
+              href: '/admin',
+              'data-link': '',
+              'data-seal-entry': 'admin',
+              title: '进入管理员后台',
+              onclick: () => {
+                try {
+                  window.dispatchEvent(new CustomEvent('foodsoul:seal-panel-close'));
+                } catch {
+                  /* noop */
+                }
+              },
+            },
+            h('span', { class: 'seal-entry__seal', 'aria-hidden': 'true', text: '印' }),
+            h(
+              'span',
+              { class: 'seal-entry__text' },
+              h('b', { text: '管理员后台' }),
+              h('em', { text: '仅管理员可见 · 画册内页' })
+            ),
+            h('span', { class: 'seal-entry__go', 'aria-hidden': 'true', text: '›' })
+          )
         );
       }
       bar.append(

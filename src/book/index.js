@@ -129,6 +129,10 @@ export function initBook({ root }) {
   let position = { single: false, value: 0 };
   /** 内页（详情 / 后台 / 404）：单独一叠纸，不参与章节顺序 */
   let inner = null;
+  /** 内页种类：dishDetail / admin / notFound */
+  let innerKind = null;
+  /** 进后台之前的画册位置：退出后台时原样回到这一页 */
+  let adminReturn = null;
 
   const titlePage = h(
     'div',
@@ -303,7 +307,7 @@ export function initBook({ root }) {
   }
 
   function chapterOfPosition() {
-    if (inner) return 'dishDetail';
+    if (inner) return innerKind || 'dishDetail';
     const list = book.spreads();
     const sp = list[position.single ? Math.floor((position.value - 2) / 2) : position.value];
     return sp ? sp.chapter : 'dishes';
@@ -336,7 +340,7 @@ export function initBook({ root }) {
     const list = book.spreads();
     const chapterId = chapterOfPosition();
     shell.content.dataset.chapter = chapterId;
-    currentKey = inner ? 'dishDetail' : chapterId;
+    currentKey = inner ? innerKind || 'dishDetail' : chapterId;
 
     shell.setActive(chapterId);
     updateBackLabel();
@@ -362,10 +366,11 @@ export function initBook({ root }) {
 
   function updateBackLabel() {
     const label = shell.backBtn.querySelector('.bk-back__label');
+    const isAdmin = currentKey === 'admin';
     const isDetail = currentKey === 'dishDetail';
-    shell.backBtn.dataset.action = isDetail ? 'gallery' : 'close';
-    shell.backBtn.setAttribute('aria-label', isDetail ? '返回图鉴' : '合上画册');
-    if (label) label.textContent = isDetail ? '返回图鉴' : '合上';
+    shell.backBtn.dataset.action = isAdmin ? 'admin-back' : isDetail ? 'gallery' : 'close';
+    shell.backBtn.setAttribute('aria-label', isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '合上画册');
+    if (label) label.textContent = isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '合上';
   }
 
   /* ---------------- 开书 ---------------- */
@@ -390,7 +395,9 @@ export function initBook({ root }) {
        * 这样封面一掀开，看到的就是目标章节那一跨页的正反面内容，
        * 开书过程中不需要再翻一次、也不会先露出首页。
        */
-      const spread = typeof targetSpread === 'number' ? targetSpread : book.spreadOfPath(path);
+      // 内页（后台 / 菜品详情）没有自己的章节跨页，先停在第一章再切到内页那一叠
+      const spread =
+        typeof targetSpread === 'number' ? targetSpread : innerTarget ? 0 : Math.max(0, book.spreadOfPath(path));
       const value = single ? spread * 2 + 2 : spread;
       void book.disposeInner(inner);
       inner = null;
@@ -440,18 +447,32 @@ export function initBook({ root }) {
     const info = moduleOf(path);
     const isInner = INNER_KEYS.has(info.key);
 
+    // 进后台：先记住此刻的画册位置（章节 + 具体跨页），退出时原样回来
+    if (info.key === 'admin' && innerKind !== 'admin') {
+      adminReturn = {
+        path: location.pathname + location.search,
+        position: { ...position },
+        chapter: currentKey,
+      };
+    }
+
     if (isInner) {
-      // 内页：单独一叠纸，左右两页都来自这个模块
+      // 内页：单独一叠纸，左右两页都来自这个模块（后台 = 左导航 / 右内容）
       const entry = await book.innerPages(path);
       void book.disposeInner(inner);
       inner = entry;
+      innerKind = info.key;
       position = { single: lastBox.mode === 'single', value: lastBox.mode === 'single' ? 2 : 0 };
       await render();
+      // 开书 / 换纸过程中 syncChrome 会把地址写成章节路径，内页要把自己的地址写回来
+      if (location.pathname + location.search !== path) history.replaceState({ path }, '', path);
+      syncChrome();
       return;
     }
 
     void book.disposeInner(inner);
     inner = null;
+    innerKind = null;
 
     const target = book.spreadOfPath(path);
     const single = lastBox?.mode === 'single';
@@ -467,6 +488,35 @@ export function initBook({ root }) {
     }
     await render();
   }
+
+  /**
+   * 退出后台：回到进入后台之前的那一页（章节 + 跨页原样恢复）。
+   * 普通章节的纸面在 pages.js 里是长期缓存的，所以筛选、滚动、输入都会还原。
+   */
+  async function leaveAdmin() {
+    const saved = adminReturn;
+    adminReturn = null;
+    const target = saved?.path || '/dishes';
+    void book.disposeInner(inner);
+    inner = null;
+    innerKind = null;
+    const single = lastBox?.mode === 'single';
+    if (saved?.position && saved.position.single === single) {
+      position = { ...saved.position };
+    } else {
+      const at = book.spreadOfPath(target);
+      position = { single, value: single ? at * 2 + 2 : at };
+    }
+    await render();
+    history.pushState({ path: target }, '', target);
+    shell.setActive(chapterOf(target));
+    syncChrome();
+  }
+
+  window.addEventListener('foodsoul:admin-leave', () => {
+    if (currentKey !== 'admin' && innerKind !== 'admin') return;
+    void leaveAdmin();
+  });
 
   /** 筛选变了：页数可能变化，重新摆纸 */
   async function refreshAtlas() {
@@ -590,6 +640,10 @@ export function initBook({ root }) {
     }
   }
   shell.backBtn.addEventListener('click', () => {
+    if (shell.backBtn.dataset.action === 'admin-back') {
+      void leaveAdmin();
+      return;
+    }
     if (shell.backBtn.dataset.action === 'gallery') {
       history.pushState({ path: '/dishes' }, '', '/dishes');
       void showPath('/dishes');
@@ -612,6 +666,8 @@ export function initBook({ root }) {
   document.addEventListener('click', (e) => {
     if (panelOpen && !shell.sealPanel.contains(e.target) && e.target !== shell.sealBtn) setPanel(false);
   });
+  // 印章面板里的入口（如「管理员后台」）点击后先收起面板，再让链接照常跳转
+  window.addEventListener('foodsoul:seal-panel-close', () => setPanel(false));
 
   mountAccount(shell.sealPanel);
 
@@ -627,6 +683,11 @@ export function initBook({ root }) {
     const path = url.pathname + url.search;
     if (mode === 'closed') {
       history.pushState({ path }, '', path);
+      // 后台 / 菜品详情这类内页：先把书打开，再落到内页那一叠纸
+      if (INNER_KEYS.has(moduleOf(path).key)) {
+        void openFirst(0);
+        return;
+      }
       shell.setActive(chapterOf(path));
       return;
     }
@@ -701,6 +762,14 @@ export function initBook({ root }) {
     open: openFirst,
     shut,
     goto: (path) => showPath(path),
+    /* 后台：进入前的位置与退出 */
+    exitAdmin: leaveAdmin,
+    get adminReturn() {
+      return adminReturn;
+    },
+    get innerKind() {
+      return innerKind;
+    },
     turn,
     inspect: () => sheets.inspect(),
     /* 书签当前绑在哪张纸、在哪一侧（诊断 / 验收用） */

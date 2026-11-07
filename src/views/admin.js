@@ -3,10 +3,16 @@
  * ------------------------------------------------------------
  * 权限完全由服务端判定：本页只负责展示，所有请求都打到 /api/admin/*，
  * 普通用户/未登录会在第一个请求就拿到 401/403，页面显示无权限。
+ *
+ * 布局：后台不是独立网页，而是画册里的一叠「内页」——
+ *   左页 .adm-side = 标题 + 分类导航 + 数据概览 + 系统状态 + 退出/返回
+ *   右页 .adm-main = 当前分类的管理内容
+ * 书页栈（src/book/pages.js 的 SPLITTERS.admin）按这两个节点把内容分到左右两张纸上。
  */
 import { h, clear, toast, fmtTime } from '../lib/dom.js';
 import { api, compressImage } from '../lib/api.js';
 import { applyOverrideLocally } from '../lib/overrides.js';
+import { openAuthModal } from '../components/account.js';
 
 const TABS = [
   { id: 'overview', label: '后台概览', en: 'OVERVIEW' },
@@ -25,37 +31,62 @@ const REPORT_STATUS = {
 };
 
 
+const ADMIN_HINT = {
+  overview: '社区、图鉴、首页图片与举报的整体情况',
+  posts: '查看与删除社区帖子、评论',
+  cards: '替换首页菜系 / 口味配图',
+  dishes: '替换图鉴菜品配图与文案',
+  siteai: '内置 AI 开关、服务商与 API 配置',
+  reports: '处理用户举报',
+};
+
+/* 退出后台：回到进入前的画册位置（由 src/book/index.js 接管跳转） */
+function leaveAdmin() {
+  window.dispatchEvent(new CustomEvent('foodsoul:admin-leave'));
+}
+
 export default {
   async mount(root) {
     const page = h('div', { class: 'page admin-page' });
     root.append(page);
 
-    // 权限探测：失败即显示无权限，不渲染任何管理数据
+    const cleanups = [];
+    const onDestroy = (fn) => cleanups.push(fn);
+
+    // 权限探测：失败即显示无权限，不渲染任何管理数据（服务端 401/403）
     let boot;
     try {
       boot = await api.admin.overview();
     } catch (err) {
       page.append(forbidden(err.message));
-      return;
+      return {
+        destroy() {
+          page.remove();
+        },
+      };
     }
 
     let tab = 'overview';
     const content = h('div', { class: 'admin-content' });
     const navBtns = new Map();
+    /** 已渲染过的页签：切走时整块 DOM 暂存，切回来原样放回（输入与滚动都保留） */
+    const stash = new Map();
+
+    const TITLES = Object.fromEntries(TABS.map((t) => [t.id, t.label]));
+
+    /* ---------------- 左页：导航 / 概览 / 状态 ---------------- */
 
     const nav = h(
-      'aside',
-      { class: 'admin-nav' },
-      h('div', { class: 'admin-nav__brand' },
-        h('b', { text: '食有灵 · 管理后台' }),
-        h('span', { text: boot.admin?.email || '' })
-      ),
+      'div',
+      { class: 'adm-side__nav admin-nav', role: 'tablist', 'aria-label': '管理功能' },
       ...TABS.map((t) => {
         const btn = h(
           'button',
           {
             class: 'admin-nav__item',
             type: 'button',
+            role: 'tab',
+            'aria-selected': 'false',
             onclick: () => switchTab(t.id),
           },
           h('span', { text: t.label }),
@@ -63,56 +94,162 @@ export default {
         );
         navBtns.set(t.id, btn);
         return btn;
-      }),
-      h('div', { class: 'admin-nav__foot' },
-        h('a', { class: 'admin-nav__item', href: '/', 'data-link': '' }, h('span', { text: '返回前台' }), h('em', { text: 'SITE' })),
+      })
+    );
+
+    const stat = (label, value, hint) =>
+      h(
+        'div',
+        { class: 'adm-stat' },
+        h('b', { class: 'adm-stat__value', text: String(value) }),
+        h('span', { class: 'adm-stat__label', text: label }),
+        hint ? h('em', { class: 'adm-stat__hint', text: hint }) : null
+      );
+
+    const s = boot.stats;
+    const statusBox = h('div', { class: 'adm-status' }, h('p', { class: 'adm-status__row', text: '读取内置 AI 状态…' }));
+
+    const side = h(
+      'aside',
+      { class: 'adm-side' },
+      h(
+        'header',
+        { class: 'adm-brand' },
+        h('span', { class: 'adm-brand__seal', 'aria-hidden': 'true', text: '印' }),
+        h(
+          'div',
+          { class: 'adm-brand__text' },
+          h('b', { text: '食有灵 · 管理后台' }),
+          h('span', { text: boot.admin?.email || '管理员' })
+        )
+      ),
+      h('p', { class: 'adm-side__label', text: '管理功能' }),
+      nav,
+      h('p', { class: 'adm-side__label', text: '数据概览' }),
+      h(
+        'div',
+        { class: 'adm-stats' },
+        stat('社区帖子', s.posts.posts, `评论 ${s.posts.comments}`),
+        stat('待处理举报', s.reports.pending, `累计 ${s.reports.total}`),
+        stat('首页图片', s.cards.cuisine + s.cards.taste, `已替换 ${s.cards.overridden}`),
+        stat('图鉴菜品', s.dishes.total, `已替换 ${s.dishes.overridden}`)
+      ),
+      h('p', { class: 'adm-side__label', text: '系统状态' }),
+      statusBox,
+      h(
+        'div',
+        { class: 'adm-side__foot' },
+        h('button', { class: 'adm-link', type: 'button', onclick: () => leaveAdmin() }, h('span', { text: '返回画册' }), h('em', { text: 'BACK' })),
         h(
           'button',
-          {
-            class: 'admin-nav__item admin-nav__item--danger',
-            type: 'button',
-            onclick: async () => {
-              if (!confirm('确认退出登录？退出后将无法继续访问后台。')) return;
-              try {
-                await api.auth.logout();
-              } catch { /* noop */ }
-              window.dispatchEvent(new CustomEvent('foodsoul:auth', { detail: { user: null } }));
-              location.href = '/';
-            },
-          },
-          h('span', { text: '退出管理后台' }),
+          { class: 'adm-link adm-link--danger', type: 'button', onclick: logout },
+          h('span', { text: '退出登录' }),
           h('em', { text: 'LOGOUT' })
         )
       )
     );
 
-    page.append(
-      h('div', { class: 'admin-shell' },
-        nav,
-        h('main', { class: 'admin-main' },
-          h('header', { class: 'admin-head' },
-            h('h1', { text: '管理后台' }),
-            h('p', { text: '社区内容、首页图片、美食图鉴与举报处理' })
-          ),
-          content
-        )
-      )
+    /* ---------------- 右页：管理内容 ---------------- */
+
+    const title = h('h1', { class: 'adm-title', text: TITLES[tab] });
+    const hint = h('p', { class: 'adm-hint', text: ADMIN_HINT[tab] });
+
+    const main = h(
+      'main',
+      { class: 'adm-main', role: 'tabpanel' },
+      h('header', { class: 'adm-head' }, title, hint),
+      content
     );
 
+    page.append(h('div', { class: 'admin-shell adm-book' }, side, main));
+
+    /* 系统状态：内置 AI 总开关与已验证配置（失败不影响其它内容） */
+    void (async () => {
+      try {
+        const data = await api.admin.siteAi();
+        const active = (data.profiles || []).find((p) => p.enabled) || null;
+        const verified = (data.profiles || []).filter((p) => p.verified).length;
+        clear(statusBox);
+        statusBox.append(
+          h(
+            'p',
+            { class: 'adm-status__row' },
+            h('i', { class: `adm-dot ${data.master?.enabled ? 'is-on' : 'is-off'}`, 'aria-hidden': 'true' }),
+            h('span', { text: data.master?.enabled ? `内置 AI 已开启 · ${active?.name || '未选择配置'}` : '内置 AI 已关闭' })
+          ),
+          h('p', { class: 'adm-status__row' }, h('i', { class: `adm-dot ${verified ? 'is-on' : 'is-off'}`, 'aria-hidden': 'true' }), h('span', { text: `已验证配置 ${verified} / ${(data.profiles || []).length} 套` })),
+          h('p', { class: 'adm-status__row' }, h('i', { class: 'adm-dot is-on', 'aria-hidden': 'true' }), h('span', { text: '服务端接口正常' }))
+        );
+      } catch (err) {
+        clear(statusBox);
+        statusBox.append(h('p', { class: 'adm-status__row adm-status__row--warn', text: err.message || '状态读取失败' }));
+      }
+    })();
+
     function switchTab(id) {
+      if (tab === id) return;
+      // 把当前页签的 DOM 整块收进暂存区（未提交的输入、图片预览都保住）
+      const keep = [...content.childNodes];
+      if (keep.length) {
+        putAway(content, keep);
+        stash.set(tab, keep);
+      }
       tab = id;
-      navBtns.forEach((btn, key) => btn.classList.toggle('is-on', key === id));
+      navBtns.forEach((btn, key) => {
+        btn.classList.toggle('is-on', key === id);
+        btn.setAttribute('aria-selected', String(key === id));
+      });
+      title.textContent = TITLES[id];
+      hint.textContent = ADMIN_HINT[id];
+      const back = stash.get(id);
+      if (back?.length) {
+        stash.delete(id);
+        for (const n of back) content.append(n);
+        animateIn();
+        return;
+      }
       render();
+    }
+
+    /** 从容器摘下节点但不销毁（innerHTML 风格地收走，节点状态原样保留） */
+    function putAway(box, nodes) {
+      for (const n of nodes) box.removeChild(n);
+    }
+
+    /** 轻微的内容过渡：只淡入，不位移 */
+    function animateIn() {
+      content.classList.remove('is-swapping');
+      void content.offsetWidth;
+      content.classList.add('is-swapping');
     }
 
     function render() {
       clear(content);
+      animateIn();
       if (tab === 'overview') return renderOverview();
       if (tab === 'posts') return renderPosts();
       if (tab === 'cards') return renderCards();
       if (tab === 'dishes') return renderDishes();
       if (tab === 'siteai') return renderSiteAI();
       if (tab === 'reports') return renderReports();
+    }
+
+    navBtns.forEach((btn, key) => {
+      btn.classList.toggle('is-on', key === tab);
+      btn.setAttribute('aria-selected', String(key === tab));
+    });
+
+    async function logout() {
+      if (!confirm('确认退出登录？退出后将无法继续访问后台。')) return;
+      try {
+        await api.auth.logout();
+      } catch {
+        /* noop */
+      }
+      window.dispatchEvent(new CustomEvent('foodsoul:auth', { detail: { user: null } }));
+      window.dispatchEvent(new CustomEvent('foodsoul:auth-changed'));
+      toast('已退出登录');
+      leaveAdmin();
     }
 
     /* ---------------- 通用块 ---------------- */
@@ -139,12 +276,45 @@ export default {
     }
 
     function forbidden(message) {
+      // 未授权时同样是画册里的一叠内页：左页说明，右页禁令。
+      // 不请求任何 /api/admin/* 数据，页面里也没有管理内容。
       return h(
         'div',
-        { class: 'admin-denied' },
-        h('h1', { text: '无权访问' }),
-        h('p', { text: message || '需要管理员权限' }),
-        h('a', { class: 'btn btn--sm', href: '/', 'data-link': '' }, '返回首页')
+        { class: 'admin-shell adm-book adm-book--denied' },
+        h(
+          'aside',
+          { class: 'adm-side' },
+          h(
+            'header',
+            { class: 'adm-brand' },
+            h('span', { class: 'adm-brand__seal', 'aria-hidden': 'true', text: '印' }),
+            h('div', { class: 'adm-brand__text' }, h('b', { text: '食有灵 · 管理后台' }), h('span', { text: '仅管理员可见' }))
+          ),
+          h('p', { class: 'adm-side__label', text: '管理功能' }),
+          h('p', { class: 'adm-side__empty', text: '通过服务端身份验证后才会显示管理功能。' }),
+          h(
+            'div',
+            { class: 'adm-side__foot' },
+            h('button', { class: 'adm-link', type: 'button', onclick: () => leaveAdmin() }, h('span', { text: '返回画册' }), h('em', { text: 'BACK' }))
+          )
+        ),
+        h(
+          'main',
+          { class: 'adm-main adm-main--denied' },
+          h(
+            'div',
+            { class: 'adm-denied' },
+            h('span', { class: 'adm-denied__seal', 'aria-hidden': 'true', text: '禁' }),
+            h('h1', { text: '无权访问' }),
+            h('p', { text: message || '需要管理员权限' }),
+            h(
+              'div',
+              { class: 'adm-denied__acts' },
+              h('button', { class: 'btn btn--sm btn--gold', type: 'button', onclick: () => openAuthModal('login') }, '登录管理员账号'),
+              h('button', { class: 'btn btn--sm', type: 'button', onclick: () => leaveAdmin() }, '返回画册')
+            )
+          )
+        )
       );
     }
 
@@ -362,6 +532,7 @@ export default {
           img.src = up.url;
           applyOverrideLocally({ kind, id: c.id, url: up.url });
           stateEl.textContent = '已替换';
+          resetBtn.disabled = false; // 刚换上去的图，立刻可以恢复默认
           toast(`「${c.name}」图片已更新`);
         } catch (err) {
           toast(err.message || '替换失败', 'err');
@@ -972,6 +1143,30 @@ export default {
       );
     }
 
-    switchTab('overview');
+    /* 登录态在别处失效（退出、过期）：立刻收起管理内容 */
+    const onAuth = (e) => {
+      const user = e?.detail?.user;
+      if (user && user.role === 'admin') return;
+      if (!page.isConnected) return;
+      clear(content);
+      toast('登录状态已失效，请重新登录管理员账号', 'err');
+    };
+    window.addEventListener('foodsoul:auth', onAuth);
+    onDestroy(() => window.removeEventListener('foodsoul:auth', onAuth));
+
+    render();
+
+    return {
+      destroy() {
+        for (const fn of cleanups) {
+          try {
+            fn();
+          } catch {
+            /* 忽略 */
+          }
+        }
+        page.remove();
+      },
+    };
   },
 };

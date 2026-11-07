@@ -769,3 +769,532 @@
 .admin-ai-profile {
   box-shadow: var(--shadow-sm);
 }
+/* ==================================================================
+   画册内嵌后台：/admin 显示在书页里，而不是一张独立管理网页
+   （左右两页由 src/book/pages.js 的 SPLITTERS.admin 切分）
+   ================================================================== */
+
+/* 纸面铺满、只在内容区滚动：整页不再是一张 100vh 的网页 */
+.bk-pageface--adm {
+  overflow: hidden;
+}
+
+.bk-pageface--adm .bk-pageface__inner {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bk-pageface .admin-page,
+.bk-pageface .admin-shell {
+  min-height: 0;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+
+/* ---------- 左页：标题 / 导航 / 概览 / 状态 ---------- */
+
+.adm-side {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.4) transparent;
+}
+
+.adm-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(200, 166, 108, 0.32);
+}
+
+.adm-brand__seal {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(194, 69, 45, 0.55);
+  border-radius: 4px;
+  background: linear-gradient(160deg, #fdf4e4, #f6e7cd);
+  color: #b5452f;
+  font-size: 14px;
+}
+
+.adm-brand__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.adm-brand__text b {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: #51372a;
+}
+
+.adm-brand__text span {
+  font-size: 9.5px;
+  color: #a9845f;
+  word-break: break-all;
+}
+
+.adm-side__label {
+  margin: 9px 0 1px;
+  font-size: 8.5px;
+  letter-spacing: 0.24em;
+  color: #b08a63;
+}
+
+.adm-side .admin-nav {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.adm-side .admin-nav__item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+}
+
+.adm-side .admin-nav__item em {
+  font-size: 7.5px;
+  letter-spacing: 0.12em;
+}
+
+.adm-side .admin-nav__item:hover {
+  background: rgba(217, 164, 65, 0.12);
+}
+
+.adm-side .admin-nav__item.is-on {
+  background: rgba(217, 164, 65, 0.18);
+  color: #8a4b22;
+}
+
+.adm-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 7px;
+}
+
+.adm-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 1px solid rgba(200, 166, 108, 0.26);
+  border-radius: 7px;
+  background: rgba(255, 252, 245, 0.5);
+}
+
+.adm-stat__value {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.15;
+  color: #7a4a2a;
+}
+
+.adm-stat__label {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #7a5330;
+}
+
+.adm-stat__hint {
+  font-style: normal;
+  font-size: 8px;
+  color: #a9845f;
+}
+
+.adm-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adm-status__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #7a5330;
+}
+
+.adm-status__row--warn {
+  color: #b5452f;
+}
+
+.adm-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(152, 133, 117, 0.55);
+}
+
+.adm-dot.is-on {
+  background: #6f8f5f;
+}
+
+.adm-dot.is-off {
+  background: rgba(152, 133, 117, 0.5);
+}
+
+.adm-side__empty {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: #988575;
+}
+
+.adm-side__foot {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(200, 166, 108, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.adm-link {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #7a5330;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.adm-link em {
+  font-style: normal;
+  font-size: 7.5px;
+  letter-spacing: 0.14em;
+  color: #b39a7c;
+}
+
+.adm-link:hover {
+  background: rgba(217, 164, 65, 0.14);
+  color: #8a4b22;
+}
+
+.adm-link--danger:hover {
+  background: rgba(194, 69, 45, 0.12);
+  color: #b5452f;
+}
+
+/* ---------- 右页：管理内容 ---------- */
+
+.adm-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adm-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(200, 166, 108, 0.3);
+}
+
+.adm-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #51372a;
+}
+
+.adm-hint {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: #988575;
+}
+
+.bk-pageface .admin-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 9px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.4) transparent;
+}
+
+.bk-pageface .admin-content > * {
+  flex: 0 0 auto;
+}
+
+.bk-pageface .admin-content.is-swapping > * {
+  animation: adm-fade-in 200ms ease both;
+}
+
+@keyframes adm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 书页里的管理控件：纸色、紧凑、不出现白色网页面板 ---------- */
+
+.bk-pageface .admin-card {
+  padding: 11px 12px;
+  border-radius: 9px;
+  border-color: rgba(200, 166, 108, 0.3);
+  background: rgba(255, 252, 245, 0.55);
+}
+
+.bk-pageface .admin-card__head {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bk-pageface .admin-card__title {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.bk-pageface .admin-card__hint {
+  font-size: 9.5px;
+  line-height: 1.6;
+}
+
+.bk-pageface .admin-stats {
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.bk-pageface .admin-stat {
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-color: rgba(200, 166, 108, 0.3);
+  background: rgba(255, 252, 245, 0.55);
+}
+
+.bk-pageface .admin-stat__label {
+  font-size: 9.5px;
+}
+
+.bk-pageface .admin-stat__value {
+  font-size: 17px;
+}
+
+.bk-pageface .admin-stat__hint {
+  font-size: 8.5px;
+}
+
+.bk-pageface .admin-state {
+  padding: 14px 10px;
+  font-size: 10.5px;
+}
+
+.bk-pageface .admin-row {
+  padding: 8px 0;
+  gap: 8px;
+}
+
+.bk-pageface .admin-row__text {
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.bk-pageface .admin-row__meta {
+  font-size: 9px;
+}
+
+.bk-pageface .admin-input {
+  height: 26px;
+  font-size: 10.5px;
+}
+
+.bk-pageface .admin-toolbar {
+  gap: 6px;
+}
+
+.bk-pageface .admin-chips .chip {
+  font-size: 10px;
+  padding: 3px 9px;
+}
+
+.bk-pageface .admin-badge {
+  font-size: 8.5px;
+  padding: 1px 6px;
+}
+
+.bk-pageface .admin-grid {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.bk-pageface .admin-audit li {
+  font-size: 9.5px;
+  gap: 2px;
+}
+
+.bk-pageface .admin-pager {
+  gap: 6px;
+  font-size: 9.5px;
+}
+
+/* 表单 / AI 配置：小一号字，避免在窄书页里换行错位 */
+.bk-pageface .admin-form,
+.bk-pageface .admin-ai {
+  font-size: 10.5px;
+}
+
+.bk-pageface .admin-form label,
+.bk-pageface .admin-field {
+  font-size: 9.5px;
+}
+
+/* ---------- 无权限：同样是书页里的一页 ---------- */
+
+.adm-main--denied {
+  justify-content: center;
+}
+
+.adm-denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 6px;
+  text-align: center;
+}
+
+.adm-denied__seal {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(194, 69, 45, 0.5);
+  border-radius: 4px;
+  background: linear-gradient(160deg, #fdf4e4, #f6e7cd);
+  color: #b5452f;
+  font-size: 17px;
+}
+
+.adm-denied h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: #7a4a2a;
+}
+
+.adm-denied p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: #988575;
+}
+
+.adm-denied__acts {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ---------- 单页模式（手机）：导航在上、内容在下，同一页里 ---------- */
+
+.bk-stage.is-single .adm-book {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.bk-stage.is-single .adm-side {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.bk-stage.is-single .adm-side .admin-nav {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.bk-stage.is-single .adm-side .admin-nav__item {
+  padding: 4px 8px;
+}
+
+.bk-stage.is-single .adm-side .admin-nav__item em {
+  display: none;
+}
+
+.bk-stage.is-single .adm-stats {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.bk-stage.is-single .adm-stat {
+  padding: 5px 6px;
+}
+
+.bk-stage.is-single .adm-stat__hint {
+  display: none;
+}
+
+.bk-stage.is-single .adm-side__foot {
+  flex-direction: row;
+  gap: 4px;
+}
+
+.bk-stage.is-single .adm-link {
+  justify-content: center;
+  border: 1px solid rgba(200, 166, 108, 0.34);
+}
+
+.bk-stage.is-single .adm-link em {
+  display: none;
+}
+
+.bk-stage.is-single .adm-main {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+

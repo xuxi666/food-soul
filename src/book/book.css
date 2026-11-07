@@ -1059,6 +1059,11 @@ body.is-book {
   transition: transform 180ms var(--ease), box-shadow 180ms var(--ease);
 }
 
+.bk-stage.is-open .bk-cover {
+  /* 书翻开后封面转到了纸下面，只剩视觉；再拦指针会挡住左页的按钮、筛选、后台导航 */
+  pointer-events: none;
+}
+
 .bk-seal:hover {
   transform: translateY(-1px) scale(1.04);
   box-shadow: 0 6px 16px rgba(120, 82, 56, 0.18);
