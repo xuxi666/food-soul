@@ -178,3 +178,24 @@ GitHub xuxi666/food-soul
 5. **入库并发布**：5 个响应式改造文件 + 本文件一起提交 → `npm run ship` 部署 → 服务器构建 + 重启 + 推回 GitHub。上线后自查：三端 HEAD 一致、`/api/health` 200、线上首页资源哈希已更新。
 
 > 仍需人工目视确认的只有一项：844×390 下卡片观感是否可接受（数据层面已从 `media=0` 恢复到 45px）。
+
+---
+
+## 9. 阴影独立化 + 禁止自动开书（`76748ab`、`e7caef9`）
+
+### 9.1 阴影不再跟随 15° 倾斜（`76748ab`）
+
+- 原实现把 `.bk-book__shadow` 放在 `.bk-book` 内部，父级 `rotateZ(15deg)` 会把阴影一起转。改为 `.bk-camera > [.bk-shadow, .bk-book]` 兄弟结构，阴影层 `transform: none`。
+- 位置由 JS 计算：`index.js` 的 `fitShadow()` 读「可见物体」包围盒（合上取 `.bk-cover`，展开取 `.bk-spread`）写 `left/top/width/height`；`setBookState()` 后 `followShadow()` 逐帧贴合 800ms。因此只跟随位置/尺寸，永不继承旋转。
+- 两层：`.bk-shadow__contact`（blur 8px 贴底）、`.bk-shadow__ambient`（blur 26px，向下溢出 9%）。
+- 量化验收（截屏差分，`.tmp/shadow-metrics3.mjs` + `.tmp/shadow-metrics2.py`）：旧版阴影主轴 **15.9°**、长宽比 17.9、水平范围 186–777（偏到封面左侧）；新版未遮挡部分主轴 **0.2°**、长宽比 3.9、范围 559–874（正落封面 485–944 下方）。桌面 1440×900 / 手机 390×844 五状态 `dxCenter=dyBottom=0`。
+
+### 9.2 禁止自动开书（`e7caef9`）
+
+- 删除唯一一处自动开书：`src/book/index.js` 末尾的 `if (deepLink) setTimeout(() => void openFirst(), 600)`。深链现在只用于高亮书签；点开封面后 `openFirst()` 仍用 `location.pathname` 作为目标，所以 `/community` 深链 = 合上 → 点击 → 直接落到社区章。
+- `popstate`：合上状态下不再调 `openFirst()`，只 `shell.setActive()`；`a[data-link]` 点击在合上状态只 `pushState` + 高亮，不开书。
+- 开书入口只剩两处，都是用户动作：`.bk-cover` 的 `click` 与 `keydown`(Enter/Space)。`openFirst()` 仍有 `phase !== 'CLOSED_TILTED' || busy` 双闸，连点不会重入。
+- 悬停反馈：`.bk-cover:hover .bk-cover__front { filter: brightness(1.035) }` + `:focus-visible` 描边；封面提示文字沿用原有的 `.bk-cover__hint`（「轻点封面 · 翻开画册」+ `bk-breathe`）。
+- 验收（`.tmp/no-auto-open.mjs`，对线上跑，20/20 全过）：首屏合上、等 30 秒仍合上、悬停不开、点背景不开、改窗口不开、`visibilitychange/focus/pageshow` 不开、点封面开、Esc 回到合上且 12 秒不重开、连点不错乱、深链合上且点开落到 community、刷新回落合上、手机首屏合上、0 控制台报错。
+
+> 行为变化提示：以前访问 `/dishes`、`/community` 等深链会自动展开画册，现在一律停在封面等一次点击——这是需求要求的「用户不点，书永远合上」。
