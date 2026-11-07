@@ -36,11 +36,13 @@ export function initBook({ root }) {
     let w;
     let hgt;
     if (narrow) {
-      w = Math.min(vw * 0.94, 620);
-      hgt = Math.min(vh * 0.78, w * 1.34);
+      // 手机单页：宽度占 96%，高度不超过 92%
+      w = Math.min(vw * 0.96, 720);
+      hgt = Math.min(vh * 0.92, w * 1.5);
     } else {
-      w = Math.min(vw * 0.86, 1240);
-      hgt = Math.min(vh * 0.8, w * 0.66);
+      // PC 双页：宽 96%、高 94%，只留一圈细边
+      w = Math.min(vw * 0.96, 1640);
+      hgt = Math.min(vh * 0.94, w * 0.62);
     }
     shell.el.style.setProperty('--book-w', `${Math.round(w)}px`);
     shell.el.style.setProperty('--book-h', `${Math.round(hgt)}px`);
@@ -49,12 +51,18 @@ export function initBook({ root }) {
   window.addEventListener('resize', fit);
   window.addEventListener('orientationchange', fit);
 
-  /* ---------------- 相机 ---------------- */
-  function camera(scale, y = 0) {
-    shell.el.style.setProperty('--cam-scale', String(scale));
-    shell.el.style.setProperty('--cam-y', `${y}px`);
+  /* ---------------- 书籍状态机 ---------------- */
+  // CLOSED_TILTED → STRAIGHTENING → OPENING → EXPANDING → READING
+  // 返回：SHRINKING → CLOSING → CLOSED_TILTED
+  let phase = 'CLOSED_TILTED';
+  function setBookState(cls) {
+    shell.book.className = `bk-book ${cls}`;
+    // 阅读态下书签要收进书边，翻页按钮也要落回书内
+    shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
   }
-  camera(0.88, 14);
+  function setPhase(next) {
+    phase = next;
+  }
 
   /* ---------------- 模块 keep-alive ---------------- */
   const hosts = new Map();
@@ -122,14 +130,26 @@ export function initBook({ root }) {
   });
 
   async function openFirst() {
-    if (mode !== 'closed' || busy) return;
+    if (phase !== 'CLOSED_TILTED' || busy) return;
     busy = true;
     try {
-      shell.book.classList.add('bk-book--open');
-      shell.book.classList.remove('bk-book--closed');
+      // 1) 回正：15° → 0°，420ms
+      setPhase('STRAIGHTENING');
+      setBookState('bk-book--straight');
       shell.el.classList.add('is-open');
-      camera(1, 0);
-      await wait(760);
+      await wait(440);
+
+      // 2) 封面绕书脊打开，700ms
+      setPhase('OPENING');
+      setBookState('bk-book--open');
+      await wait(720);
+
+      // 3) 书页本身放大到铺满视口，560ms
+      setPhase('EXPANDING');
+      setBookState('bk-book--reading');
+      await wait(580);
+
+      setPhase('READING');
       mode = 'open';
       await showPath(location.pathname || '/dishes', { flip: false });
     } finally {
@@ -327,10 +347,6 @@ export function initBook({ root }) {
       };
       await flipLeaf(d, swap);
       if (!swapped) await showPath(chapter.href, { flip: false });
-      // 翻完镜头轻推一下，落在清晰的双页上
-      camera(1.035, -3);
-      await wait(160);
-      camera(1, 0);
       history.pushState({ chapter: id }, '', chapter.href);
     } finally {
       busy = false;
@@ -348,12 +364,22 @@ export function initBook({ root }) {
     if (mode !== 'open' || busy) return;
     busy = true;
     try {
-      shell.book.classList.remove('bk-book--open');
-      shell.book.classList.add('bk-book--closed');
+      // 1) 书页缩回展开尺寸
+      setPhase('SHRINKING');
+      setBookState('bk-book--open');
+      await wait(520);
+
+      // 2) 封面合上
+      setPhase('CLOSING');
+      setBookState('bk-book--straight');
       shell.el.classList.remove('is-open');
-      camera(0.88, 14);
       await wait(720);
+
+      // 3) 恢复 15° 倾斜
+      setBookState('bk-book--closed');
+      setPhase('CLOSED_TILTED');
       mode = 'closed';
+      await wait(420);
     } finally {
       busy = false;
     }
@@ -420,7 +446,7 @@ export function initBook({ root }) {
 
   /* ---------------- 初始：合上的书 ---------------- */
   shell.setActive(chapterOf(location.pathname));
-  shell.book.classList.add('bk-book--closed');
+  setBookState('bk-book--closed');
 
   const deepLink = location.pathname !== '/' && location.pathname !== '';
   if (deepLink) {

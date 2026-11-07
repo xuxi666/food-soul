@@ -26,6 +26,8 @@
 .atlas__bar--right {
   align-items: flex-end;
   justify-content: flex-end;
+  /* 右上角有印章按钮，页码右移让开 */
+  padding-right: 44px;
 }
 
 .atlas__title {

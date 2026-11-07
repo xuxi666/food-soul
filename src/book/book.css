@@ -50,10 +50,8 @@ body.is-book {
 /* ---------- 镜头 ---------- */
 .bk-camera {
   position: relative;
-  transform: scale(var(--cam-scale, 0.9)) translateY(var(--cam-y, 10px));
+  transform: none;
   transform-origin: center center;
-  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
 }
 
 /* ---------- 书 ---------- */
@@ -62,12 +60,29 @@ body.is-book {
   width: var(--book-w, 1100px);
   height: var(--book-h, 720px);
   transform-style: preserve-3d;
-  transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* 旋转与缩放共用一条过渡：回正 420ms，放大 560ms 由 JS 分两段触发 */
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
-/* 合上时书本左移，让封面（右半）落在视觉中心 */
+/* 合上：左移让封面居中，顺时针倾斜 15°，并缩到小书尺寸 */
 .bk-book--closed {
-  transform: translateX(-25%);
+  transform: translateX(calc(var(--closed-scale, 0.52) * -25%)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
+}
+
+/* 回正：保持小书尺寸，只把 15° 收回 0° */
+.bk-book--straight {
+  transform: translateX(calc(var(--closed-scale, 0.52) * -25%)) rotateZ(0deg) scale(var(--closed-scale, 0.52));
+}
+
+/* 展开：双页露出，略大于小书 */
+.bk-book--open {
+  transform: translateX(0) rotateZ(0deg) scale(var(--open-scale, 0.66));
+}
+
+/* 阅读：书页本身放大到铺满视口 */
+.bk-book--reading {
+  transform: translateX(0) rotateZ(0deg) scale(1);
 }
 
 /* 合上时只留封面：左页、中缝、内容层淡出 */
@@ -79,7 +94,10 @@ body.is-book {
 
 .bk-book--closed .bk-page--left,
 .bk-book--closed .bk-gutter,
-.bk-book--closed .bk-content {
+.bk-book--closed .bk-content,
+.bk-book--straight .bk-page--left,
+.bk-book--straight .bk-gutter,
+.bk-book--straight .bk-content {
   opacity: 0;
   pointer-events: none;
 }
@@ -279,7 +297,8 @@ body.is-book {
   transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.bk-book--open .bk-cover {
+.bk-book--open .bk-cover,
+.bk-book--reading .bk-cover {
   transform: translateZ(-3px) rotateY(-180deg);
 }
 
@@ -288,7 +307,7 @@ body.is-book {
   inset: 0;
   border-radius: 3px 6px 6px 3px;
   background:
-    radial-gradient(ellipse 90% 60% at 50% 18%, rgba(255, 246, 230, 0.55) 0%, transparent 62%),
+    radial-gradient(ellipse 90% 60% at 50% 18%, rgba(255, 250, 240, 0.3) 0%, transparent 62%),
     linear-gradient(160deg, #efdbb8 0%, #e6cea4 46%, #d9bd8f 100%);
   box-shadow:
     0 18px 44px rgba(120, 82, 56, 0.24),
@@ -367,7 +386,7 @@ body.is-book {
   font-weight: 500;
   letter-spacing: 0.3em;
   text-indent: 0.3em;
-  color: #5c2f1c;
+  color: #4a2415;
 }
 
 .bk-cover__en {
@@ -741,8 +760,13 @@ body.is-book {
     width: 100%;
   }
 
+  /* 手机端同样是合拢倾斜 15°，只是不左移（单页没有左右之分） */
   .bk-book--closed {
-    transform: none;
+    transform: rotateZ(15deg) scale(var(--closed-scale, 0.52));
+  }
+
+  .bk-book--straight {
+    transform: rotateZ(0deg) scale(var(--closed-scale, 0.52));
   }
 
   .bk-marks--left {
@@ -815,7 +839,7 @@ body.is-book {
 .bk-content[data-chapter="kitchen"] .ek-flow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 372px auto auto;
+  grid-template-rows: clamp(340px, 46vh, 520px) auto auto;
   gap: 12px 58px;
   height: 100%;
   padding: 22px 30px 42px;
@@ -833,8 +857,8 @@ body.is-book {
 
 .bk-content[data-chapter="kitchen"] .ek-catalog {
   grid-column: 2;
-  max-height: 372px;
-  height: 372px;
+  max-height: clamp(340px, 46vh, 520px);
+  height: clamp(340px, 46vh, 520px);
 }
 
 .bk-content[data-chapter="kitchen"] .ek-modes {
@@ -850,8 +874,8 @@ body.is-book {
 }
 
 .bk-content[data-chapter="kitchen"] .ek-graph-card {
-  max-height: 372px;
-  height: 372px;
+  max-height: clamp(340px, 46vh, 520px);
+  height: clamp(340px, 46vh, 520px);
   min-height: 0;
 }
 
@@ -950,4 +974,71 @@ body.is-book {
   .bk-content[data-chapter="recipe"] .page > .wrap {
     padding: 16px 16px 30px;
   }
+}
+
+
+/* ---------- 阅读态：书签收进书边、翻页按钮回到书内 ---------- */
+.bk-stage.is-reading .bk-marks--left {
+  left: -10px;
+}
+
+.bk-stage.is-reading .bk-marks--right {
+  right: -10px;
+}
+
+.bk-stage.is-reading .bk-mark {
+  padding: 6px 9px;
+  box-shadow: 0 1px 4px rgba(120, 82, 56, 0.14);
+}
+
+.bk-stage.is-reading .bk-mark--left {
+  border-right: 1px solid rgba(200, 166, 108, 0.55);
+  border-radius: 3px;
+  padding-right: 9px;
+}
+
+.bk-stage.is-reading .bk-mark--right {
+  border-left: 1px solid rgba(200, 166, 108, 0.55);
+  border-radius: 3px;
+  padding-left: 9px;
+}
+
+.bk-stage.is-reading .bk-mark__num {
+  display: none;
+}
+
+/* 翻页按钮落在书内下沿 */
+.bk-stage.is-reading .bk-turn {
+  bottom: 6px;
+  padding: 5px 13px;
+  font-size: 11px;
+  background: rgba(255, 253, 246, 0.92);
+  box-shadow: 0 2px 8px rgba(120, 82, 56, 0.1);
+}
+
+/* 印章让开右侧页码 */
+.bk-stage.is-reading .bk-tools {
+  top: 10px;
+  right: 12px;
+}
+
+.bk-stage.is-reading .bk-seal {
+  width: 34px;
+  height: 34px;
+  font-size: 14px;
+  background: rgba(255, 253, 246, 0.9);
+}
+
+
+/* 阅读态细节：翻页按钮避开小精灵，页码避开按钮 */
+.bk-stage.is-reading .bk-turn--next {
+  right: 92px;
+}
+
+.bk-stage.is-reading .bk-page__folio--left {
+  left: 110px;
+}
+
+.bk-stage.is-reading .bk-page__folio--right {
+  right: 8px;
 }
