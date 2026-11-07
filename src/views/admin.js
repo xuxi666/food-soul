@@ -109,6 +109,15 @@ export default {
     const s = boot.stats;
     const statusBox = h('div', { class: 'adm-status' }, h('p', { class: 'adm-status__row', text: '读取内置 AI 状态…' }));
 
+    /** 左页底部的小入口：都是页签快捷方式，点完停在书里同一页 */
+    const quick = (id, label, note) =>
+      h(
+        'button',
+        { class: 'adm-quick__item', type: 'button', onclick: () => switchTab(id) },
+        h('span', { text: label }),
+        h('em', { text: note })
+      );
+
     const side = h(
       'aside',
       { class: 'adm-side' },
@@ -136,6 +145,14 @@ export default {
       ),
       h('p', { class: 'adm-side__label', text: '系统状态' }),
       statusBox,
+      h('p', { class: 'adm-side__label', text: '快捷入口' }),
+      h(
+        'div',
+        { class: 'adm-quick' },
+        quick('reports', '处理举报', `${s.reports.pending} 条待办`),
+        quick('cards', '首页配图', `${s.cards.overridden} 张已替换`),
+        quick('siteai', '内置 AI', '开关与配置')
+      ),
       h(
         'div',
         { class: 'adm-side__foot' },

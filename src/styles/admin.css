@@ -1298,3 +1298,53 @@
   min-height: 0;
 }
 
+/* 左页快捷入口 */
+.adm-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.adm-quick__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(200, 166, 108, 0.26);
+  border-radius: 7px;
+  background: rgba(255, 252, 245, 0.4);
+  color: #7a5330;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.adm-quick__item em {
+  font-style: normal;
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: #b08a63;
+}
+
+.adm-quick__item:hover {
+  border-color: rgba(194, 69, 45, 0.35);
+  background: rgba(217, 164, 65, 0.14);
+  color: #8a4b22;
+}
+
+.bk-stage.is-single .adm-quick {
+  flex-direction: row;
+}
+
+.bk-stage.is-single .adm-quick__item {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.bk-stage.is-single .adm-quick__item em {
+  display: none;
+}
+
