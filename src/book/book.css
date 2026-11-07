@@ -58,23 +58,24 @@ body.is-book {
 
 /* ---------- 书 ---------- */
 .bk-book {
+  --closed-tx: calc(var(--closed-scale, 0.52) * -25%);
   position: relative;
   width: var(--book-w, 1100px);
   height: var(--book-h, 720px);
   transform-style: preserve-3d;
-  /* 旋转与缩放共用一条过渡：回正 420ms，放大 560ms 由 JS 分两段触发 */
-  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* 合书/回退用的过渡；开书走下面那条 keyframes，不依赖中途切 class */
+  transition: transform 560ms cubic-bezier(0.25, 0.7, 0.3, 1);
   will-change: transform;
 }
 
 /* 合上：左移让封面居中，顺时针倾斜 15°，并缩到小书尺寸 */
 .bk-book--closed {
-  transform: translateX(calc(var(--closed-scale, 0.52) * -25%)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
+  transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
 }
 
 /* 回正：保持小书尺寸，只把 15° 收回 0° */
 .bk-book--straight {
-  transform: translateX(calc(var(--closed-scale, 0.52) * -25%)) rotateZ(0deg) scale(var(--closed-scale, 0.52));
+  transform: translateX(var(--closed-tx)) rotateZ(0deg) scale(var(--closed-scale, 0.52));
 }
 
 /* 展开：双页露出，略大于小书 */
@@ -82,7 +83,30 @@ body.is-book {
   transform: translateX(0) rotateZ(0deg) scale(var(--open-scale, 0.66));
 }
 
-/* 阅读：书页本身放大到铺满视口 */
+/*
+ * 开书：一条时间轴跑完整段。
+ * 0–58%（约 754ms）15° → 0°，同时 0.52 → 0.70；
+ * 58–100%（约 546ms）继续放大到 1，接上"书页铺满视口"。
+ * 回正和放大写在同一条 @keyframes 里，过程不需要切换 class，
+ * 所以不会出现"回正完了停一下再放大"的空档。
+ */
+@keyframes bk-book-open {
+  0% {
+    transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
+  }
+  58% {
+    transform: translateX(0) rotateZ(0deg) scale(0.7);
+  }
+  100% {
+    transform: translateX(0) rotateZ(0deg) scale(1);
+  }
+}
+
+.bk-book--opening {
+  animation: bk-book-open 1300ms cubic-bezier(0.4, 0.05, 0.2, 1) forwards;
+}
+
+/* 阅读：书页本身放大到铺满视口（展开动画收尾时切过来，几何完全一致，不会跳） */
 .bk-book--reading {
   transform: translateX(0) rotateZ(0deg) scale(1);
 }
@@ -104,6 +128,21 @@ body.is-book {
   pointer-events: none;
 }
 
+/* 掀封面的同时书页从下面显出来：晚 120ms 淡入，避免"书还没开、左页先亮" */
+.bk-book--opening .bk-page--left,
+.bk-book--opening .bk-gutter,
+.bk-book--opening .bk-content {
+  opacity: 1;
+  transition: opacity 440ms ease 120ms;
+}
+
+/* 合书时反过来：等封面快盖住了再把书页收走，不出现空书页闪一下 */
+.bk-book--straight .bk-page--left,
+.bk-book--straight .bk-gutter,
+.bk-book--straight .bk-content {
+  transition: opacity 260ms ease 300ms;
+}
+
 /*
  * ---------- 环境阴影（独立层） ----------
  * 与 .bk-book 是兄弟节点、位于书本之下，由 JS 按「可见物体」的包围盒摆放：
@@ -121,10 +160,19 @@ body.is-book {
   pointer-events: none;
   transform: none;
   transition: opacity 420ms ease;
-  will-change: left, top, width, height, opacity;
+  /*
+   * 不要在这里写 will-change: left, top, width, height。
+   * 阴影每帧都在改这四个值（跟着书走），一旦声明 will-change 就会每帧重建图层，
+   * 实测开书动画在 781 / 1369 / 1450 / 1507ms 处掉 57–106ms 的帧；去掉后 0 掉帧。
+   */
 }
 
-/* 第一层：接触阴影 —— 小而实，贴着书底 */
+/*
+ * 第一层：接触阴影 —— 小而实，贴着书底。
+ * 不用 filter: blur()：GPU 每帧都要重栅格化这块模糊层，开书动画里会掉 100ms 的帧
+ * （实测 blur 版本 rAF 有 782ms/1369ms/1457ms 三处 76–103ms 空洞，去掉后为 0）。
+ * 柔和感改由更多档位的径向渐变换取——纯渐变不需要滤镜，代价几乎为零。
+ */
 .bk-shadow__contact {
   position: absolute;
   bottom: -1%;
@@ -134,12 +182,13 @@ body.is-book {
   border-radius: 50%;
   background: radial-gradient(
     ellipse 50% 50% at 50% 42%,
-    rgba(84, 52, 34, 0.22) 0%,
-    rgba(96, 64, 42, 0.11) 40%,
-    rgba(104, 72, 48, 0.04) 68%,
-    rgba(104, 72, 48, 0) 84%
+    rgba(84, 52, 34, 0.26) 0%,
+    rgba(92, 58, 38, 0.18) 22%,
+    rgba(100, 68, 44, 0.1) 42%,
+    rgba(104, 72, 48, 0.05) 60%,
+    rgba(104, 72, 48, 0.02) 76%,
+    rgba(104, 72, 48, 0) 90%
   );
-  filter: blur(8px);
 }
 
 /* 第二层：环境投影 —— 大而淡，方向固定在背景坐标系 */
@@ -152,12 +201,13 @@ body.is-book {
   border-radius: 50%;
   background: radial-gradient(
     ellipse 50% 50% at 50% 40%,
-    rgba(96, 64, 42, 0.13) 0%,
-    rgba(104, 72, 48, 0.08) 36%,
-    rgba(104, 72, 48, 0.03) 62%,
-    rgba(104, 72, 48, 0) 82%
+    rgba(96, 64, 42, 0.16) 0%,
+    rgba(100, 68, 46, 0.12) 20%,
+    rgba(104, 72, 48, 0.08) 38%,
+    rgba(104, 72, 48, 0.04) 56%,
+    rgba(104, 72, 48, 0.015) 74%,
+    rgba(104, 72, 48, 0) 88%
   );
-  filter: blur(26px);
 }
 
 /* 阅读态：书页铺满视口，影子退到纸下 */
@@ -351,6 +401,23 @@ body.is-book {
 .bk-book--open .bk-cover,
 .bk-book--reading .bk-cover {
   transform: translateZ(-3px) rotateY(-180deg);
+}
+
+/*
+ * 掀封面：与回正同一帧启动（同一个 class），比整段开书略短，
+ * 让封面在书页还在放大时就完成翻转，形成连续的收尾。
+ */
+@keyframes bk-cover-open {
+  from {
+    transform: translateZ(-3px) rotateY(0deg);
+  }
+  to {
+    transform: translateZ(-3px) rotateY(-180deg);
+  }
+}
+
+.bk-book--opening .bk-cover {
+  animation: bk-cover-open 900ms cubic-bezier(0.42, 0, 0.15, 1) forwards;
 }
 
 .bk-cover__front {
@@ -828,6 +895,10 @@ body.is-book {
   }
 
   /* 手机端同样是合拢倾斜 15°，只是不左移（单页没有左右之分） */
+  .bk-book {
+    --closed-tx: 0%;
+  }
+
   .bk-book--closed {
     transform: rotateZ(15deg) scale(var(--closed-scale, 0.52));
   }

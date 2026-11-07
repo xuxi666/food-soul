@@ -34,18 +34,41 @@ export function initBook({ root }) {
   // 每帧读取「可见物体」的屏幕包围盒（合上=封面，展开=双页），
   // 把它作为阴影层的 left/top/width/height —— 只跟随位置与尺寸，方向永远水平。
   let shadowRaf = 0;
+  // 阴影跟「封面」还是跟「整本双页」：0 = 只看封面，1 = 整本。
+  // 开书时按封面掀起的节奏从 0 过渡到 1，影子慢慢铺开，不会在某一帧突然变宽。
+  let shadowBlend = 0;
+  let blendRaf = 0;
+  function blendShadowTo(to, ms = 460) {
+    cancelAnimationFrame(blendRaf);
+    const from = shadowBlend;
+    if (Math.abs(to - from) < 0.01) {
+      shadowBlend = to;
+      fitShadow();
+      return;
+    }
+    const t0 = performance.now();
+    const step = () => {
+      const p = Math.min(1, (performance.now() - t0) / ms);
+      shadowBlend = from + (to - from) * (1 - Math.pow(1 - p, 3));
+      fitShadow();
+      if (p < 1) blendRaf = requestAnimationFrame(step);
+    };
+    step();
+  }
   function fitShadow() {
     const sh = shell.shadow;
     if (!sh) return;
-    const open = shell.book.classList.contains('bk-book--open') || shell.book.classList.contains('bk-book--reading');
-    const target = open ? shell.spread : shell.cover;
     const cam = shell.camera.getBoundingClientRect();
-    const r = target.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    sh.style.left = `${r.left - cam.left}px`;
-    sh.style.top = `${r.top - cam.top}px`;
-    sh.style.width = `${r.width}px`;
-    sh.style.height = `${r.height}px`;
+    const a = shell.cover.getBoundingClientRect();
+    const b = shell.spread.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    const k = shadowBlend;
+    const left = a.left + (b.left - a.left) * k;
+    const top = a.top + (b.top - a.top) * k;
+    sh.style.left = `${left - cam.left}px`;
+    sh.style.top = `${top - cam.top}px`;
+    sh.style.width = `${a.width + (b.width - a.width) * k}px`;
+    sh.style.height = `${a.height + (b.height - a.height) * k}px`;
   }
   /** 过渡期间逐帧贴合，过渡结束就停 */
   function followShadow(ms = 800) {
@@ -81,8 +104,10 @@ export function initBook({ root }) {
   });
 
   /* ---------------- 书籍状态机 ---------------- */
-  // CLOSED_TILTED → STRAIGHTENING → OPENING → EXPANDING → READING
+  // CLOSED_TILTED → OPENING（回正 + 掀封面，同帧启动）→ EXPANDING → READING
   // 返回：SHRINKING → CLOSING → CLOSED_TILTED
+  const OPEN_MS = 1300; // 整段开书（回正 + 掀封面 + 放大到铺满）的一条时间轴
+  const CHROME_MS = 760; // 书签/翻页键在书已经立起来之后才露面
   let phase = 'CLOSED_TILTED';
   function setBookState(cls) {
     shell.book.className = `bk-book ${cls}`;
@@ -169,23 +194,27 @@ export function initBook({ root }) {
     try {
       // 0) 先把页码写上：书页展开的瞬间就有页脚，不会出现空白页码
       shell.setFolio(...folioFor(location.pathname || '/dishes'));
-      // 1) 回正：15° → 0°，420ms
-      setPhase('STRAIGHTENING');
-      setBookState('bk-book--straight');
-      shell.el.classList.add('is-open');
-      await wait(440);
 
-      // 2) 封面绕书脊打开，700ms
+      /*
+       * 1) 一次 class 切换启动整段开书动画，两个变换各自分层、同帧开始：
+       *      A 书本整体：@keyframes bk-book-open —— 15°→0° 与 0.52→1 写在同一段时间轴里
+       *      B 封面：@keyframes bk-cover-open —— 绕书脊 0°→-180°
+       *    中途不再切 class，所以回正和放大之间没有接缝，也不会出现"回正完停一下"。
+       */
       setPhase('OPENING');
-      setBookState('bk-book--open');
-      await wait(720);
+      setBookState('bk-book--opening');
 
-      // 3) 书页本身放大到铺满视口，560ms
+      // 2) 书立起来之后再把书签/翻页键露出来，避免它们在旋转途中闪现
+      await wait(CHROME_MS);
+      // 双页露出来了，阴影从封面范围平滑过渡到整本
+      blendShadowTo(1, 520);
+      shell.el.classList.add('is-open');
       setPhase('EXPANDING');
-      setBookState('bk-book--reading');
-      await wait(580);
 
+      // 3) 等整条时间轴走完，再切到阅读态（几何完全一致，不会跳）
+      await wait(OPEN_MS - CHROME_MS);
       setPhase('READING');
+      setBookState('bk-book--reading');
       mode = 'open';
       await showPath(location.pathname || '/dishes', { flip: false });
     } finally {
@@ -423,6 +452,8 @@ export function initBook({ root }) {
 
       // 2) 封面合上
       setPhase('CLOSING');
+      // 封面盖回去，只剩封面可见：阴影缩回封面范围
+      blendShadowTo(0, 520);
       setBookState('bk-book--straight');
       shell.el.classList.remove('is-open');
       await wait(720);
@@ -510,6 +541,36 @@ export function initBook({ root }) {
    */
   shell.setActive(chapterOf(location.pathname));
   setBookState('bk-book--closed');
+
+  /*
+   * 首开预热：书签、返回键、翻页键平时隐藏，第一次点封面时才在 760ms 那一刻上屏，
+   * 实测这一次首绘会卡 140ms（正好卡在书页开始放大的瞬间）。
+   * 空闲时先把它们用 1% 不透明度画一遍——几乎看不见，但图层/字形已经备好。
+   */
+  function warmOpenChrome() {
+    if (mode !== 'closed' || busy || phase !== 'CLOSED_TILTED') return;
+    const els = [...shell.el.querySelectorAll('.bk-marks, .bk-back, .bk-turn')];
+    if (!els.length) return;
+    shell.el.classList.add('is-open');
+    for (const el of els) el.style.opacity = '0.01';
+    void shell.el.offsetWidth;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        for (const el of els) el.style.removeProperty('opacity');
+        shell.el.classList.remove('is-open');
+        void shell.el.offsetWidth;
+      })
+    );
+  }
+  // 这是画一遍预热帧，不是开书定时器；开书仍然只由封面点击触发
+  window.setTimeout(warmOpenChrome, 600);
+
+  /*
+   * 注意：不要在这里预热图鉴。
+   * 图鉴一次要建近百张卡片，实测会形成一个 600ms 的长动画帧，
+   * 用户恰好在那一帧点击，开书就会晚半秒才开始；而它带来的收益
+   * 只是把"内容挂载"的 100ms 提前。开书流畅优先，所以内容仍然在开书后挂载。
+   */
 
   // 深链（/dishes、/community…）只用于高亮书签；点开封面后落到该章节，
   // 因为在 openFirst() 里是用 location.pathname 作为目标路径。

@@ -108,6 +108,10 @@
 }
 
 .atlas__card {
+  /* 图鉴一次会建近百张卡片，离屏的那些不参与布局/绘制，
+     否则首次开书挂载时会卡 100ms 以上 */
+  content-visibility: auto;
+  contain-intrinsic-size: 132px 168px;
   display: flex;
   flex-direction: column;
   min-height: 0;

@@ -53,7 +53,7 @@ export function createAtlas(contentEl, { onNavigate } = {}) {
       h(
         'div',
         { class: 'atlas__media' },
-        d.image ? h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy' }) : null
+        d.image ? h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }) : null
       ),
       h(
         'div',

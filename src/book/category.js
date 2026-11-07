@@ -44,7 +44,7 @@ export function mountCategory(el, kind, id) {
       h(
         'div',
         { class: 'catb__media' },
-        guardImage(h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy' }), d.name, '图片暂不可用')
+        guardImage(h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }), d.name, '图片暂不可用')
       ),
       h(
         'div',
