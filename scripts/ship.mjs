@@ -30,6 +30,8 @@ process.chdir(ROOT);
 const USAGE = `用法：
   node scripts/ship.mjs -m "feat: 说明"   提交本地改动并发布（服务器构建重启 + 同步 GitHub）
   node scripts/ship.mjs --push-only       不提交，直接发布当前 HEAD
+  node scripts/ship.mjs --push-only --allow-dirty
+                                          工作区有未提交改动时，只发布已提交的 HEAD
   node scripts/ship.mjs --status          查看服务器上一次部署结果
   node scripts/ship.mjs --install-hook    安装/更新服务器部署钩子
   node scripts/ship.mjs --bootstrap       首次接管服务器（建 git 仓库 + 装钩子，幂等）
@@ -261,14 +263,19 @@ function deployViaGit() {
   }
 }
 
-function ship({ pushOnly, message, via }) {
+function ship({ pushOnly, message, via, allowDirty = false }) {
   requireConfig();
-  run('git add -A');
+  // --push-only --allow-dirty：不暂存工作区，只发布已提交的 HEAD（保留未提交的 WIP）
+  const skipStage = pushOnly && allowDirty;
+  if (!skipStage) run('git add -A');
   const pending = capture('git status --porcelain').text.trim();
 
-  if (pending) {
+  if (pending && skipStage) {
+    console.log('[发布] 工作区有未提交改动，本次只发布已提交的 HEAD：');
+    for (const line of pending.split('\n').slice(0, 8)) console.log(`        ${line}`);
+  } else if (pending) {
     if (pushOnly) {
-      console.error('\n[中止] 还有未提交的改动，请先提交（或去掉 --push-only）');
+      console.error('\n[中止] 还有未提交的改动，请先提交（或加 --allow-dirty 只发布已提交的 HEAD）');
       console.error(pending);
       process.exit(1);
     }
@@ -312,7 +319,12 @@ if (argv.includes('--help') || argv.includes('-h')) {
 } else if (argv.includes('--status')) {
   showStatus();
 } else if (argv.includes('--push-only')) {
-  ship({ pushOnly: true, message: flag('-m') || flag('--message') || '', via });
+  ship({
+    pushOnly: true,
+    message: flag('-m') || flag('--message') || '',
+    via,
+    allowDirty: argv.includes('--allow-dirty'),
+  });
 } else {
   ship({ pushOnly: false, message: flag('-m') || flag('--message') || '', via });
 }

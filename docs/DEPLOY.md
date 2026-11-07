@@ -51,6 +51,7 @@ GitHub xuxi666/food-soul
 | `npm run deploy:hook` | 只重装部署钩子 |
 | `npm run deploy:github` | 生成 GitHub 部署密钥并打印公钥 |
 | `node scripts/ship.mjs --via=git` | 改用 `git push deploy main` 传输（默认是 bundle + scp） |
+| `node scripts/ship.mjs --push-only --allow-dirty` | 工作区还有未提交的改动时，只发布已提交的 HEAD（不暂存、不提交，适合边改边发） |
 
 Windows 上如果 PowerShell 禁止运行 `npm.ps1`（报「禁止运行脚本」），用下面任一种写法绕过：
 
