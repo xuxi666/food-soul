@@ -472,7 +472,9 @@ export function initBook({ root }) {
     if (busy) return;
     const path = url.pathname + url.search;
     if (mode === 'closed') {
-      void openFirst().then(() => showPath(path, { flip: false }));
+      // 合上的书里点到链接：只记住目标地址，开书仍然只由点击封面触发
+      history.pushState({ path }, '', path);
+      shell.setActive(chapterOf(path));
       return;
     }
     void showPath(path);
@@ -482,8 +484,12 @@ export function initBook({ root }) {
   window.addEventListener('popstate', () => {
     if (busy) return;
     const path = location.pathname + location.search;
-    if (mode === 'closed') void openFirst().then(() => showPath(path, { flip: false }));
-    else void showPath(path, { flip: false });
+    // 合上的书不因为浏览历史而变化：只更新书签高亮，开书仍然只由点击封面触发
+    if (mode === 'closed') {
+      shell.setActive(chapterOf(path));
+      return;
+    }
+    void showPath(path, { flip: false });
   });
 
   document.addEventListener('keydown', (e) => {
@@ -496,14 +502,17 @@ export function initBook({ root }) {
     if (e.key === 'ArrowLeft') void turn('prev');
   });
 
-  /* ---------------- 初始：合上的书 ---------------- */
+  /*
+   * ---------------- 初始：合上的书 ----------------
+   * 进站永远停在 CLOSED_TILTED：不读 location 自动开书、没有定时器、
+   * 不监听 load / 图片加载 / visibilitychange 去开书。
+   * 开书只有一个入口——用户点击（或键盘 Enter/Space）封面。
+   */
   shell.setActive(chapterOf(location.pathname));
   setBookState('bk-book--closed');
 
-  const deepLink = location.pathname !== '/' && location.pathname !== '';
-  if (deepLink) {
-    window.setTimeout(() => void openFirst(), 600);
-  }
+  // 深链（/dishes、/community…）只用于高亮书签；点开封面后落到该章节，
+  // 因为在 openFirst() 里是用 location.pathname 作为目标路径。
 
   window.__book = {
     get mode() {

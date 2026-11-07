@@ -530,6 +530,22 @@ body.is-book {
   font-size: 10.5px;
 }
 
+/*
+ * 悬停反馈：只提亮封面 + 让提示文字更明显，绝不触发开书。
+ * 提示文字本身在 .bk-cover__hint（带 bk-breathe 呼吸动画）。
+ */
+.bk-cover:hover .bk-cover__front {
+  filter: brightness(1.035);
+}
+
+.bk-cover:focus-visible {
+  outline: none;
+}
+
+.bk-cover:focus-visible .bk-cover__front {
+  box-shadow: 0 18px 44px rgba(120, 82, 56, 0.24), 0 0 0 2px rgba(194, 69, 45, 0.55);
+}
+
 /* ---------- 书签 ---------- */
 .bk-marks {
   position: absolute;
