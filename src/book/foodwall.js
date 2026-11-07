@@ -18,8 +18,8 @@ import { DISHES } from '../data/dishes.js';
 
 const THUMB_DIR = '/wall/';
 const ASPECT = 1.5; // 3:2 横图
-const GAP = 14; // 卡片间距（px）
-const ROW_GAP = 18; // 行间距（px）
+const GAP = 6; // 卡片水平间距（px）：密排，只留一道细缝
+const ROW_GAP = 6; // 行间距（px）
 /** 每行的完整循环周期（秒）：全部不同，避免两行同拍 */
 const ROW_DURATIONS = [34, 44, 39, 52, 30, 47, 41];
 
@@ -53,9 +53,10 @@ function seededShuffle(list, seed = 20261007) {
 
 /** 行数：屏幕越高行越多；手机只留 3～4 行，平板 4～6 行 */
 function rowsFor(w, h) {
-  if (w < 640) return Math.max(3, Math.min(4, Math.round(h / 260)));
-  if (w < 1100) return Math.max(4, Math.min(6, Math.round(h / 210)));
-  return Math.max(5, Math.min(7, Math.round(h / 185)));
+  // 行数按「目标卡片高度」倒推：桌面 ~132px 一行（铺满 7~9 行），平板 ~170，手机 ~210
+  if (w < 640) return Math.max(3, Math.min(5, Math.round(h / 210)));
+  if (w < 1100) return Math.max(4, Math.min(6, Math.round(h / 170)));
+  return Math.max(6, Math.min(9, Math.round(h / 132)));
 }
 
 function idle(fn) {
@@ -129,7 +130,7 @@ export function createFoodWall() {
     const rows = rowsFor(vw, vh);
     const rowH = vh / rows;
     // 窄屏别让一张照片糊满整行：按屏宽收一档，手机上仍能看到 1.5 张以上
-    const tileCap = vw < 640 ? (vw * 0.62) / ASPECT : rowH;
+    const tileCap = vw < 640 ? (vw * 0.58) / ASPECT : rowH;
     const tileH = Math.max(72, Math.round(Math.min(rowH - ROW_GAP, tileCap)));
     const tileW = Math.round(tileH * ASPECT);
     const perRow = Math.max(3, Math.ceil(vw / (tileW + GAP)) + 1);

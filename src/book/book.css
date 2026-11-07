@@ -31,7 +31,7 @@ body.is-book {
   pointer-events: none;
   /* 背景墙上来之后，这层只负责「画册后方那团暖光」，不能再把照片整片盖住 */
   background:
-    radial-gradient(ellipse 66% 52% at 50% 44%, rgba(255, 252, 245, 0.34) 0%, rgba(255, 250, 241, 0.16) 46%, rgba(255, 248, 237, 0) 72%),
+    radial-gradient(ellipse 62% 48% at 50% 44%, rgba(255, 252, 245, 0.2) 0%, rgba(255, 250, 241, 0.09) 46%, rgba(255, 248, 237, 0) 72%),
     radial-gradient(ellipse 40% 30% at 18% 78%, rgba(217, 164, 65, 0.06) 0%, transparent 70%);
 }
 
@@ -53,6 +53,11 @@ body.is-book {
 /* ---------- 镜头 ---------- */
 .bk-camera {
   position: relative;
+  /*
+   * 必须给正 z-index：背景遮罩层是 z-index:1 的定位元素，按 CSS 绘制顺序
+   * 会盖在 z-index:auto 的兄弟之上。画册靠这个值明确压在背景墙 / 模糊 / 柔光之上。
+   */
+  z-index: 3;
   transform: none;
   transform-origin: center center;
 }
@@ -1632,7 +1637,7 @@ body.is-book {
   flex: 0 0 auto;
   width: calc(var(--tile-h, 130px) * 1.5);
   height: var(--tile-h, 130px);
-  border-radius: 10px;
+  border-radius: 7px;
   overflow: hidden;
   background: #f2e6d2;
   /* 轻微降饱和 + 提亮：照片是背景，不是主角 */
@@ -1675,21 +1680,22 @@ body.is-book {
 .bk-wall__blur {
   position: absolute;
   inset: -2px;
-  -webkit-backdrop-filter: blur(9px) saturate(0.92);
-  backdrop-filter: blur(9px) saturate(0.92);
+  -webkit-backdrop-filter: blur(6px) saturate(0.94);
+  backdrop-filter: blur(6px) saturate(0.94);
+  /* 只柔化画册外一圈：从书边往外很快衰减到 0，不是一整块毛玻璃 */
   -webkit-mask-image: radial-gradient(
-    ellipse 58% 54% at 50% 47%,
+    ellipse 30% 34% at 50% 46%,
     #000 0%,
-    rgba(0, 0, 0, 0.96) 34%,
-    rgba(0, 0, 0, 0.62) 58%,
-    rgba(0, 0, 0, 0) 82%
+    rgba(0, 0, 0, 0.82) 42%,
+    rgba(0, 0, 0, 0.3) 70%,
+    rgba(0, 0, 0, 0) 92%
   );
   mask-image: radial-gradient(
-    ellipse 58% 54% at 50% 47%,
+    ellipse 30% 34% at 50% 46%,
     #000 0%,
-    rgba(0, 0, 0, 0.96) 34%,
-    rgba(0, 0, 0, 0.62) 58%,
-    rgba(0, 0, 0, 0) 82%
+    rgba(0, 0, 0, 0.82) 42%,
+    rgba(0, 0, 0, 0.3) 70%,
+    rgba(0, 0, 0, 0) 92%
   );
 }
 
@@ -1698,9 +1704,8 @@ body.is-book {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 42% 40% at 50% 47%, rgba(255, 253, 246, 0.66) 0%, rgba(255, 251, 242, 0.34) 48%, rgba(255, 248, 237, 0) 76%),
-    radial-gradient(ellipse 68% 62% at 50% 47%, rgba(255, 251, 242, 0.34) 0%, rgba(255, 249, 238, 0.16) 52%, rgba(253, 246, 233, 0.03) 78%, rgba(253, 246, 233, 0) 92%),
-    linear-gradient(180deg, rgba(255, 250, 240, 0.32) 0%, rgba(255, 250, 240, 0.12) 38%, rgba(250, 242, 229, 0.3) 100%);
+    radial-gradient(ellipse 33% 37% at 50% 46%, rgba(255, 253, 246, 0.42) 0%, rgba(255, 251, 242, 0.15) 54%, rgba(255, 248, 237, 0) 80%),
+    radial-gradient(ellipse 62% 58% at 50% 46%, rgba(255, 251, 242, 0.12) 0%, rgba(255, 249, 238, 0.05) 58%, rgba(253, 246, 233, 0) 86%);
 }
 
 /* 翻开画册后：背景退后半步，但不突然消失 */
@@ -1721,12 +1726,12 @@ body.is-book {
 /* 手机上少一层模糊，省一点 GPU */
 @media (max-width: 640px) {
   .bk-wall__blur {
-    -webkit-backdrop-filter: blur(6px) saturate(0.94);
-    backdrop-filter: blur(6px) saturate(0.94);
+    -webkit-backdrop-filter: blur(3.5px) saturate(0.95);
+    backdrop-filter: blur(3.5px) saturate(0.95);
   }
 
   .bk-wall__card {
-    border-radius: 8px;
+    border-radius: 6px;
   }
 }
 
