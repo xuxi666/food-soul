@@ -15,24 +15,13 @@
     />
   </head>
   <body>
+    <!--
+      全站以一本画册为容器：
+      封面 → 打开 → 左右双页；章节导航改为书页边缘的书签。
+      账号与 AI 设置收进右上角印章按钮。
+    -->
     <div id="app">
-      <header class="nav" id="nav">
-        <a class="nav__brand" href="/" data-link>
-          <span class="nav__cn">食有灵</span>
-          <span class="nav__en">FOOD SOUL</span>
-        </a>
-        <nav class="nav__links" aria-label="主导航">
-          <a href="/" data-link>首页</a>
-          <a href="/dishes" data-link>美食图鉴</a>
-          <a href="/recipe" data-link>菜谱工作台</a>
-          <a href="/kitchen" data-link>Epicure 厨房</a>
-          <a href="/community" data-link>美食社区</a>
-        </nav>
-        <div class="nav__account" id="account-root"></div>
-      </header>
-
-      <main id="view" class="view"></main>
-
+      <div id="book-root"></div>
       <div id="mascot-root"></div>
     </div>
 

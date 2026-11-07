@@ -176,6 +176,11 @@ export function adopt(stage, instance, path) {
   focusView();
 }
 
+/** 画册模式：只把嵌套挂载的宿主指到书页内容层，不接管点击与前进后退 */
+export function setRouterHost(el) {
+  viewEl = el;
+}
+
 export function initRouter(el) {
   viewEl = el;
   document.addEventListener('click', (e) => {
