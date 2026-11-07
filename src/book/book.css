@@ -897,7 +897,7 @@ body.is-book {
   position: static;
 }
 
-/* ---------- 菜谱：左页输入 / 右页结果 ---------- */
+/* ---------- 菜谱：左页输入 / 右页结构化菜谱 ---------- */
 .bk-content[data-chapter="recipe"] {
   column-count: 1;
   display: block;
@@ -909,12 +909,22 @@ body.is-book {
   padding: 22px 30px 42px;
   height: 100%;
   overflow-y: auto;
-  column-count: 2;
-  column-gap: 58px;
 }
 
-.bk-content[data-chapter="recipe"] .recipe-form,
-.bk-content[data-chapter="recipe"] .recipe-result,
-.bk-content[data-chapter="recipe"] .board__aside {
+.bk-content[data-chapter="recipe"] .page-head {
+  display: none;
+}
+
+/* 表单落左页、结果落右页 */
+.bk-content[data-chapter="recipe"] .tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 58px;
+  align-items: start;
+}
+
+.bk-content[data-chapter="recipe"] .recipe-card,
+.bk-content[data-chapter="recipe"] .empty-state,
+.bk-content[data-chapter="recipe"] .recipe-failure {
   break-inside: avoid;
 }

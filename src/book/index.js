@@ -169,6 +169,7 @@ export function initBook({ root }) {
       if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
       else apply();
       currentKey = info.key;
+      updateBackLabel();
       updatePager();
       return;
     }
@@ -186,6 +187,7 @@ export function initBook({ root }) {
       if (needFlip) await flipLeaf('next', apply);
       else apply();
       currentKey = 'dishes';
+      updateBackLabel();
       updatePager();
       return;
     }
@@ -214,6 +216,7 @@ export function initBook({ root }) {
     }
 
     currentKey = info.key;
+    updateBackLabel();
     updatePager();
   }
 
@@ -224,6 +227,15 @@ export function initBook({ root }) {
   }
 
   /* ---------------- 翻页按钮 ---------------- */
+  /** 详情页把左上角按钮切成「返回图鉴」，其余章节是「合上」 */
+  function updateBackLabel() {
+    const label = shell.backBtn.querySelector('.bk-back__label');
+    const isDetail = currentKey === 'dishDetail';
+    shell.backBtn.dataset.action = isDetail ? 'gallery' : 'close';
+    shell.backBtn.setAttribute('aria-label', isDetail ? '返回图鉴' : '合上画册');
+    if (label) label.textContent = isDetail ? '返回图鉴' : '合上';
+  }
+
   function updatePager() {
     if (currentKey === 'dishes' && atlas) {
       shell.prevBtn.disabled = !atlas.hasPrev();
@@ -318,7 +330,14 @@ export function initBook({ root }) {
       busy = false;
     }
   }
-  shell.backBtn.addEventListener('click', () => void shut());
+  shell.backBtn.addEventListener('click', () => {
+    if (shell.backBtn.dataset.action === 'gallery') {
+      history.pushState({ path: '/dishes' }, '', '/dishes');
+      void showPath('/dishes');
+      return;
+    }
+    void shut();
+  });
 
   /* ---------------- 印章面板 ---------------- */
   let panelOpen = false;
