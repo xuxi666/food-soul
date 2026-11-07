@@ -13,6 +13,7 @@ import { createShell } from './shell.js';
 import { createAtlas } from './atlas.js';
 import { mountCategory } from './category.js';
 import { mountVideos } from './videos.js';
+import { computeLayout, observeLayout, BREAKPOINT } from './layout.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
 import './atlas.css';
@@ -26,30 +27,28 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAn
 export function initBook({ root }) {
   document.body.classList.add('is-book');
   const shell = createShell(root);
+  let lastBox = null;
 
   /* ---------------- 尺寸 ---------------- */
   function fit() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const narrow = vw <= 860;
-
-    let w;
-    let hgt;
-    if (narrow) {
-      // 手机单页：宽度占 96%，高度不超过 92%
-      w = Math.min(vw * 0.96, 720);
-      hgt = Math.min(vh * 0.92, w * 1.5);
-    } else {
-      // PC 双页：宽 96%、高 94%，只留一圈细边
-      w = Math.min(vw * 0.96, 1640);
-      hgt = Math.min(vh * 0.94, w * 0.62);
-    }
-    shell.el.style.setProperty('--book-w', `${Math.round(w)}px`);
-    shell.el.style.setProperty('--book-h', `${Math.round(hgt)}px`);
+    const box = computeLayout();
+    shell.el.style.setProperty('--book-w', `${box.w}px`);
+    shell.el.style.setProperty('--book-h', `${box.h}px`);
+    shell.el.classList.toggle('is-single', box.mode === 'single');
+    lastBox = box;
   }
+
   fit();
-  window.addEventListener('resize', fit);
-  window.addEventListener('orientationchange', fit);
+  const stopObserve = observeLayout(() => {
+    const before = lastBox;
+    fit();
+    // 布局变化时把当前状态重放一次，避免书页停在旧尺寸上
+    if (before && (before.mode !== lastBox.mode || before.w !== lastBox.w || before.h !== lastBox.h)) {
+      shell.content.dataset.fitted = `${lastBox.w}x${lastBox.h}`;
+      // 单双页切换后，图鉴每屏数量要跟着变
+      if (before.mode !== lastBox.mode) atlas?.repaint();
+    }
+  });
 
   /* ---------------- 书籍状态机 ---------------- */
   // CLOSED_TILTED → STRAIGHTENING → OPENING → EXPANDING → READING
@@ -133,6 +132,8 @@ export function initBook({ root }) {
     if (phase !== 'CLOSED_TILTED' || busy) return;
     busy = true;
     try {
+      // 0) 先把页码写上：书页展开的瞬间就有页脚，不会出现空白页码
+      shell.setFolio(...folioFor(location.pathname || '/dishes'));
       // 1) 回正：15° → 0°，420ms
       setPhase('STRAIGHTENING');
       setBookState('bk-book--straight');
@@ -177,6 +178,24 @@ export function initBook({ root }) {
     leaf.style.transform = 'rotateY(0deg)';
   }
 
+  /* ---------------- 页码文案 ---------------- */
+  /** 路径 → 左右页页脚文案；打开画册时先预置，避免书页已经展开、页码还是空的 */
+  function folioFor(path) {
+    const info = moduleOf(path);
+    const chapter = chapterById(chapterOf(path));
+    const label = chapter ? chapter.label : '';
+    if (info.key === 'cuisines' || info.key === 'tastes') {
+      return [`${label} · 索引`, `${label} · 代表菜`];
+    }
+    if (info.key === 'videos') return ['视频 · 列表', '视频 · 选菜'];
+    if (info.key === 'dishes') {
+      const num = String((atlas ? atlas.page : 0) + 1).padStart(2, '0');
+      return [`图鉴 ${num} · 左页`, `图鉴 ${num} · 右页`];
+    }
+    const one = label || (info.key === 'dishDetail' ? '菜品详情' : '后台');
+    return [one, one];
+  }
+
   /* ---------------- 显示某个路径 ---------------- */
   async function showPath(path, { flip = true } = {}) {
     const info = moduleOf(path);
@@ -193,8 +212,7 @@ export function initBook({ root }) {
         shell.content.classList.add('is-split');
         ensureCategory(kind, id);
         shell.setActive(chapterId);
-        const label = chapter ? chapter.label : '';
-        shell.setFolio(`${label} · 索引`, `${label} · 代表菜`);
+        shell.setFolio(...folioFor(path));
       };
       if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
       else apply();
@@ -211,7 +229,7 @@ export function initBook({ root }) {
         shell.content.classList.add('is-split');
         ensureVideos();
         shell.setActive(chapterId);
-        shell.setFolio('视频 · 列表', '视频 · 选菜');
+        shell.setFolio(...folioFor(path));
       };
       if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
       else apply();
@@ -229,7 +247,7 @@ export function initBook({ root }) {
         shell.content.classList.add('is-split');
         ensureAtlas();
         shell.setActive('dishes');
-        shell.setFolio('图鉴 · 左页', '图鉴 · 右页');
+        shell.setFolio(...folioFor(path));
       };
       if (needFlip) await flipLeaf('next', apply);
       else apply();
@@ -248,8 +266,7 @@ export function initBook({ root }) {
       detachAll();
       shell.content.append(entry.el);
       shell.setActive(chapterId);
-      const label = chapter ? chapter.label : info.key === 'dishDetail' ? '菜品详情' : '后台';
-      shell.setFolio(label, label);
+      shell.setFolio(...folioFor(path));
       shell.content.scrollTop = 0;
     };
 
@@ -467,5 +484,10 @@ export function initBook({ root }) {
     shell,
   };
 
-  return { shell };
+  return {
+    shell,
+    destroy() {
+      stopObserve();
+    },
+  };
 }

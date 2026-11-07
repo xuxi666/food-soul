@@ -9,8 +9,9 @@ import { CUISINES, TASTES } from '../data/cuisines.js';
 const PER_PAGE = 4;
 const PER_SPREAD = PER_PAGE * 2;
 
-/** 手机端只显示一页，每屏 4 道 */
-const perScreen = () => (window.innerWidth <= 860 ? PER_PAGE : PER_SPREAD);
+/** 单页模式每屏 4 道，双页模式每跨页 8 道（由书壳的 is-single 类决定） */
+const isSingle = () => Boolean(document.querySelector('.bk-stage.is-single'));
+const perScreen = () => (isSingle() ? PER_PAGE : PER_SPREAD);
 
 const CUISINE_NAME = Object.fromEntries(CUISINES.map((c) => [c.id, c.name]));
 const TASTE_NAME = Object.fromEntries(TASTES.map((t) => [t.id, t.name]));

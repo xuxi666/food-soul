@@ -12,6 +12,8 @@ body.is-book {
 .bk-stage {
   position: fixed;
   inset: 0;
+  height: 100dvh;
+  width: 100dvw;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -746,7 +748,7 @@ body.is-book {
 }
 
 /* ---------- 移动端：单页模式 ---------- */
-@media (max-width: 860px) {
+@media (max-width: 720px), (max-width: 860px) and (orientation: portrait) {
   .bk-spread {
     grid-template-columns: 1fr;
   }
@@ -1043,6 +1045,14 @@ body.is-book {
   right: 8px;
 }
 
-.bk-stage.is-reading .bk-page__folio--right {
-  right: 8px;
+/* 单页模式：只有一个页码，放到底部居中，避开翻页按钮与小精灵 */
+.bk-stage.is-single.is-reading .bk-page__folio--left {
+  display: none;
+}
+
+.bk-stage.is-single.is-reading .bk-page__folio--right {
+  left: 50%;
+  right: auto;
+  bottom: 38px;
+  transform: translateX(-50%);
 }
