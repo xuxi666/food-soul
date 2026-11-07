@@ -928,3 +928,26 @@ body.is-book {
 .bk-content[data-chapter="recipe"] .recipe-failure {
   break-inside: avoid;
 }
+
+/* ---------- 手机端：各章节回到单列 ---------- */
+@media (max-width: 860px) {
+  .bk-content[data-chapter="community"] .community-grid,
+  .bk-content[data-chapter="recipe"] .tool-grid,
+  .bk-content[data-chapter="kitchen"] .ek-flow {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    gap: 12px;
+    height: auto;
+  }
+
+  .bk-content[data-chapter="kitchen"] .ek-graph-card,
+  .bk-content[data-chapter="kitchen"] .ek-catalog {
+    height: auto;
+    max-height: none;
+  }
+
+  .bk-content[data-chapter="community"] .page > .wrap,
+  .bk-content[data-chapter="recipe"] .page > .wrap {
+    padding: 16px 16px 30px;
+  }
+}
