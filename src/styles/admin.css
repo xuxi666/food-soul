@@ -872,7 +872,7 @@
 .adm-side .admin-nav__item {
   padding: 6px 8px;
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.05em;
 }
 
@@ -914,14 +914,14 @@
 }
 
 .adm-stat__label {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   color: #7a5330;
 }
 
 .adm-stat__hint {
   font-style: normal;
-  font-size: 8px;
+  font-size: 8.5px;
   color: #a9845f;
 }
 
@@ -936,7 +936,7 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 10px;
+  font-size: 10.5px;
   line-height: 1.5;
   color: #7a5330;
 }
@@ -988,7 +988,7 @@
   border-radius: 6px;
   background: transparent;
   color: #7a5330;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-align: left;
   cursor: pointer;
@@ -1040,7 +1040,7 @@
 
 .adm-hint {
   margin: 0;
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: 0.03em;
   color: #988575;
 }
@@ -1090,12 +1090,12 @@
 }
 
 .bk-pageface .admin-card__title {
-  font-size: 12px;
+  font-size: 12.5px;
   letter-spacing: 0.06em;
 }
 
 .bk-pageface .admin-card__hint {
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.6;
 }
 
@@ -1113,7 +1113,7 @@
 }
 
 .bk-pageface .admin-stat__label {
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .bk-pageface .admin-stat__value {
@@ -1126,7 +1126,7 @@
 
 .bk-pageface .admin-state {
   padding: 14px 10px;
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .bk-pageface .admin-row {
@@ -1135,17 +1135,17 @@
 }
 
 .bk-pageface .admin-row__text {
-  font-size: 10.5px;
+  font-size: 11.5px;
   line-height: 1.6;
 }
 
 .bk-pageface .admin-row__meta {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .bk-pageface .admin-input {
-  height: 26px;
-  font-size: 10.5px;
+  height: 28px;
+  font-size: 11.5px;
 }
 
 .bk-pageface .admin-toolbar {
@@ -1153,12 +1153,12 @@
 }
 
 .bk-pageface .admin-chips .chip {
-  font-size: 10px;
+  font-size: 10.5px;
   padding: 3px 9px;
 }
 
 .bk-pageface .admin-badge {
-  font-size: 8.5px;
+  font-size: 9.5px;
   padding: 1px 6px;
 }
 
@@ -1168,24 +1168,24 @@
 }
 
 .bk-pageface .admin-audit li {
-  font-size: 9.5px;
+  font-size: 10px;
   gap: 2px;
 }
 
 .bk-pageface .admin-pager {
   gap: 6px;
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 /* 表单 / AI 配置：小一号字，避免在窄书页里换行错位 */
 .bk-pageface .admin-form,
 .bk-pageface .admin-ai {
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .bk-pageface .admin-form label,
 .bk-pageface .admin-field {
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 /* ---------- 无权限：同样是书页里的一页 ---------- */
@@ -1315,7 +1315,7 @@
   border-radius: 7px;
   background: rgba(255, 252, 245, 0.4);
   color: #7a5330;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-align: left;
   cursor: pointer;
@@ -1348,3 +1348,20 @@
   display: none;
 }
 
+
+.bk-pageface .btn {
+  font-size: 12px;
+  padding: 0 12px;
+  height: 28px;
+  letter-spacing: 0.04em;
+}
+
+.bk-pageface .btn--sm {
+  font-size: 11px;
+  padding: 0 10px;
+  height: 25px;
+}
+
+.bk-pageface .admin-row__main b {
+  font-size: 11.5px;
+}
