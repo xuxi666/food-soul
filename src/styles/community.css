@@ -1075,3 +1075,33 @@
 .community-note {
   box-shadow: var(--shadow-sm);
 }
+/* 社区左页：发帖小贴士 */
+.community-tips {
+  padding: 10px 12px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(200, 166, 108, 0.45);
+  background: rgba(255, 253, 248, 0.7);
+}
+
+.community-tips b {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #6b3a22;
+}
+
+.community-tips ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.community-tips li {
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}

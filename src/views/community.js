@@ -282,6 +282,51 @@ export default {
     /* ---------------- 列表 ---------------- */
     const feed = h('div', { class: 'post-list' });
     const moreWrap = h('div', { class: 'feed-more' });
+    /* 左页的数据角：数字都从已加载的真实帖子里统计，不编造 */
+    const statsBox = h('div', { class: 'community-stats' });
+
+    function paintStats() {
+      clear(statsBox);
+      const kinds = new Map();
+      const authors = new Map();
+      let today = 0;
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      for (const p of items) {
+        if (p.kind) kinds.set(p.kind, (kinds.get(p.kind) || 0) + 1);
+        const name = p.author?.name || '匿名';
+        authors.set(name, (authors.get(name) || 0) + 1);
+        if (new Date(p.createdAt).getTime() >= dayStart.getTime()) today += 1;
+      }
+      const topKinds = [...kinds.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const topAuthors = [...authors.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+      statsBox.append(
+        h('p', { class: 'community-stats__title', text: '社区现状' }),
+        h(
+          'div',
+          { class: 'community-stats__grid' },
+          h('div', { class: 'community-stats__cell' }, h('b', { text: String(total) }), h('span', { text: '帖子总数' })),
+          h('div', { class: 'community-stats__cell' }, h('b', { text: String(items.length) }), h('span', { text: '本页已读' })),
+          h('div', { class: 'community-stats__cell' }, h('b', { text: String(today) }), h('span', { text: '今日新帖' }))
+        ),
+        topKinds.length
+          ? h(
+              'div',
+              { class: 'community-stats__row' },
+              h('span', { class: 'community-stats__label', text: '常见类型' }),
+              ...topKinds.map(([k, n]) => h('span', { class: 'community-stats__tag', text: `${k} ${n}` }))
+            )
+          : null,
+        topAuthors.length
+          ? h(
+              'div',
+              { class: 'community-stats__row' },
+              h('span', { class: 'community-stats__label', text: '活跃作者' }),
+              ...topAuthors.map(([k, n]) => h('span', { class: 'community-stats__tag', text: `${k} ${n}` }))
+            )
+          : null
+      );
+    }
 
     function commentNode(post, c) {
       return h(
@@ -552,6 +597,7 @@ export default {
         feed.append(h('div', { class: 'empty-state', text: '还没有帖子，来发第一条。' }));
       }
       items.forEach((p) => feed.append(postCard(p)));
+      paintStats();
       clear(moreWrap);
       if (items.length < total) {
         moreWrap.append(
@@ -589,15 +635,25 @@ export default {
       h('div', { class: 'wrap community-wrap' },
         head,
         h('div', { class: 'community-grid' },
-          h('div', { class: 'community-main' }, tabs, feed, moreWrap),
           h('aside', { class: 'community-side' },
             composer,
+            statsBox,
             h('div', { class: 'community-note' },
               h('b', { text: '关于这里' }),
               h('p', { text: '帖子与评论保存在服务端，刷新后仍在。浏览无需登录；发帖、评论与上传图片需要先登录，内容会记在当前账号名下。' }),
               h('p', { text: 'AI 回复需要你手动点「让菜回应」，且会明确标注；未接入 AI 时不会伪造 AI 发言，请先在右上角「接入 AI」配置。' })
+            ),
+            h('div', { class: 'community-tips' },
+              h('b', { text: '写一条能帮到人的帖' }),
+              h('ul', {},
+                h('li', { text: '关联菜品：别人能顺着菜名回到图鉴，看火候与味型。' }),
+                h('li', { text: '写清分量与火候：几个人吃、几分钟、什么火。' }),
+                h('li', { text: '失败也值得发：糊锅、出水、发苦，比成功版更有用。' }),
+                h('li', { text: '一张实拍图胜过形容词，别用别人的图。' })
+              )
             )
-          )
+          ),
+          h('div', { class: 'community-main' }, tabs, feed, moreWrap)
         )
       )
     );

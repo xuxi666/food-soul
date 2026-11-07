@@ -1,4 +1,4 @@
-/* 视频章节：左页视频列表 / 右页按菜系挑菜 */
+/* 视频章节：左页找视频（搜索 + 按菜系挑）/ 右页看结果（列表 + 平台入口） */
 
 .vid {
   display: grid;
@@ -16,17 +16,20 @@
   gap: 8px;
 }
 
-.vid__page--left {
+.vid__page--left,
+.vid__page--right {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(196, 168, 120, 0.45) transparent;
 }
 
-.vid__page--left::-webkit-scrollbar {
+.vid__page--left::-webkit-scrollbar,
+.vid__page--right::-webkit-scrollbar {
   width: 4px;
 }
 
-.vid__page--left::-webkit-scrollbar-thumb {
+.vid__page--left::-webkit-scrollbar-thumb,
+.vid__page--right::-webkit-scrollbar-thumb {
   background: rgba(196, 168, 120, 0.4);
   border-radius: 2px;
 }
@@ -170,11 +173,75 @@
 }
 
 .vid__picks {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  gap: 10px;
+  align-content: stretch;
+  min-height: 0;
+}
+
+/* 每个菜系一张小卡：左页像一页索引，而不是一堆零散按钮 */
+.vid__group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  min-height: 0;
+  justify-content: center;
+  gap: 2px;
+  padding: 9px 11px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(200, 166, 108, 0.35);
+  background: rgba(255, 253, 248, 0.86);
+}
+
+.vid__group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed rgba(200, 166, 108, 0.4);
+}
+
+.vid__group-count {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+/* 右页底部：去平台继续找 */
+.vid__entries {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(200, 166, 108, 0.35);
+}
+
+.vid__entries-title {
+  margin: 0 0 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: #a9845f;
+}
+
+.vid__entries-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vid__entry {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 166, 108, 0.5);
+  color: #7a5330;
+  font-size: 10.5px;
+  text-decoration: none;
+}
+
+.vid__entry:hover {
+  border-color: #c2452d;
+  color: #c2452d;
 }
 
 .vid__group-name {

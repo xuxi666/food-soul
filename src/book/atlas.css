@@ -220,6 +220,15 @@
   color: var(--color-text-muted);
 }
 
+/* 只筛出一道菜时，右页补上同菜系的真实推荐 */
+.atlas__filler-title {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: #a9845f;
+}
+
 /* 单页模式：只显示一页；双页模式即使窄也保留左右两页 */
 .bk-stage.is-single .atlas {
   grid-template-columns: 1fr;

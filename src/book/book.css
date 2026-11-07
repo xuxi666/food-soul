@@ -366,10 +366,22 @@ body.is-book {
 .bk-leaf__face {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   background: linear-gradient(180deg, #fffdf7 0%, #fbf5e9 100%);
   box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.2);
+}
+
+/* 贴上去的那一页内容（克隆自跨页内容层，宽 200% 再左右各移半页） */
+.bk-leaf__ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  margin: 0;
+  pointer-events: none;
+  user-select: none;
 }
 
 .bk-leaf__face--back {
@@ -977,7 +989,7 @@ body.is-book {
 .bk-content[data-chapter="kitchen"] .ek-flow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: clamp(340px, 46vh, 520px) auto auto;
+  grid-template-rows: auto auto auto;
   gap: 12px 58px;
   height: 100%;
   padding: 22px 30px 42px;
@@ -1012,8 +1024,8 @@ body.is-book {
 }
 
 .bk-content[data-chapter="kitchen"] .ek-graph-card {
-  max-height: clamp(340px, 46vh, 520px);
-  height: clamp(340px, 46vh, 520px);
+  max-height: none;
+  height: clamp(460px, 70vh, 720px);
   min-height: 0;
 }
 
@@ -1029,7 +1041,7 @@ body.is-book {
   align-self: start;
 }
 
-/* ---------- 社区：左页信息流 / 右页发帖与话题 ---------- */
+/* ---------- 社区：左页写与看数据 / 右页读信息流 ---------- */
 .bk-content[data-chapter="community"] {
   column-count: 1;
   display: block;
@@ -1040,7 +1052,7 @@ body.is-book {
   display: block;
   padding: 22px 30px 42px;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* 社区自己的两栏结构正好对应左右两页 */
@@ -1052,11 +1064,105 @@ body.is-book {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 58px;
-  align-items: start;
+  height: 100%;
+  align-items: stretch;
+}
+
+/* 每页各自滚动，翻到下一页不会把左页滚跑 */
+.bk-content[data-chapter="community"] .community-main,
+.bk-content[data-chapter="community"] .community-side {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.45) transparent;
+  padding-right: 4px;
+}
+
+.bk-content[data-chapter="community"] .community-main::-webkit-scrollbar,
+.bk-content[data-chapter="community"] .community-side::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bk-content[data-chapter="community"] .community-main::-webkit-scrollbar-thumb,
+.bk-content[data-chapter="community"] .community-side::-webkit-scrollbar-thumb {
+  background: rgba(196, 168, 120, 0.4);
+  border-radius: 2px;
 }
 
 .bk-content[data-chapter="community"] .community-side {
   position: static;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border-radius: 10px;
+  background: rgba(196, 168, 120, 0.08);
+  border: 1px solid rgba(200, 166, 108, 0.22);
+}
+
+/* 左页的数据角：数字来自已加载的真实帖子 */
+.community-stats {
+  padding: 10px 12px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(200, 166, 108, 0.35);
+  background: rgba(255, 253, 248, 0.86);
+}
+
+.community-stats__title {
+  margin: 0 0 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: #a9845f;
+}
+
+.community-stats__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.community-stats__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  background: rgba(196, 168, 120, 0.1);
+}
+
+.community-stats__cell b {
+  font-size: 16px;
+  font-weight: 500;
+  color: #b23a24;
+}
+
+.community-stats__cell span {
+  font-size: 9.5px;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.community-stats__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.community-stats__label {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  color: #a9845f;
+}
+
+.community-stats__tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(194, 69, 45, 0.08);
+  color: #b23a24;
+  font-size: 9.5px;
 }
 
 /* ---------- 菜谱：左页输入 / 右页结构化菜谱 ---------- */

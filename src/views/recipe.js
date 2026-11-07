@@ -265,11 +265,39 @@ export default {
     );
 
     /* ---------------- 结果区 ---------------- */
+    // 结果还没生成时，右页不留白：列出一批图鉴里真实存在的菜，点一下就能带着名字开写
+    const starterPicks = h(
+      'div',
+      { class: 'recipe-starters' },
+      h('p', { class: 'recipe-starters__title', text: '从图鉴里挑一道开始' }),
+      h(
+        'div',
+        { class: 'recipe-starters__list' },
+        ...DISHES.slice(0, 16).map((d) =>
+          h(
+            'button',
+            {
+              class: 'recipe-starter',
+              type: 'button',
+              'data-dish': d.id,
+              onclick: () => {
+                dishInput.value = d.name;
+                dishInput.focus();
+              },
+            },
+            h('b', { text: d.name }),
+            h('span', { text: `${CUISINE_BY_ID[d.cuisine]?.name || ''} · ${(d.tastes || []).length} 种味型` })
+          )
+        )
+      )
+    );
+
     const result = h('div', { class: 'recipe-result' },
       h('div', { class: 'empty-state' },
         h('p', { text: '输入菜名，生成一份可以直接照着做的菜谱。' }),
         h('p', { text: '菜谱包含食材用量、分步火候、常见失败与补救建议；联网检索的菜会附资料来源。' }),
-        h('p', { text: '需要先在右上角「接入 AI」配置你自己的模型；图鉴查询可正常使用。' })
+        h('p', { text: '需要先在右上角「接入 AI」配置你自己的模型；图鉴查询可正常使用。' }),
+        starterPicks
       )
     );
 

@@ -18,46 +18,52 @@ function fmtDuration(sec) {
 }
 
 export function mountVideos(el) {
-  const state = { q: '麻婆豆腐', list: [], note: '', loading: false, error: '' };
+  const state = { q: '麻婆豆腐', list: [], entries: [], note: '', loading: false, error: '' };
 
   const searchInput = h('input', { class: 'vid__search', type: 'search', placeholder: '搜菜名，例如 红烧肉', value: state.q });
   const status = h('p', { class: 'vid__status', text: '' });
   const listBox = h('div', { class: 'vid__list' });
   const pickBox = h('div', { class: 'vid__picks' });
+  const entryBox = h('div', { class: 'vid__entries' });
+  const resultHead = h('p', { class: 'vid__kicker', text: '检索结果' });
 
   const root = h(
     'div',
     { class: 'vid' },
+    // 左页：找视频（搜索 + 按菜系挑 + 平台入口）
     h(
       'div',
       { class: 'vid__page vid__page--left' },
       h('div', { class: 'vid__head' }, h('b', { text: '做菜视频' }), searchInput),
       status,
-      listBox
-    ),
-    h(
-      'div',
-      { class: 'vid__page vid__page--right' },
       h('p', { class: 'vid__kicker', text: '按菜系挑一道' }),
-      pickBox
-    )
+      pickBox,
+      entryBox
+    ),
+    // 右页：看结果（视频列表）
+    h('div', { class: 'vid__page vid__page--right' }, resultHead, listBox)
   );
   el.append(root);
 
   function paintPicks() {
     clear(pickBox);
     for (const c of CUISINES) {
-      const dishes = DISHES.filter((d) => d.cuisine === c.id).slice(0, 3);
+      const dishes = DISHES.filter((d) => d.cuisine === c.id);
       if (!dishes.length) continue;
       pickBox.append(
         h(
           'div',
           { class: 'vid__group' },
-          h('p', { class: 'vid__group-name', text: c.name }),
+          h(
+            'div',
+            { class: 'vid__group-head' },
+            h('p', { class: 'vid__group-name', text: c.name }),
+            h('span', { class: 'vid__group-count', text: `${dishes.length} 道` })
+          ),
           h(
             'div',
             { class: 'vid__group-list' },
-            ...dishes.map((d) =>
+            ...dishes.slice(0, 3).map((d) =>
               h(
                 'button',
                 {
@@ -82,20 +88,23 @@ export function mountVideos(el) {
 
   function paintList() {
     clear(listBox);
+    clear(entryBox);
     if (state.loading) {
       status.textContent = `正在检索「${state.q}」…`;
+      resultHead.textContent = '检索结果';
       listBox.append(h('p', { class: 'vid__empty', text: '加载中…' }));
       return;
     }
     if (state.error) {
       status.textContent = state.error;
+      resultHead.textContent = '检索结果';
       listBox.append(h('p', { class: 'vid__empty', text: '换个菜名试试' }));
       return;
     }
-    status.textContent = state.note || `「${state.q}」共 ${state.list.length} 条`;
+    status.textContent = `当前关键词「${state.q}」`;
+    resultHead.textContent = `「${state.q}」的视频 · ${state.list.length} 条`;
     if (!state.list.length) {
-      listBox.append(h('p', { class: 'vid__empty', text: '没有找到相关视频' }));
-      return;
+      listBox.append(h('p', { class: 'vid__empty', text: '没有找到相关视频，可以直接去平台里搜：' }));
     }
     for (const v of state.list) {
       listBox.append(
@@ -119,6 +128,20 @@ export function mountVideos(el) {
         )
       );
     }
+
+    // 平台入口：检索不到时的兜底，也让右页底部有真实去处
+    if (state.entries.length) {
+      entryBox.append(
+        h('p', { class: 'vid__entries-title', text: '去平台里继续找' }),
+        h(
+          'div',
+          { class: 'vid__entries-list' },
+          ...state.entries.map((entry) =>
+            h('a', { class: 'vid__entry', href: entry.url, target: '_blank', rel: 'noopener noreferrer nofollow' }, entry.title)
+          )
+        )
+      );
+    }
   }
 
   async function load() {
@@ -129,10 +152,12 @@ export function mountVideos(el) {
     try {
       const bundle = await api.videos(state.q, 8);
       state.list = bundle?.results || [];
+      state.entries = bundle?.entries || [];
       state.note = bundle?.note || '';
     } catch (err) {
       state.error = `检索失败：${String(err.message || err).slice(0, 30)}`;
       state.list = [];
+      state.entries = [];
     } finally {
       state.loading = false;
       paintList();

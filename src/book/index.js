@@ -223,12 +223,51 @@ export function initBook({ root }) {
   }
 
   /* ---------------- 翻页纸叶 ---------------- */
+  /**
+   * 把跨页内容「贴」到正在翻的纸叶正反面：
+   *   正面 = 正在翻走的那一页（next 时是右页，prev 时是左页）
+   *   反面 = 翻过去之后露出来的那一页（换页后再贴，此时正好无缝）
+   * 只做 DOM 克隆，不做位图；内容太大（长列表）就退回素纸，避免翻页掉帧。
+   */
+  function paintLeafFace(faceEl, half) {
+    if (!faceEl) return;
+    const src = shell.content;
+    if (!src || src.querySelectorAll('*').length > 600) {
+      faceEl.replaceChildren();
+      faceEl.classList.remove('is-filled');
+      return;
+    }
+    const clone = src.cloneNode(true);
+    clone.removeAttribute('data-chapter');
+    clone.classList.add('bk-leaf__ghost');
+    clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+    clone.setAttribute('aria-hidden', 'true');
+    clone.style.left = '0';
+    clone.style.top = '0';
+    clone.style.right = 'auto';
+    clone.style.bottom = 'auto';
+    clone.style.width = '200%';
+    clone.style.height = '100%';
+    clone.style.transform = half === 'right' ? 'translateX(-50%)' : 'translateX(0)';
+    faceEl.replaceChildren(clone);
+    faceEl.classList.add('is-filled');
+  }
+
   async function flipLeaf(dir, swap) {
     const leaf = shell.leaf;
+    const front = leaf.querySelector('.bk-leaf__face--front');
+    const back = leaf.querySelector('.bk-leaf__face--back');
+    const isPrev = dir === 'prev';
+    // 正面：贴住此刻正在翻走的那一页
+    paintLeafFace(front, isPrev ? 'left' : 'right');
+    if (back) {
+      back.replaceChildren();
+      back.classList.remove('is-filled');
+    }
     leaf.classList.add('is-on');
-    leaf.classList.toggle('bk-leaf--left', dir === 'prev');
-    const from = dir === 'prev' ? 'rotateY(0deg)' : 'rotateY(0deg)';
-    const to = dir === 'prev' ? 'rotateY(180deg)' : 'rotateY(-180deg)';
+    leaf.classList.toggle('bk-leaf--left', isPrev);
+    const from = 'rotateY(0deg)';
+    const to = isPrev ? 'rotateY(180deg)' : 'rotateY(-180deg)';
     leaf.style.transition = 'none';
     leaf.style.transform = from;
     await nextFrame();
@@ -236,10 +275,16 @@ export function initBook({ root }) {
     leaf.style.transform = to;
     await wait(FLIP_MS * 0.46);
     swap?.();
+    // 反面：换完页立刻贴上新露出的那一页，纸叶落下时正好对得上
+    paintLeafFace(back, isPrev ? 'right' : 'left');
     await wait(FLIP_MS * 0.54);
     leaf.style.transition = 'none';
     leaf.classList.remove('is-on', 'bk-leaf--left');
     leaf.style.transform = 'rotateY(0deg)';
+    front?.replaceChildren();
+    back?.replaceChildren();
+    front?.classList.remove('is-filled');
+    back?.classList.remove('is-filled');
   }
 
   /* ---------------- 页码文案 ---------------- */
@@ -253,8 +298,7 @@ export function initBook({ root }) {
     }
     if (info.key === 'videos') return ['视频 · 列表', '视频 · 选菜'];
     if (info.key === 'dishes') {
-      const num = String((atlas ? atlas.page : 0) + 1).padStart(2, '0');
-      return [`图鉴 ${num} · 左页`, `图鉴 ${num} · 右页`];
+      return dishesFolio();
     }
     const one = label || (info.key === 'dishDetail' ? '菜品详情' : '后台');
     return [one, one];
@@ -369,15 +413,19 @@ export function initBook({ root }) {
     if (currentKey === 'dishes' && atlas) {
       shell.prevBtn.disabled = !atlas.hasPrev();
       shell.nextBtn.disabled = !atlas.hasNext();
-      shell.setFolio(
-        `图鉴 ${String(atlas.page + 1).padStart(2, '0')} · 左页`,
-        `图鉴 ${String(atlas.page + 1).padStart(2, '0')} · 右页`
-      );
+      shell.setFolio(...dishesFolio());
       return;
     }
     const idx = chapterIndex(currentKey);
     shell.prevBtn.disabled = idx <= 0;
     shell.nextBtn.disabled = idx === -1 || idx >= CHAPTERS.length - 1;
+  }
+
+  /** 图鉴页脚：真实页码，左页奇数、右页偶数 */
+  function dishesFolio() {
+    const [l, r] = atlas ? atlas.pageNumbers() : [1, 2];
+    const pad = (n) => String(n).padStart(2, '0');
+    return r ? [`图鉴 · P${pad(l)}`, `图鉴 · P${pad(r)}`] : [`图鉴 · P${pad(l)}`, '图鉴'];
   }
 
   async function turn(dir) {
