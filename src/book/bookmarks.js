@@ -1,20 +1,29 @@
 /**
  * 章节书签（书口索引）
  * ------------------------------------------------------------
- * 书签不是网页侧边导航，而是插在画册右侧书口上的纸质索引：
- *   - 全部排在书的右侧外缘，合上时从封面边缘露出，打开后从右页外缘露出；
- *   - 每个书签绑定一个真实章节起始页（targetPage），点击就翻到那一章；
- *   - 书签不印页码，只有章节名；
- *   - 翻页时，绑定页正好在「正在翻的那张纸」上的书签会和纸共享同一个角度，
- *     随纸一起转（不是另外播一段假动画），纸落定的同时书签回到书口位置。
+ * 每一枚书签都绑在一张真实的纸上，而不是固定在书边：
  *
- * 位置依据：书签层挂在 .bk-book 内部，所以书的缩放、合书 15° 倾斜、
- * 开合位移都会自动带上书签，不需要额外同步。
+ *   bookmark.anchorPage  —— 这一章第一跨页的「右页」页码（2*spread+3）
+ *   bookmark.anchorSheet —— 当前正载着这一页的那张纸（每帧从纸页栈查，不缓存）
+ *   bookmark.side        —— 那张纸在右（未翻）还是在左（已翻 -180°）
+ *
+ * 结构上是一根「联动杆」：
+ *
+ *   .bk-mark-rig   从书脊（50%）开始、宽度 = 一页 + 34px，绕书脊 rotateY(--rig-deg)
+ *     └ .bk-mark   贴在杆的右端，即书页外缘
+ *
+ * 杆的角度 = 它绑定那张纸的角度（同一个值、同一帧、同一个旋转轴）。
+ * 所以纸翻到左边，杆跟着转到左边，书签自然出现在左侧书口；
+ * 纸翻回来，书签也跟着回来。过 90° 时杆和书签正好侧立看不见，
+ * 就在这一刻把标签自身反翻 180°，保证左侧的标签仍然正着读。
  */
 import { h } from '../lib/dom.js';
 
 /**
- * @param {{ list: Array<{id:string,label:string,tint:string,targetPage:number}>, onPick: (spec) => void }} options
+ * @param {{
+ *   list: Array<{ id: string, label: string, tint: string, anchorPage: number, spread: number }>,
+ *   onPick: (spec: any) => void,
+ * }} options
  */
 export function createBookmarks({ list, onPick }) {
   const layer = h('div', {
@@ -23,17 +32,18 @@ export function createBookmarks({ list, onPick }) {
     'aria-label': '章节书签',
   });
 
-  const items = new Map();
+  const items = [];
 
   for (const [i, spec] of list.entries()) {
-    const el = h(
+    const tab = h(
       'button',
       {
         class: 'bk-mark',
         type: 'button',
         role: 'tab',
         'data-chapter': spec.id,
-        'data-target-page': String(spec.targetPage),
+        'data-anchor-page': String(spec.anchorPage),
+        'data-spread': String(spec.spread),
         'aria-selected': 'false',
         title: spec.label,
         'aria-label': spec.label,
@@ -41,46 +51,74 @@ export function createBookmarks({ list, onPick }) {
       h('span', { class: 'bk-mark__label', text: spec.label }),
       h('span', { class: 'bk-mark__edge', 'aria-hidden': 'true' })
     );
-    el.style.setProperty('--mark-tint', spec.tint);
-    el.style.setProperty('--mark-i', String(i));
-    el.style.setProperty('--mark-jog', `${(i % 3) * 3}px`);
-    el.addEventListener('click', () => onPick(spec));
-    layer.append(el);
-    items.set(spec.id, { spec, el });
+    tab.style.setProperty('--mark-tint', spec.tint);
+    tab.style.setProperty('--mark-jog', `${(i % 3) * 2}px`);
+    tab.addEventListener('click', () => onPick(spec));
+
+    // 联动杆：从书脊伸到书页外缘，绕书脊转，角度跟纸张同步
+    const rig = h('div', { class: 'bk-mark-rig' }, tab);
+    layer.append(rig);
+
+    items.push({ spec, rig, tab, sheet: null, side: 'right' });
   }
 
   function setActive(id) {
-    for (const [key, { el }] of items) {
-      const on = key === id;
-      el.classList.toggle('is-on', on);
-      el.setAttribute('aria-selected', on ? 'true' : 'false');
+    for (const { spec, tab } of items) {
+      const on = spec.id === id;
+      tab.classList.toggle('is-on', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
     }
-  }
-
-  /** 合上 / 打开：只切状态，不换内容（同一套书签数据） */
-  function setClosed(closed) {
-    layer.classList.toggle('is-closed', closed);
   }
 
   /**
-   * 翻页过程中被调用（每帧）。
-   * pages = 正在翻的那张纸的正反面页码；只有绑定在这两页上的书签跟着纸转。
+   * 按「这张纸现在什么角度」重排书签。
+   * @param {{
+   *   angleFor: (spec: any) => { angle: number, slot: string } | null,
+   *   closed: boolean,
+   *   single: boolean,
+   *   settling: boolean,
+   * }} options
    */
-  function riding({ pages, deg }) {
-    for (const { spec, el } of items.values()) {
-      const bound = pages.includes(spec.targetPage);
-      el.classList.toggle('is-riding', bound);
-      if (bound) el.style.setProperty('--ride-deg', `${deg.toFixed(2)}deg`);
+  function sync({ angleFor, closed, single, settling }) {
+    layer.classList.toggle('is-settling', !!settling);
+    for (const item of items) {
+      let deg = 0;
+      let side = 'right';
+      let sheet = null;
+
+      if (!closed && !single) {
+        sheet = angleFor(item.spec);
+        if (sheet) {
+          deg = sheet.angle || 0;
+          side = deg <= -90 ? 'left' : 'right';
+        }
+      }
+
+      item.sheet = sheet;
+      item.side = side;
+
+      item.rig.style.setProperty('--rig-deg', `${deg.toFixed(2)}deg`);
+      // 过 90° 时标签侧立不可见，在这一刻把标签自身反翻，保证落地后正着读
+      item.tab.style.setProperty('--mark-flip', Math.abs(deg) >= 90 ? '180deg' : '0deg');
+      item.tab.classList.toggle('is-left', side === 'left');
+      item.tab.classList.toggle('is-right', side === 'right');
     }
+    layer.classList.toggle('is-closed', !!closed);
+    layer.classList.toggle('is-single', !!single);
   }
 
-  /** 纸落定：所有书签回到书口 */
-  function idle() {
-    for (const { el } of items.values()) {
-      el.classList.remove('is-riding');
-      el.style.setProperty('--ride-deg', '0deg');
-    }
+  /** 诊断：每枚书签现在绑在哪张纸、哪一侧 */
+  function state() {
+    return items.map(({ spec, tab, sheet, side }) => ({
+      bookmarkId: spec.id,
+      chapterId: spec.id,
+      anchorPageIndex: spec.anchorPage,
+      anchorSheetId: sheet?.slot || null,
+      anchorSheetAngle: sheet?.angle ?? null,
+      currentSide: side,
+      position: tab.getBoundingClientRect().left < window.innerWidth / 2 ? 'left-half' : 'right-half',
+    }));
   }
 
-  return { layer, setActive, setClosed, riding, idle, items };
+  return { layer, setActive, sync, state, items };
 }

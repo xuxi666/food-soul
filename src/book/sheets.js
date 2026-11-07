@@ -61,7 +61,7 @@ function makeSheet(name) {
     h('span', { class: 'bk-sheet__spine', 'aria-hidden': 'true' }),
     h('span', { class: 'bk-sheet__edge', 'aria-hidden': 'true' })
   );
-  return { el, front, back, name, angle: 0 };
+  return { el, front, back, name, slot: name, angle: 0 };
 }
 
 export function createSheets(host) {
@@ -249,6 +249,8 @@ export function createSheets(host) {
     turn,
     inspect,
     hooks,
+    /** 当前四个槽位对应的纸（角色会互换，所以每次现取） */
+    all: () => [A0, A1, B, C],
     get busy() {
       return busy;
     },

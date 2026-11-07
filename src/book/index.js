@@ -86,6 +86,7 @@ export function initBook({ root }) {
     shell.el.classList.toggle('is-single', box.mode === 'single');
     lastBox = box;
     fitShadow();
+    syncMarks();
   }
 
   fit();
@@ -103,13 +104,15 @@ export function initBook({ root }) {
   const OPEN_MS = 1300;
   const CHROME_MS = 760;
   let phase = 'CLOSED_TILTED';
+  let bookStateClass = 'bk-book--closed';
   function setBookState(cls) {
+    bookStateClass = cls;
     shell.book.className = `bk-book ${cls}`;
     if (shell.shadow) shell.shadow.className = `bk-shadow ${cls.replace('bk-book--', 'bk-shadow--')}`;
     followShadow();
     shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
-    // 合上 / 打开：书签一直留在书口，只是换一套尺寸补偿
-    shell.marks?.setClosed(cls === 'bk-book--closed' || cls === 'bk-book--straight');
+    // 合上 / 打开：书签按纸张归属重排（合上时全部回右侧）
+    syncMarks();
   }
   function setPhase(next) {
     phase = next;
@@ -145,9 +148,11 @@ export function initBook({ root }) {
   const sheets = createSheets(shell.content);
 
   /*
-   * 章节书签：一枚书签 = 一个真实章节起始页。
-   * 书签上不印页码，页码只作为定位数据（targetPage / data-target-page）存在。
-   * 目标页始终由页面库现算，章节内容增减 / 分页变化后自动跟着变。
+   * 章节书签：一枚书签绑一张真实的纸。
+   * anchorPage 取的是这一章第一跨页的「右页」（2*spread+3）——
+   * 这样读到这一章时，这张纸还在右侧（未翻），书签就在右边；
+   * 继续往后翻，这张纸被翻到左边，书签自然跟着到左侧，符合实物画册。
+   * 书签上不印页码，页码只作为定位数据存在。
    */
   const MARK_TINT = {
     dishes: '#b5452f',
@@ -168,25 +173,65 @@ export function initBook({ root }) {
     videos: '影像视频',
   };
 
+  // var：让 fit() 在书签创建之前调用 syncMarks() 时安全地拿到空值（function 作用域提升）
+  var marksApi = null;
   const marks = createBookmarks({
-    list: CHAPTERS.map((ch) => ({
-      id: ch.id,
-      label: MARK_LABEL[ch.id] || ch.label,
-      tint: MARK_TINT[ch.id] || '#b5452f',
-      targetPage: book.spreadOfChapter(ch.id) * 2 + 2,
-    })),
+    list: CHAPTERS.map((ch) => {
+      const spread = book.spreadOfChapter(ch.id);
+      return {
+        id: ch.id,
+        label: MARK_LABEL[ch.id] || ch.label,
+        tint: MARK_TINT[ch.id] || '#b5452f',
+        spread,
+        anchorPage: spread * 2 + 3,
+      };
+    }),
     onPick: (spec) => void openChapter(spec.id),
   });
   shell.attachMarks(marks);
+  marksApi = marks;
 
-  /* 翻页时：绑定页在正在翻的纸上的书签，跟纸共享同一个角度（每帧） */
-  const pagesOfSheet = (sheet) => [
-    Number(sheet.front.firstElementChild?.dataset.globalPage || 0),
-    Number(sheet.back.firstElementChild?.dataset.globalPage || 0),
-  ];
-  sheets.hooks.onAngle = (sheet, deg) => {
-    marks.riding({ pages: pagesOfSheet(sheet), deg });
-  };
+  function syncMarks() {
+    if (!marksApi) return;
+    const onSheet = pageSheetLookup();
+    const current = position.value;
+    // 合上 / 正在合上：所有书签都在右侧书口
+    const closed = bookStateClass === 'bk-book--closed' || bookStateClass === 'bk-book--straight' || mode === 'closed';
+    marksApi.sync({
+      closed,
+      single: !!position.single,
+      settling: !sheets.busy,
+      /*
+       * 书签的角度 = 它绑定那张纸的角度。
+       * 1) 这一页正压在纸页栈里的某张纸（当前窗口）上 → 直接读那张纸的实时角度，
+       *    翻页动画中每帧都是真值，书签就跟着纸一起转过去；
+       * 2) 这一页已经被翻走、落到左侧的已翻纸堆里 → -180°，书签在左侧；
+       * 3) 这一页还在右侧未翻的纸堆里 → 0°，书签在右侧。
+       */
+      angleFor: (spec) => {
+        const hit = onSheet(spec.anchorPage);
+        if (hit) return hit;
+        if (spec.spread < current) return { angle: -180, slot: 'turned' };
+        if (spec.spread > current) return { angle: 0, slot: 'unread' };
+        return { angle: 0, slot: 'current' };
+      },
+    });
+  }
+
+  function pageSheetLookup() {
+    const map = new Map();
+    for (const sheet of sheets.all()) {
+      for (const face of [sheet.front, sheet.back]) {
+        const page = Number(face.firstElementChild?.dataset.globalPage || 0);
+        if (page) map.set(page, { angle: sheet.angle, slot: sheet.slot });
+      }
+    }
+    return (page) => map.get(page) || null;
+  }
+
+  /* 翻页每一帧：按纸张的实时角度重排书签（书签的联动杆就是这个角度） */
+  sheets.hooks.onAngle = () => syncMarks();
+  syncMarks();
 
   const blankPage = () => null;
 
@@ -230,7 +275,7 @@ export function initBook({ root }) {
     } else {
       await sheets.settle({ resolve: resolvePage, spread: position.single ? position.value - 1 : position.value, single: position.single });
     }
-    marks.idle();
+    syncMarks();
     syncChrome();
     return true;
   }
@@ -594,6 +639,9 @@ export function initBook({ root }) {
     goto: (path) => showPath(path),
     turn,
     inspect: () => sheets.inspect(),
+    /* 书签当前绑在哪张纸、在哪一侧（诊断 / 验收用） */
+    marks: () => (marksApi ? marksApi.state() : []),
+    syncMarks,
     shell,
   };
 
