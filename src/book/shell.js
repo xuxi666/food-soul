@@ -73,15 +73,20 @@ export function createShell(root) {
 
   const spread = h('div', { class: 'bk-spread' }, pageL, gutter, pageR, content, leaf);
 
-  const book = h(
+  /*
+   * 环境阴影（独立层）：不放进 .bk-book，避免继承 15° 旋转。
+   * 只跟随书本的位置与缩放，方向始终固定在背景坐标系里。
+   */
+  const shadow = h(
     'div',
-    { class: 'bk-book' },
-    h('div', { class: 'bk-book__shadow', 'aria-hidden': 'true' }),
-    spread,
-    cover
+    { class: 'bk-shadow', 'aria-hidden': 'true' },
+    h('span', { class: 'bk-shadow__ambient' }),
+    h('span', { class: 'bk-shadow__contact' })
   );
 
-  const camera = h('div', { class: 'bk-camera' }, book);
+  const book = h('div', { class: 'bk-book' }, spread, cover);
+
+  const camera = h('div', { class: 'bk-camera' }, shadow, book);
 
   /* ---------- 书签 ---------- */
   const marksL = h('div', { class: 'bk-marks bk-marks--left' });
@@ -137,6 +142,7 @@ export function createShell(root) {
   return {
     el: stage,
     book,
+    shadow,
     camera,
     spread,
     pageL,

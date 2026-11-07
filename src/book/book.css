@@ -104,16 +104,65 @@ body.is-book {
   pointer-events: none;
 }
 
-.bk-book__shadow {
+/*
+ * ---------- 环境阴影（独立层） ----------
+ * 与 .bk-book 是兄弟节点、位于书本之下，由 JS 按「可见物体」的包围盒摆放：
+ *   - 只接收平移 + 尺寸，没有任何 rotateZ
+ *   - 书合上倾斜 15° 时，影子仍横铺在背景上
+ * 两层：接触阴影（贴书底、范围小、略实）
+ *       环境投影（范围大、模糊、很淡，表现环境光）
+ */
+.bk-shadow {
   position: absolute;
-  left: 4%;
-  right: 4%;
-  bottom: -26px;
-  height: 44px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(120, 82, 56, 0.28) 0%, rgba(120, 82, 56, 0.1) 45%, transparent 78%);
-  filter: blur(14px);
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
   pointer-events: none;
+  transform: none;
+  transition: opacity 420ms ease;
+  will-change: left, top, width, height, opacity;
+}
+
+/* 第一层：接触阴影 —— 小而实，贴着书底 */
+.bk-shadow__contact {
+  position: absolute;
+  bottom: -1%;
+  height: 9%;
+  left: 12%;
+  right: 12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 42%,
+    rgba(84, 52, 34, 0.22) 0%,
+    rgba(96, 64, 42, 0.11) 40%,
+    rgba(104, 72, 48, 0.04) 68%,
+    rgba(104, 72, 48, 0) 84%
+  );
+  filter: blur(8px);
+}
+
+/* 第二层：环境投影 —— 大而淡，方向固定在背景坐标系 */
+.bk-shadow__ambient {
+  position: absolute;
+  bottom: -9%;
+  height: 26%;
+  left: 0;
+  right: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 40%,
+    rgba(96, 64, 42, 0.13) 0%,
+    rgba(104, 72, 48, 0.08) 36%,
+    rgba(104, 72, 48, 0.03) 62%,
+    rgba(104, 72, 48, 0) 82%
+  );
+  filter: blur(26px);
+}
+
+/* 阅读态：书页铺满视口，影子退到纸下 */
+.bk-stage.is-reading .bk-shadow {
+  opacity: 0;
 }
 
 /* ---------- 双页 ---------- */

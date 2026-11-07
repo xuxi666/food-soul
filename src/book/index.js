@@ -29,6 +29,35 @@ export function initBook({ root }) {
   const shell = createShell(root);
   let lastBox = null;
 
+  /* ---------------- 环境阴影（独立层） ---------------- */
+  // 阴影不是书本的子节点，所以不继承 15° 旋转。
+  // 每帧读取「可见物体」的屏幕包围盒（合上=封面，展开=双页），
+  // 把它作为阴影层的 left/top/width/height —— 只跟随位置与尺寸，方向永远水平。
+  let shadowRaf = 0;
+  function fitShadow() {
+    const sh = shell.shadow;
+    if (!sh) return;
+    const open = shell.book.classList.contains('bk-book--open') || shell.book.classList.contains('bk-book--reading');
+    const target = open ? shell.spread : shell.cover;
+    const cam = shell.camera.getBoundingClientRect();
+    const r = target.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    sh.style.left = `${r.left - cam.left}px`;
+    sh.style.top = `${r.top - cam.top}px`;
+    sh.style.width = `${r.width}px`;
+    sh.style.height = `${r.height}px`;
+  }
+  /** 过渡期间逐帧贴合，过渡结束就停 */
+  function followShadow(ms = 800) {
+    cancelAnimationFrame(shadowRaf);
+    const t0 = performance.now();
+    const tick = () => {
+      fitShadow();
+      if (performance.now() - t0 < ms) shadowRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
   /* ---------------- 尺寸 ---------------- */
   function fit() {
     const box = computeLayout();
@@ -36,6 +65,7 @@ export function initBook({ root }) {
     shell.el.style.setProperty('--book-h', `${box.h}px`);
     shell.el.classList.toggle('is-single', box.mode === 'single');
     lastBox = box;
+    fitShadow();
   }
 
   fit();
@@ -56,6 +86,11 @@ export function initBook({ root }) {
   let phase = 'CLOSED_TILTED';
   function setBookState(cls) {
     shell.book.className = `bk-book ${cls}`;
+    // 阴影独立层：只同步状态标记，几何位置由 fitShadow 逐帧贴合
+    if (shell.shadow) {
+      shell.shadow.className = `bk-shadow ${cls.replace('bk-book--', 'bk-shadow--')}`;
+    }
+    followShadow();
     // 阅读态下书签要收进书边，翻页按钮也要落回书内
     shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
   }
