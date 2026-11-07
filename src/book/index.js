@@ -12,10 +12,12 @@ import { CHAPTERS, EXTRA, chapterOf, chapterById, chapterIndex, moduleOf } from 
 import { createShell } from './shell.js';
 import { createAtlas } from './atlas.js';
 import { mountCategory } from './category.js';
+import { mountVideos } from './videos.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
 import './atlas.css';
 import './category.css';
+import './videos.css';
 
 const FLIP_MS = 660;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -87,6 +89,14 @@ export function initBook({ root }) {
     }
     if (!catChapter.el.parentNode) shell.content.append(catChapter.el);
     return catChapter;
+  }
+
+  /* ---------------- 视频（定制双页） ---------------- */
+  let videoChapter = null;
+  function ensureVideos() {
+    if (!videoChapter) videoChapter = mountVideos(shell.content);
+    if (!videoChapter.el.parentNode) shell.content.append(videoChapter.el);
+    return videoChapter;
   }
 
   /* ---------------- 图鉴（自带分页） ---------------- */
@@ -174,6 +184,23 @@ export function initBook({ root }) {
       return;
     }
 
+    // 视频：左页列表、右页按菜系挑
+    if (info.key === 'videos') {
+      const apply = () => {
+        detachAll();
+        shell.content.classList.add('is-split');
+        ensureVideos();
+        shell.setActive(chapterId);
+        shell.setFolio('视频 · 列表', '视频 · 选菜');
+      };
+      if (flip && currentKey && currentKey !== info.key) await flipLeaf('next', apply);
+      else apply();
+      currentKey = info.key;
+      updateBackLabel();
+      updatePager();
+      return;
+    }
+
     // 图鉴章节走自己的分页布局
     if (info.key === 'dishes') {
       const needFlip = flip && currentKey !== 'dishes';
@@ -223,6 +250,7 @@ export function initBook({ root }) {
   function detachAll() {
     if (atlas?.el.parentNode) atlas.el.remove();
     if (catChapter?.el.parentNode) catChapter.el.remove();
+    if (videoChapter?.el.parentNode) videoChapter.el.remove();
     for (const [, entry] of hosts) if (entry.el.parentNode) entry.el.remove();
   }
 

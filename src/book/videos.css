@@ -1,0 +1,226 @@
+/* 视频章节：左页视频列表 / 右页按菜系挑菜 */
+
+.vid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 58px;
+  height: 100%;
+  padding: 26px 30px 44px;
+  min-height: 0;
+}
+
+.vid__page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+
+.vid__page--left {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.45) transparent;
+}
+
+.vid__page--left::-webkit-scrollbar {
+  width: 4px;
+}
+
+.vid__page--left::-webkit-scrollbar-thumb {
+  background: rgba(196, 168, 120, 0.4);
+  border-radius: 2px;
+}
+
+.vid__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(200, 166, 108, 0.35);
+}
+
+.vid__head b {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.vid__search {
+  flex: 1;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(200, 166, 108, 0.5);
+  background: rgba(255, 253, 246, 0.9);
+  font-size: 11.5px;
+  color: var(--color-text);
+}
+
+.vid__search:focus {
+  outline: none;
+  border-color: #c2452d;
+}
+
+.vid__status {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.vid__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vid__item {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(200, 166, 108, 0.35);
+  background: rgba(255, 253, 248, 0.9);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
+}
+
+.vid__item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(194, 69, 45, 0.45);
+  box-shadow: 0 6px 16px rgba(120, 82, 56, 0.12);
+}
+
+.vid__cover {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-surface-soft);
+}
+
+.vid__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vid__cover-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.vid__dur {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(30, 20, 12, 0.7);
+  color: #fff6ea;
+  font-size: 9px;
+}
+
+.vid__meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vid__title {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vid__sub {
+  margin: 0;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.vid__empty {
+  margin: 12px 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.vid__kicker {
+  margin: 0;
+  font-size: 9.5px;
+  letter-spacing: 0.28em;
+  color: #a9845f;
+}
+
+.vid__picks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.vid__group-name {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  color: #6b3a22;
+}
+
+.vid__group-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.vid__pick {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 166, 108, 0.5);
+  background: transparent;
+  color: #7a5330;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: background 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+.vid__pick:hover {
+  border-color: #c2452d;
+  color: #c2452d;
+}
+
+.vid__pick.is-on {
+  background: #c2452d;
+  border-color: #c2452d;
+  color: #fff6ea;
+}
+
+@media (max-width: 860px) {
+  .vid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 18px 32px;
+    overflow-y: auto;
+  }
+
+  .vid__page--left {
+    overflow: visible;
+  }
+}
