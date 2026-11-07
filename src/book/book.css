@@ -875,9 +875,26 @@ body.is-book {
 }
 
 .bk-content[data-chapter="community"] .page > .wrap {
+  display: block;
   padding: 22px 30px 42px;
   height: 100%;
   overflow-y: auto;
+}
+
+/* 社区自己的两栏结构正好对应左右两页 */
+.bk-content[data-chapter="community"] .page-head {
+  display: none;
+}
+
+.bk-content[data-chapter="community"] .community-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 58px;
+  align-items: start;
+}
+
+.bk-content[data-chapter="community"] .community-side {
+  position: static;
 }
 
 /* ---------- 菜谱：左页输入 / 右页结果 ---------- */
@@ -888,7 +905,16 @@ body.is-book {
 }
 
 .bk-content[data-chapter="recipe"] .page > .wrap {
+  display: block;
   padding: 22px 30px 42px;
   height: 100%;
   overflow-y: auto;
+  column-count: 2;
+  column-gap: 58px;
+}
+
+.bk-content[data-chapter="recipe"] .recipe-form,
+.bk-content[data-chapter="recipe"] .recipe-result,
+.bk-content[data-chapter="recipe"] .board__aside {
+  break-inside: avoid;
 }
