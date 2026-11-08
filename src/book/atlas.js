@@ -2,15 +2,15 @@
  * 美食图鉴：左右双页「分类画册」
  * ------------------------------------------------------------
  * 左页八大菜系 / 右页八种口味，每页 2 列 × 4 行 = 8 张五边形书签卡片，
- * 共 16 张。每张卡片由两部分组成：
- *   · 外凸的三角书签（写分类名）—— 点击进入该分类
- *   · 内嵌的长方形图片区（自动轮播代表菜）—— 点击进入当前那道菜
+ * 共 16 张。每张卡片由两部分组成，两块点击行为严格分开：
+ *   · 外凸的三角书签（写分类名）—— 交给全局章节导航（onCategoryNav）：
+ *     走右侧实体书签同一条路径，整本翻页到菜系 / 口味章节并定位到这一分类；
+ *   · 内嵌的长方形图片区 —— 只在这一页里四边扩散开出菜品详情，不翻书。
  *
- * 这里只有两种「局部」动画，都不碰书籍翻页系统：
- *   1. 分类：把这一跨页的两张纸换成分类封面 + 菜品列表（不翻页）
- *   2. 详情：从被点击那张图片的四条边向外扩散，只覆盖它所在的那一页
+ * 图鉴自己还留着一套「页内分类视图」（showCategory）：只有在没有接入全局导航
+ * （单独使用这个模块）时才会用到，书里的入口已经改走翻页。
  *
- * 所有内容节点一次建好就常驻：进出分类 / 详情都不重建卡片，
+ * 所有内容节点一次建好就常驻：进出详情都不重建卡片，
  * 所以轮播位置、图片缓存、纸面滚动都不会被重置。
  */
 import { h, clear } from '../lib/dom.js';
@@ -63,13 +63,15 @@ const accentOf = (kind, id) => metaOf(kind, id)?.accent || metaOf(kind, id)?.col
 
 /* ---------------- 主模块 ---------------- */
 
-export function createAtlas({ onChange } = {}) {
+export function createAtlas({ onChange, onCategoryNav } = {}) {
   const state = { view: 'board', kind: '', id: '' };
   const pages = new Map(); // 'left' / 'right' → { el, board, cat, carousels }
   const live = new Set(); // 正在跑的轮播（只有可见的那一页）
   const listCache = new Map(); // `${kind}:${id}:${side}` → 分类页节点
   let ticker = 0;
-    const closers = new Set();
+  /** 三角书签正在触发整本翻页：期间不再接受第二次导航点击 */
+  let navLock = false;
+  const closers = new Set();
 
   /* ---------- 轮播调度：一个定时器驱动所有卡片，节奏各自独立 ---------- */
   function ensureTicker() {
@@ -462,7 +464,24 @@ function closeAllDetails() {
       const action = act.dataset.act;
       if (action === 'category') {
         e.preventDefault();
-        showCategory(act.dataset.kind, act.dataset.id);
+        e.stopPropagation();
+        const kind = act.dataset.kind;
+        const id = act.dataset.id;
+        // 三角书签 → 全局章节导航（整本翻页过去，目标分类一起带上）
+        if (onCategoryNav) {
+          // 翻页期间这一页随时会被纸盖住，锁住重复点击，避免叠出第二个翻页任务
+          if (navLock) return;
+          navLock = true;
+          act.classList.add('is-nav');
+          Promise.resolve(onCategoryNav(kind, id, act))
+            .catch((err) => console.warn('[atlas] 分类导航失败', err))
+            .finally(() => {
+              navLock = false;
+              act.classList.remove('is-nav');
+            });
+          return;
+        }
+        showCategory(kind, id);
         return;
       }
       if (action === 'board') {

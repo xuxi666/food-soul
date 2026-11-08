@@ -22,7 +22,7 @@
  */
 import { h } from '../lib/dom.js';
 
-const TURN_MS = 680;
+export const TURN_MS = 680;
 const BEZIER = [0.32, 0.05, 0.22, 1];
 
 /** 把 time 0..1 映射成 eased 0..1（和原来 CSS 用的 cubic-bezier 一致，手感不变） */
@@ -120,14 +120,20 @@ export function createSheets(host) {
   /**
    * 把某一跨页摆到书桌上（不动画）。
    * 页码约定：跨页 s 的左页 = 2s+2，右页 = 2s+3。
+   *
+   * keepAngles：只把四张纸的正反面内容按新的 resolve 重新贴一遍，
+   * 不动角度、不动叠放顺序 —— 给「翻页前先换掉背面内容」用：
+   * 下一张纸的背面早在上一帧就贴好了，如果不先刷新，
+   * 翻到一半露出来的仍是旧内容，落地后才被换掉（正是要避免的）。
    */
-  async function settle({ resolve, spread, single }) {
+  async function settle({ resolve, spread, single, keepAngles = false }) {
     if (single) {
       const page = spread + 1;
       fill(B, await resolve(page), await resolve(page + 1));
       fill(C, await resolve(page + 1), await resolve(page + 2));
       fill(A0, null, null);
       fill(A1, null, null);
+      if (keepAngles) return;
       setTurned(A0, true);
       setTurned(A1, true);
       setTurned(B, false);
@@ -140,6 +146,7 @@ export function createSheets(host) {
     fill(A1, await resolve(base - 3), await resolve(base - 2));
     fill(B, await resolve(base + 1), await resolve(base + 2));
     fill(C, await resolve(base + 3), await resolve(base + 4));
+    if (keepAngles) return;
     setTurned(A0, true);
     setTurned(A1, true);
     setTurned(B, false);

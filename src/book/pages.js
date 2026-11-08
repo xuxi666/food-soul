@@ -65,7 +65,7 @@ const SPLITTERS = {
   },
 };
 
-export function createPageBook({ staging, onAtlasChange }) {
+export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
   /** 章节 id → { left, right } 两张纸面 */
   const pages = new Map();
   let atlas = null;
@@ -78,6 +78,8 @@ export function createPageBook({ staging, onAtlasChange }) {
           // 筛选改变了页数：让外面的书页栈重算跨页
           onAtlasChange?.();
         },
+        // 卡片三角书签：交给书页模块走全局章节翻页（目标分类一起带过去）
+        onCategoryNav,
       });
     }
     return atlas;

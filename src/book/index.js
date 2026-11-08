@@ -13,7 +13,7 @@ import { h } from '../lib/dom.js';
 import { CHAPTERS, EXTRA, chapterById, chapterIndex, moduleOf, chapterOf } from './chapters.js';
 import { createShell } from './shell.js';
 import { createPageBook } from './pages.js';
-import { createSheets } from './sheets.js';
+import { createSheets, TURN_MS } from './sheets.js';
 import { createBookmarks } from './bookmarks.js';
 import { computeLayout, observeLayout } from './layout.js';
 import { mountAccount } from '../components/account.js';
@@ -153,6 +153,9 @@ export function initBook({ root }) {
   const book = createPageBook({
     staging: shell.staging,
     onAtlasChange: () => void refreshAtlas(),
+    // 图鉴卡片的三角书签：直接走全局章节导航（和右侧实体书签同一条路径），
+    // 目标分类在翻页开始前就定好，落地即目标页，不再二次切换
+    onCategoryNav: (kind, id) => openChapterAt(kind, id),
   });
   const sheets = createSheets(shell.content);
 
@@ -594,26 +597,67 @@ export function initBook({ root }) {
   /* 动画途中又点了别的书签：记下最后一个，当前这段动画走完再接着去（不会竞态、不会丢点击） */
   let pendingChapter = null;
   function flushPendingChapter() {
-    const id = pendingChapter;
+    const next = pendingChapter;
     pendingChapter = null;
-    if (!id) return;
-    setTimeout(() => void openChapter(id), 0);
+    if (!next) return;
+    setTimeout(() => void openChapter(next.id, next.param, next.opts), 0);
   }
 
-  async function openChapter(id) {
+  /** 同一章可能有多个地址（菜系 / 口味带分类 id）：地址要和内容一起对准 */
+  function chapterHrefFor(id, param) {
+    const ch = chapterById(id);
+    if (!ch) return '/dishes';
+    if ((id === 'cuisines' || id === 'tastes') && param) {
+      return `${ch.href.split('/').slice(0, 2).join('/')}/${param}`;
+    }
+    return ch.href;
+  }
+
+  /**
+   * 翻页前先把四张纸正反面的内容按「当前参数 + 目标参数」重贴一遍。
+   * 下一张纸的背面是翻页途中唯一会露出的「新内容」，
+   * 不刷新就会出现「翻到一半还是旧分类、落地后才换」。
+   */
+  async function prefillFaces() {
+    await sheets.settle({
+      resolve: resolvePage,
+      spread: position.single ? position.value - 1 : position.value,
+      single: position.single,
+      keepAngles: true,
+    });
+  }
+
+  /**
+   * 图鉴卡片的三角书签 → 全局章节导航。
+   * kind = cuisine / taste，id 用的是图鉴卡片上的真实分类 id（与章节同一份数据）。
+   */
+  function openChapterAt(kind, id) {
+    const chapterId = kind === 'taste' ? 'tastes' : 'cuisines';
+    // 用画册自己的翻页时长：一次真实的纸页翻动，不是书签式快进
+    return openChapter(chapterId, id, { ms: TURN_MS });
+  }
+
+  /**
+   * @param {string} id        章节 id
+   * @param {string} [param]   目标分类 id（菜系 / 口味），缺省用该章默认分类
+   * @param {{ms?: number}} [opts] 翻页时长，缺省 300（书签快进）；图鉴三角书签用 TURN_MS
+   */
+  async function openChapter(id, param, opts = {}) {
     const chapter = chapterById(id);
     if (!chapter) return;
+    if (busy) { pendingChapter = { id, param, opts }; return; }
     if (id !== 'dishes') closeAllOverlays({ instant: true });
-    // 书签是章节入口：回到该分类的默认代表（川菜 / 麻辣鲜香）
-    book.setChapterParam?.(id, chapter.href.split('/')[2]);
-    if (busy) { pendingChapter = id; return; }
+    // 书签是章节入口：不带分类时回到该分类的默认代表（川菜 / 麻辣鲜香）
+    const wanted = param || chapter.href.split('/')[2];
+    book.setChapterParam?.(id, wanted);
     const target = book.spreadOfChapter(id);
+    const href = chapterHrefFor(id, wanted);
 
     if (mode === 'closed') {
       if (phase !== 'CLOSED_TILTED') return;
       await openFirst(target);
       if (mode !== 'open') return;
-      history.replaceState({ chapter: id }, '', location.pathname.startsWith(chapter.href) ? location.href : chapter.href);
+      history.replaceState({ chapter: id }, '', location.pathname.startsWith(href) ? location.href : href);
       flushPendingChapter();
       return;
     }
@@ -625,19 +669,27 @@ export function initBook({ root }) {
       inner = null;
       if (position.single !== single) position = { single, value: single ? (position.value * 2 + 2) : Math.floor((position.value - 2) / 2) };
 
-      let steps = 0;
-      const maxSteps = 3;
-      while (position.value !== targetValue && steps < maxSteps) {
-        const dir = targetValue > position.value ? 'next' : 'prev';
-        const ok = await render({ animate: dir, ms: 300 });
-        if (!ok) break;
-        steps += 1;
+      // 已经就在目标分类上（例如连点两下同一枚书签）：换内容即可，不假装翻一页
+      if (position.value === targetValue) {
+        await prefillFaces();
+        syncChrome();
+      } else {
+        let steps = 0;
+        const maxSteps = 3;
+        while (position.value !== targetValue && steps < maxSteps) {
+          const dir = targetValue > position.value ? 'next' : 'prev';
+          // 每翻一步之前都刷新一次正反面：这一步露出的背面就是目标页
+          await prefillFaces();
+          const ok = await render({ animate: dir, ms: opts.ms ?? 300 });
+          if (!ok) break;
+          steps += 1;
+        }
+        if (position.value !== targetValue) {
+          position = { single, value: targetValue };
+          await render();
+        }
       }
-      if (position.value !== targetValue) {
-        position = { single, value: targetValue };
-        await render();
-      }
-      history.pushState({ chapter: id }, '', location.pathname.startsWith(chapter.href) ? location.href : chapter.href);
+      history.pushState({ chapter: id }, '', location.pathname === href ? location.href : href);
     } finally {
       busy = false;
       flushPendingChapter();

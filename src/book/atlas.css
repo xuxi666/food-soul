@@ -116,7 +116,7 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 42%, rgba(48, 18, 6, 0.14)),
     color-mix(in srgb, var(--accent) 86%, #2b1408);
-  transition: filter 220ms var(--ease);
+  transition: filter 220ms var(--ease), transform 160ms var(--ease), box-shadow 220ms var(--ease);
 }
 
 .atlas-grid--left .atcat__tab {
@@ -148,9 +148,34 @@
   left: 7px;
 }
 
-.atcat:hover .atcat__tab,
+/* 三角书签：悬停只让它自己亮一点、往纸面里压 1px（整张卡片不动） */
+.atcat__tab:hover,
 .atcat__tab:focus-visible {
-  filter: brightness(1.08) saturate(1.05);
+  filter: brightness(1.1) saturate(1.06);
+}
+
+.atlas-grid--left .atcat__tab:hover,
+.atlas-grid--left .atcat__tab:focus-visible {
+  transform: translateX(1px);
+  box-shadow: inset -1px 0 0 rgba(255, 246, 228, 0.34), 0 1px 4px rgba(58, 28, 8, 0.3);
+}
+
+.atlas-grid--right .atcat__tab:hover,
+.atlas-grid--right .atcat__tab:focus-visible {
+  transform: translateX(-1px);
+  box-shadow: inset 1px 0 0 rgba(255, 246, 228, 0.34), 0 1px 4px rgba(58, 28, 8, 0.3);
+}
+
+/* 按下：压回去一点，像真的按了一枚纸书签 */
+.atcat__tab:active {
+  filter: brightness(0.92) saturate(1.02);
+  transform: none;
+}
+
+/* 已经触发整本翻页：这枚书签暗下去，别让人以为还能再点一次 */
+.atcat__tab.is-nav {
+  filter: brightness(0.88) saturate(0.92);
+  cursor: progress;
 }
 
 .atcat__tab:focus-visible {
