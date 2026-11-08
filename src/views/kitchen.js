@@ -302,7 +302,8 @@ export default {
     function paintChips() {
       clear(chipsBox);
       if (!selected.length) {
-        chipsBox.append(h('span', { class: 'ek-hint', text: '还没有食材。从右侧食材库点选，或点图谱里的「+」。' }));
+        chipsBox.append(h('span', { class: 'ek-hint', text: '还没有食材。在左页食材库点选，或点图谱里的「+」。' }));
+        graphMeta.textContent = '已选 0 / 8';
         return;
       }
       for (const s of selected) {
@@ -315,7 +316,7 @@ export default {
           )
         );
       }
-      chipsBox.append(h('span', { class: 'ek-count', text: `已选 ${selected.length}` }));
+      graphMeta.textContent = `已选 ${selected.length} / 8`;
     }
 
     // 素食 / 纯素开关只在配方面板使用（图谱区已移除）
@@ -348,6 +349,8 @@ export default {
         '纯素'
       );
 
+    const graphMeta = h('span', { class: 'ek-graph-meta', text: '已选 0 / 8' });
+
     const graphCard = h(
       'section',
       { class: 'ek-card ek-graph-card' },
@@ -355,6 +358,7 @@ export default {
         'div',
         { class: 'ek-card__head' },
         h('b', { text: '食材风味图谱' }),
+        graphMeta,
         h(
           'div',
           { class: 'ek-toggles' },
@@ -373,8 +377,7 @@ export default {
           )
         )
       ),
-      chipsBox,
-      h('div', { class: 'ek-toolbar' }, autoBtn, autoNum, cuisineCtx),
+      h('div', { class: 'ek-graphbar' }, chipsBox, h('span', { class: 'ek-bar__spacer' }), autoBtn, autoNum),
       h(
         'div',
         { class: 'ek-canvas' },
@@ -389,7 +392,7 @@ export default {
           h('button', { class: 'ek-tool ek-tool--round', type: 'button', title: '重置', onclick: () => graph.reset() }, '⟲')
         )
       ),
-      statusLine
+      h('div', { class: 'ek-graphfoot' }, cuisineCtx, statusLine)
     );
 
     /* ---------------- 食材库（服务端搜索 + 分页） ---------------- */
@@ -480,7 +483,11 @@ export default {
               type: 'button',
               title: c.count ? `${c.count} 种食材` : '不限分类',
               onclick: () => {
-                if (cat.category === c.id) return;
+                catOpen = false;
+                if (cat.category === c.id) {
+                  paintCatBar();
+                  return;
+                }
                 cat.category = c.id;
                 paintCatBar();
                 void loadCatalog({ reset: true });
@@ -495,10 +502,6 @@ export default {
         h('div', { class: `ek-catpanel${catOpen ? ' is-open' : ''}` }, h('div', { class: 'ek-catpanel__inner' }, grid))
       );
 
-      // 展开时把食材库整体放高一点，避免列表被压得太扁
-      document.querySelector('.ek-catalog')?.classList.toggle('is-catopen', catOpen);
-
-      // 展开时把食材库整体放高一点，避免列表被压得太扁
       document.querySelector('.ek-catalog')?.classList.toggle('is-catopen', catOpen);
     }
 
@@ -508,6 +511,7 @@ export default {
         return;
       }
       const n = (v) => Number(v || 0).toLocaleString('zh-CN');
+      catalogTotal.textContent = `${n(cat.stats.total)} 种`;
       const sync = cat.stats.lastSyncAt ? new Date(cat.stats.lastSyncAt).toLocaleDateString('zh-CN') : '未同步';
       const scope = cat.q ? `匹配 ${n(cat.total)} 条` : `本类 ${n(cat.total)} 条`;
       const noData = Number(cat.stats.unanalyzable || 0);
@@ -550,6 +554,7 @@ export default {
                   });
               },
             },
+            h('span', { class: `ek-dot cat-${it.category || 'none'}` }),
             h('span', { class: 'ek-item__cn', text: it.display }),
             h('span', { class: 'ek-item__meta', text: it.categoryCn }),
             on ? h('span', { class: 'ek-item__x', text: '×' }) : null
@@ -622,13 +627,12 @@ export default {
       void loadCatalog();
     });
 
+    const catalogTotal = h('span', { class: 'ek-count ek-catalog-total', text: '' });
     const catalogCard = h(
       'aside',
       { class: 'ek-card ek-catalog' },
-      h('div', { class: 'ek-card__head' }, h('b', { text: '食材库' }), h('span', { class: 'ek-count', text: '' })),
-      searchInput,
-      tabsBar,
-      catBar,
+      h('div', { class: 'ek-card__head' }, h('b', { text: '食材库' }), catalogTotal),
+      h('div', { class: 'ek-catrow' }, searchInput, tabsBar, catBar),
       countLine,
       listBox,
       moreBtn
@@ -681,12 +685,21 @@ export default {
       const ingRow = h('div', { class: 'ek-recipe__ings' });
       ingRow.append(h('span', { class: 'ek-label', text: `食材（${selected.length}）` }));
       const chipWrap = h('div', { class: 'ek-chips' });
-      if (!selected.length) chipWrap.append(h('span', { class: 'ek-hint', text: '先在上方图谱区选食材' }));
+      if (!selected.length) chipWrap.append(h('span', { class: 'ek-hint', text: '先在左页的图谱或食材库选食材' }));
       for (const s of selected) {
         chipWrap.append(h('button', { class: 'ek-chip', type: 'button', onclick: () => removeIngredient(s.id) }, s.cn, h('em', { text: '×' })));
       }
       ingRow.append(chipWrap);
       recipeBody.append(ingRow);
+
+      recipeBody.append(
+        h(
+          'div',
+          { class: 'ek-part' },
+          h('span', { class: 'ek-part__label', text: '配方偏好' }),
+          h('span', { class: 'ek-part__note', text: '餐食形态 / 菜系 / 风味' })
+        )
+      );
 
       /* 快速开始 */
       const quickHead = h(
@@ -913,6 +926,13 @@ export default {
       generating = true;
       genError = '';
       paintRecipe();
+      paintResultState();
+      genStartedAt = Date.now();
+      stopGenTimer();
+      genTimer = setInterval(() => {
+        if (!generating) return;
+        resultMeta.textContent = `生成中 · 已 ${Math.round((Date.now() - genStartedAt) / 1000)} 秒`;
+      }, 500);
       try {
         const res = await fetch('/api/epicure/create', {
           method: 'POST',
@@ -935,26 +955,89 @@ export default {
         if (!res.ok || !data.ok) {
           genError = data.error || `请求失败（${res.status}）`;
           result = null;
-          clear(resultHost);
+          clear(resultBody);
+          resultMeta.textContent = '';
         } else {
           result = data;
           renderResult(data);
+          resultMeta.textContent = `${data.provider || ''} ${data.model || ''} · ${Math.round((data.ms || 0) / 1000)} 秒`;
           requestAnimationFrame(() => resultHost.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         }
       } catch (err) {
         genError = `请求失败：${String(err.message || err).slice(0, 60)}`;
         result = null;
-        clear(resultHost);
+        clear(resultBody);
+        resultMeta.textContent = '';
       } finally {
         generating = false;
+        stopGenTimer();
         paintRecipe();
+        paintResultState();
       }
     }
 
-    const resultHost = h('div', { class: 'ek-result' });
+    /* ---------------- 结果区：空 / 生成中 / 完成 ---------------- */
+    const resultMeta = h('span', { class: 'ek-result__meta', text: '' });
+    const resultState = h('div', { class: 'ek-result__state' });
+    const resultBody = h('div', { class: 'ek-result__body' });
+    const resultHost = h(
+      'section',
+      { class: 'ek-card ek-result' },
+      h('div', { class: 'ek-card__head' }, h('b', { text: '生成的菜谱' }), resultMeta),
+      resultState,
+      resultBody
+    );
+
+    let genTimer = 0;
+    let genStartedAt = 0;
+
+    function stopGenTimer() {
+      if (genTimer) clearInterval(genTimer);
+      genTimer = 0;
+    }
+
+    /** 三种状态只画一处，避免反复生成叠加空容器 */
+    function paintResultState() {
+      clear(resultState);
+      resultHost.classList.toggle('is-generating', generating);
+      resultBody.hidden = generating;
+      if (generating) {
+        resultMeta.textContent = '生成中 · 0 秒';
+        resultState.append(
+          h(
+            'div',
+            { class: 'ek-loading' },
+            h('span', { class: 'ek-spinner' }),
+            h(
+              'div',
+              { class: 'ek-loading__text' },
+              h('b', { text: '正在生成菜谱' }),
+              h('p', { class: 'ek-hint', text: '先做 Epicure 风味分析，再交给模型撰写，通常 30–60 秒。' })
+            )
+          )
+        );
+        return;
+      }
+      if (result) {
+        resultState.append(h('p', { class: 'ek-hint ek-result__done', text: '已生成 · 可「再生成一次」，或分享到社区。' }));
+        return;
+      }
+      if (genError) {
+        resultState.append(h('p', { class: 'ek-error', text: genError }));
+        return;
+      }
+      resultState.append(
+        h(
+          'div',
+          { class: 'ek-empty-result' },
+          h('p', { class: 'ek-empty-result__title', text: '还没有生成菜谱' }),
+          h('p', { class: 'ek-hint', text: '左页选好食材，这里确认配方偏好，点「生成菜谱」后结果就出现在这一页。' })
+        )
+      );
+    }
 
     function renderResult(data) {
-      clear(resultHost);
+      clear(resultBody);
       const r = data.recipe;
       const a = data.analysis || {};
       const DIFF = { easy: '简单', medium: '中等', hard: '复杂' };
@@ -995,10 +1078,10 @@ export default {
         );
       }
 
-      resultHost.append(
+      resultBody.append(
         h(
           'section',
-          { class: 'ek-card ek-result-card' },
+          { class: 'ek-result-card' },
           h('div', { class: 'ek-result__head' }, h('h2', { class: 'ek-result__title', text: r.dish_name }), tags),
           h('p', { class: 'ek-hint', text: r.intro }),
           epicurePanel({
@@ -1230,6 +1313,16 @@ export default {
     }
 
     /* ---------------- 组装 ---------------- */
+    /* 左页 = 食材探索（图谱 + 食材库）；右页 = 配方创作（模式 + 配方 + 结果） */
+    const exploreBox = h('div', { class: 'ek-explore' }, graphCard, catalogCard);
+    const craftBox = h(
+      'div',
+      { class: 'ek-craft' },
+      modeBar,
+      h('section', { class: 'ek-card ek-recipe' }, recipeHead, recipeBody),
+      resultHost
+    );
+
     const page = h(
       'div',
       { class: 'page ek-page' },
@@ -1249,14 +1342,7 @@ export default {
           h('div', { class: 'page-head__spacer' }),
           h('a', { class: 'btn btn--sm', href: '/recipe', 'data-link': '' }, '结构化菜谱')
         ),
-        h(
-          'div',
-          { class: 'ek-flow' },
-          h('div', { class: 'ek-row' }, graphCard, catalogCard),
-          modeBar,
-          h('section', { class: 'ek-card ek-recipe' }, recipeHead, recipeBody),
-          resultHost
-        )
+        h('div', { class: 'ek-flow' }, h('div', { class: 'ek-work' }, exploreBox, craftBox))
       )
     );
 
@@ -1267,6 +1353,7 @@ export default {
     paintRecipe();
 
     paintTabs2();
+    paintResultState();
     paintEmpty();
     void loadStarters(true);
     void loadCatalog({ reset: true });
@@ -1277,6 +1364,7 @@ export default {
       // 路由卸载时调用：移除监听 + 停掉漂浮动画循环
       destroy() {
         window.removeEventListener('resize', onResize);
+        stopGenTimer();
         graph.destroy();
       },
     };

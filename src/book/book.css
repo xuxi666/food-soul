@@ -1319,75 +1319,14 @@ body.is-book {
   padding: 0;
 }
 
-/* ---------- Epicure 厨房：左页图谱 / 右页食材库与配方 ---------- */
-.bk-content[data-chapter="kitchen"] {
-  column-count: 1;
-  display: block;
-  padding: 0;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-page .wrap {
-  padding: 0;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-page .page-head {
-  display: none;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-flow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  gap: 12px 58px;
-  height: 100%;
-  padding: 22px 30px 42px;
-  overflow-y: auto;
-  align-content: start;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-row {
-  display: contents;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-graph-card {
-  grid-column: 1;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-catalog {
-  grid-column: 2;
-  max-height: clamp(340px, 46vh, 520px);
-  height: clamp(340px, 46vh, 520px);
-}
-
-.bk-content[data-chapter="kitchen"] .ek-modes {
-  grid-column: 1;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-recipe {
-  grid-column: 2;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-result {
-  grid-column: 2;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-graph-card {
-  max-height: none;
-  height: clamp(460px, 70vh, 720px);
-  min-height: 0;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-catalog {
-  min-height: 0;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-modes {
-  align-self: start;
-}
-
-.bk-content[data-chapter="kitchen"] .ek-recipe {
-  align-self: start;
-}
+/* ---------- Epicure 厨房 ----------
+ * 第 29 轮起，厨房两页的版式由 src/styles/kitchen.css 末尾的
+ * `.bk-pageface--kitchen` 整套规则接管：
+ *   左页 = 风味图谱（约 58%）+ 食材库（约 42%），整页不滚动；
+ *   右页 = 模式 + 配方设计 + 生成结果，超长时只在页内独立滚动。
+ * 旧的「整章一个两列栅格、图谱占 col1、食材库占 col2」假设已作废，
+ * 这里不再对 .ek-flow / .ek-row / .ek-graph-card 做任何跨页定位。
+ */
 
 /* ---------- 社区：左页写与看数据 / 右页读信息流 ---------- */
 .bk-content[data-chapter="community"] {

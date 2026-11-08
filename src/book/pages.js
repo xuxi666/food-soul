@@ -32,9 +32,10 @@ const SPLITTERS = {
     const right = [root.querySelector('.recipe-result')];
     return { left, right };
   },
+  // 厨房：左页 = 食材探索（风味图谱 + 食材库），右页 = 配方创作（模式 + 配方 + 生成结果）
   kitchen(root) {
-    const left = [root.querySelector('.ek-graph-card'), root.querySelector('.ek-modes')];
-    const right = [root.querySelector('.ek-catalog'), root.querySelector('.ek-recipe'), root.querySelector('.ek-result')];
+    const left = [root.querySelector('.ek-explore')];
+    const right = [root.querySelector('.ek-craft')];
     return { left, right };
   },
   community(root) {
@@ -138,9 +139,10 @@ export function createPageBook({ staging, onAtlasChange }) {
       holder.append(h('p', { class: 'bk-error', text: '内容加载失败，请刷新重试' }));
     }
     const split = (SPLITTERS[id] || ((root) => ({ left: [root], right: [] })))(holder);
+    const faceClass = id === 'kitchen' ? 'bk-pageface--kitchen' : '';
     const entry = {
-      left: wrapFace(false, split.left),
-      right: wrapFace(false, split.right),
+      left: wrapFace(false, split.left, faceClass),
+      right: wrapFace(false, split.right, faceClass),
       instance,
       holder,
     };

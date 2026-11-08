@@ -1853,3 +1853,514 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* ============================================================
+ * 第 29 轮：厨房双页工作台
+ * 左页 = 食材探索（风味图谱 + 食材库，整页不滚）
+ * 右页 = 配方创作（模式 + 配方设计 + 生成结果，页内独立滚动）
+ * ============================================================ */
+
+/* ---- 两个工作区（脱离书页时也按左右两栏排） ---- */
+.ek-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(12px, 1.4vw, 18px);
+  align-items: start;
+}
+
+.ek-explore,
+.ek-craft {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ek-explore > .ek-graph-card {
+  min-height: 520px;
+}
+
+.ek-explore > .ek-catalog {
+  max-height: 520px;
+}
+
+/* ---- 图谱头部：已选数量 + 紧凑操作条 ---- */
+.ek-graph-meta {
+  margin-left: auto;
+  margin-right: 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.ek-graphbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 8px;
+}
+
+.ek-graphbar .ek-chips {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 0;
+  padding-bottom: 1px;
+}
+
+.ek-graphbar .ek-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.ek-graphbar .ek-num {
+  flex: 0 0 auto;
+}
+
+.ek-bar__spacer {
+  flex: 0 0 2px;
+}
+
+.ek-graphfoot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.ek-graphfoot .ek-ctx {
+  flex: 0 1 210px;
+  min-width: 110px;
+}
+
+.ek-graphfoot .ek-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- 食材库：搜索 / 全部·常用 / 分类同一行 ---- */
+.ek-catrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 6px;
+}
+
+.ek-catrow .ek-search {
+  flex: 1 1 auto;
+  min-width: 80px;
+  margin: 0;
+}
+
+.ek-catrow .ek-tabs2 {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.ek-catrow .ek-catbar {
+  flex: 0 0 auto;
+  position: relative;
+  margin: 0;
+}
+
+/* 分类改成压在列表上的下拉浮层：19 个分类也放得进一页，不再撑高卡片 */
+.ek-catrow .ek-catpanel {
+  position: absolute;
+  left: auto;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 8;
+  width: min(300px, 88vw);
+  padding: 6px 8px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(200, 166, 108, 0.42);
+  background: #fffcf5;
+  box-shadow: 0 12px 26px rgba(86, 60, 30, 0.16);
+}
+
+.ek-catrow .ek-catpanel.is-open {
+  display: block;
+}
+
+.ek-catrow .ek-catpanel:not(.is-open) {
+  display: none;
+}
+
+.ek-catrow .ek-catpanel__inner {
+  max-height: 208px;
+  overflow-y: auto;
+  opacity: 1;
+  scrollbar-width: thin;
+}
+
+.ek-catrow .ek-catgrid {
+  padding: 0;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 5px;
+}
+
+/* ---- 配方的四个分区 ---- */
+.ek-part {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.ek-part__label {
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  color: var(--color-text-secondary);
+}
+
+.ek-part__note {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+/* ---- 结果区：空 / 生成中 / 完成 ---- */
+.ek-result__meta {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.ek-result__state:empty {
+  display: none;
+}
+
+.ek-result__body[hidden] {
+  display: none;
+}
+
+.ek-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px 6px;
+}
+
+.ek-loading__text b {
+  font-size: 12.5px;
+}
+
+.ek-empty-result {
+  padding: 4px 2px 2px;
+}
+
+.ek-empty-result__title {
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.ek-result__done {
+  margin: 0;
+}
+
+.ek-result-card > h3 {
+  margin: 14px 0 6px;
+}
+
+.ek-result-card > h3:first-child {
+  margin-top: 0;
+}
+
+/* ============================================================
+ * 书里的两页
+ * ============================================================ */
+.bk-pageface.bk-pageface--kitchen {
+  overflow: hidden;
+}
+
+.bk-pageface--kitchen .bk-pageface__inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 12px 16px 14px;
+}
+
+.bk-pageface--kitchen .ek-work {
+  display: block;
+}
+
+/* 左页：图谱 58% / 食材库 42%，两段都真实可见，整页不滚动 */
+.bk-pageface--kitchen .ek-explore {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);
+  gap: 10px;
+}
+
+.bk-pageface--kitchen .ek-explore > .ek-graph-card {
+  min-height: 0;
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bk-pageface--kitchen .ek-explore > .ek-catalog {
+  min-height: 0;
+  max-height: none;
+  padding: 10px 12px 10px;
+}
+
+.bk-pageface--kitchen .ek-canvas {
+  flex: 1 1 auto;
+  min-height: 140px;
+}
+
+.bk-pageface--kitchen .ek-card__head {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(184, 146, 92, 0.22);
+}
+
+.bk-pageface--kitchen .ek-list {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 4px;
+  padding: 0 4px 2px 0;
+  scrollbar-width: thin;
+  box-shadow: inset 0 -12px 10px -10px rgba(120, 90, 50, 0.18);
+}
+
+.bk-pageface--kitchen .ek-item {
+  padding: 5px 8px;
+  font-size: 12.5px;
+  gap: 6px;
+}
+
+.bk-pageface--kitchen .ek-item__meta {
+  font-size: 10.5px;
+}
+
+.bk-pageface--kitchen .ek-empty {
+  padding: 16px 14px 34px;
+}
+
+.bk-pageface--kitchen .ek-empty__title {
+  font-size: 14px;
+}
+
+.bk-pageface--kitchen .ek-empty__desc {
+  font-size: 11.5px;
+  max-width: 340px;
+}
+
+.bk-pageface--kitchen .ek-empty__chips {
+  gap: 5px;
+}
+
+/* 右页：配方的三段 + 生成结果，超长时只在这一页里滚 */
+.bk-pageface--kitchen .ek-craft {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(184, 146, 92, 0.45) transparent;
+}
+
+.bk-pageface--kitchen .ek-craft::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bk-pageface--kitchen .ek-craft::-webkit-scrollbar-thumb {
+  background: rgba(184, 146, 92, 0.3);
+  border-radius: 3px;
+}
+
+.bk-pageface--kitchen .ek-modes {
+  justify-content: flex-start;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.bk-pageface--kitchen .ek-mode {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.bk-pageface--kitchen .ek-recipe__body {
+  gap: 10px;
+}
+
+.bk-pageface--kitchen .ek-recipe__head .ek-toggles {
+  gap: 8px;
+}
+
+.bk-pageface--kitchen .ek-quickgrid {
+  gap: 6px;
+}
+
+.bk-pageface--kitchen .ek-quick {
+  padding: 5px 6px;
+}
+
+.bk-pageface--kitchen .ek-result {
+  flex: 1 1 auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 还没有菜谱时：结果卡撑满右页下方，提示语居中，避免大半页空白 */
+.bk-pageface--kitchen .ek-result__state {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.bk-pageface--kitchen .ek-result__state:has(.ek-empty-result) {
+  flex: 1 1 auto;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+.bk-pageface--kitchen .ek-result__state:has(.ek-empty-result) .ek-empty-result {
+  padding: 0 12px;
+}
+
+.bk-pageface--kitchen .ek-result__state:has(.ek-empty-result) .ek-empty-result__title {
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+}
+
+/* ---- 矮屏笔记本（如 1024×768）：图谱让一点高度给食材库 ---- */
+@media (min-width: 861px) and (max-height: 840px) {
+  .bk-pageface--kitchen .ek-explore {
+    grid-template-rows: minmax(0, 52fr) minmax(0, 48fr);
+  }
+
+  .bk-pageface--kitchen .ek-explore > .ek-graph-card {
+    padding: 8px 10px 6px;
+  }
+
+  .bk-pageface--kitchen .ek-graphfoot {
+    margin-top: 6px;
+  }
+
+  .bk-pageface--kitchen .ek-quickgrid {
+    gap: 5px;
+  }
+
+  .bk-pageface--kitchen .ek-quick {
+    padding: 4px 5px;
+    font-size: 11px;
+  }
+}
+
+/* ---- 单页模式（≤860 的平板竖屏）仍然是「一页一个工作区」 ---- */
+@media (max-width: 860px) {
+  .bk-pageface--kitchen .bk-pageface__inner {
+    padding: 10px 12px 12px;
+  }
+
+  .bk-pageface--kitchen .ek-explore {
+    grid-template-rows: minmax(0, 56fr) minmax(0, 44fr);
+  }
+}
+
+/* ---- 手机：一页塞不下两个模块，退回「页内滚动 + 固定最小高度」 ---- */
+@media (max-width: 560px) {
+  .bk-pageface--kitchen {
+    overflow-y: auto;
+  }
+
+  .bk-pageface--kitchen .bk-pageface__inner {
+    display: block;
+    height: auto;
+    min-height: 0;
+    padding: 10px 10px 14px;
+  }
+
+  .bk-pageface--kitchen .ek-explore {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .bk-pageface--kitchen .ek-explore > .ek-graph-card {
+    min-height: 400px;
+  }
+
+  .bk-pageface--kitchen .ek-canvas {
+    min-height: 240px;
+  }
+
+  .bk-pageface--kitchen .ek-explore > .ek-catalog {
+    min-height: 340px;
+    max-height: 460px;
+  }
+
+  .bk-pageface--kitchen .ek-craft {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .bk-pageface--kitchen .ek-list {
+    grid-template-columns: 1fr 1fr;
+    max-height: 260px;
+  }
+
+  .ek-graphfoot {
+    flex-wrap: wrap;
+  }
+
+  .ek-graphfoot .ek-ctx {
+    flex: 1 1 100%;
+  }
+
+  .ek-graphfoot .ek-status {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+
+  .ek-catrow {
+    flex-wrap: wrap;
+  }
+
+  .ek-catrow .ek-search {
+    flex: 1 1 100%;
+  }
+
+  .ek-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1080px) {
+  .ek-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ek-explore > .ek-graph-card {
+    min-height: 460px;
+  }
+
+  .ek-explore > .ek-catalog {
+    max-height: 520px;
+  }
+}
