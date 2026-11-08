@@ -459,6 +459,8 @@ export function initBook({ root }) {
 
   async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
+    // 换章节 / 进内页：图鉴的页内详情属于上一页，先原样收起
+    if (info.key !== 'dishes') book.atlas?.closeAll?.();
     const isInner = INNER_KEYS.has(info.key);
 
     // 进后台：先记住此刻的画册位置（章节 + 具体跨页），退出时原样回来
@@ -553,6 +555,8 @@ export function initBook({ root }) {
   /* ---------------- 翻页 ---------------- */
   async function turn(dir) {
     if (mode !== 'open' || busy || inner) return;
+    // 图鉴正在页内展开详情：这一页属于局部动画，整本翻页要等它收起
+    if (shell.el.classList.contains('is-atlas-expanded')) return;
     const step = dir === 'next' ? 1 : -1;
     const next = position.value + step;
     if (position.single) {
@@ -589,6 +593,7 @@ export function initBook({ root }) {
   async function openChapter(id) {
     const chapter = chapterById(id);
     if (!chapter) return;
+    if (id !== 'dishes') book.atlas?.closeAll?.();
     if (busy) { pendingChapter = id; return; }
     const target = book.spreadOfChapter(id);
 
@@ -632,6 +637,7 @@ export function initBook({ root }) {
   /* ---------------- 合上 ---------------- */
   async function shut() {
     if (mode !== 'open' || busy) return;
+    book.atlas?.closeAll?.();
     busy = true;
     try {
       setPhase('SHRINKING');

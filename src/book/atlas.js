@@ -1,220 +1,661 @@
 /**
- * 图鉴章节：每页 3–4 道菜，一页一块「纸」，由书页栈摆到左右两页上。
- * 筛选面板只在图鉴第一页（左页）出现；其余页脚给出当前筛选状态。
- * 数据全部来自 src/data/dishes.js，不编造。
+ * 美食图鉴：左右双页「分类画册」
+ * ------------------------------------------------------------
+ * 左页八大菜系 / 右页八种口味，每页 2 列 × 4 行 = 8 张五边形书签卡片，
+ * 共 16 张。每张卡片由两部分组成：
+ *   · 外凸的三角书签（写分类名）—— 点击进入该分类
+ *   · 内嵌的长方形图片区（自动轮播代表菜）—— 点击进入当前那道菜
+ *
+ * 这里只有两种「局部」动画，都不碰书籍翻页系统：
+ *   1. 分类：把这一跨页的两张纸换成分类封面 + 菜品列表（不翻页）
+ *   2. 详情：从被点击那张图片的四条边向外扩散，只覆盖它所在的那一页
+ *
+ * 所有内容节点一次建好就常驻：进出分类 / 详情都不重建卡片，
+ * 所以轮播位置、图片缓存、纸面滚动都不会被重置。
  */
 import { h, clear } from '../lib/dom.js';
-import { DISHES } from '../data/dishes.js';
+import { DISHES, DISH_BY_ID } from '../data/dishes.js';
 import { CUISINES, CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../data/cuisines.js';
+import { guardImage } from '../lib/placeholder.js';
 
-const PER_PAGE = 4;
+/*
+ * 详情页模块按需加载：dish-detail 会 import router，而 router 又 import 各视图，
+ * 静态引入会在图鉴与路由之间形成循环依赖（启动即报 TDZ 错误）。
+ */
+let detailModule = null;
+const loadDetailView = () => {
+  if (!detailModule) detailModule = import('../views/dish-detail.js').then((m) => m.default);
+  return detailModule;
+};
 
-const CUISINE_NAME = Object.fromEntries(CUISINES.map((c) => [c.id, c.name]));
-const TASTE_NAME = Object.fromEntries(TASTES.map((t) => [t.id, t.name]));
+const SLIDES_PER_CARD = 5;
+const EXPAND_MS = 620;
+
+const SIDES = {
+  left: {
+    kind: 'cuisine',
+    list: () => CUISINES,
+    kicker: 'EIGHT CUISINES',
+    title: '八大菜系',
+    note: '地域 · 谱系 · 技法',
+  },
+  right: {
+    kind: 'taste',
+    list: () => TASTES,
+    kicker: 'EIGHT FLAVOURS',
+    title: '八种口味',
+    note: '味型 · 口感 · 回甘',
+  },
+};
+
+const REDUCED = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- 数据 ---------------- */
+
+/** 某分类下的真实菜品：只取带图的，按图 / 菜名去重（库里同名同图有多条） */
+function dishesOf(kind, id) {
+  const list = DISHES.filter((d) => (kind === 'cuisine' ? d.cuisine === id : (d.tastes || []).includes(id)));
+  const names = new Set();
+  const images = new Set();
+  const out = [];
+  for (const d of list) {
+    if (!d.image || names.has(d.name) || images.has(d.image)) continue;
+    names.add(d.name);
+    images.add(d.image);
+    out.push(d);
+  }
+  return out;
+}
+
+const metaOf = (kind, id) => (kind === 'cuisine' ? CUISINE_BY_ID[id] : TASTE_BY_ID[id]);
+const accentOf = (kind, id) => metaOf(kind, id)?.accent || metaOf(kind, id)?.color || '#c2452d';
+
+/* ---------------- 主模块 ---------------- */
 
 export function createAtlas({ onChange } = {}) {
-  const state = { cuisine: '', taste: '', q: '' };
-  const pages = new Map(); // 页码索引 → { el, grid, foot, idx }
+  const state = { view: 'board', kind: '', id: '' };
+  const pages = new Map(); // 'left' / 'right' → { el, board, cat, carousels }
+  const live = new Set(); // 正在跑的轮播（只有可见的那一页）
+  const listCache = new Map(); // `${kind}:${id}:${side}` → 分类页节点
+  let ticker = 0;
+  let openDetails = 0;
+  const closers = new Set();
 
-  const filtered = () =>
-    DISHES.filter((d) => {
-      if (state.cuisine && d.cuisine !== state.cuisine) return false;
-      if (state.taste && !(d.tastes || []).includes(state.taste)) return false;
-      const q = state.q.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        d.name.toLowerCase().includes(q) ||
-        (d.alt || '').toLowerCase().includes(q) ||
-        (d.ingredients || []).some((i) => i.includes(state.q.trim()))
-      );
+  /* ---------- 轮播调度：一个定时器驱动所有卡片，节奏各自独立 ---------- */
+  function ensureTicker() {
+    if (ticker) return;
+    ticker = window.setInterval(() => {
+      const now = performance.now();
+      for (const c of live) c.tick(now);
+    }, 420);
+  }
+
+  function stopTicker() {
+    if (!ticker) return;
+    window.clearInterval(ticker);
+    ticker = 0;
+  }
+
+  /**
+   * 轮播只在「这一页显示分类卡片、没被详情盖住、页签可见、没开减弱动效」时跑。
+   * 逐页判断：左页进详情时，右页的轮播照常继续。
+   */
+  function syncLive() {
+    const globalOk = state.view === 'board' && !REDUCED() && !document.hidden;
+    let any = false;
+    for (const page of pages.values()) {
+      const covered = page.el.dataset.expanded === '1';
+      for (const c of page.carousels) {
+        if (globalOk && !covered) {
+          // 从暂停里回来时重新计时，避免一放开就立刻跳一张
+          if (!live.has(c) && c.everTicked) c.resetClock();
+          live.add(c);
+          any = true;
+        } else {
+          live.delete(c);
+        }
+      }
+    }
+    if (any) ensureTicker();
+    else stopTicker();
+  }
+
+  document.addEventListener('visibilitychange', syncLive);
+
+  /* ---------- 五边形书签卡片 ---------- */
+  function buildCard(kind, meta, index) {
+    const name = meta.name;
+    const dishes = dishesOf(kind, meta.id);
+    const first = dishes[0];
+    if (!first) return null;
+
+    const slides = dishes.slice(0, SLIDES_PER_CARD).map((d, i) =>
+      h(
+        'span',
+        { class: `atcat__slide${i === 0 ? ' is-on' : ''}`, 'data-dish': d.id },
+        guardImage(
+          h('img', {
+            src: d.image,
+            alt: d.alt || d.name,
+            loading: i === 0 ? 'eager' : 'lazy',
+            decoding: 'async',
+          }),
+          d.name,
+          '图片暂不可用'
+        )
+      )
+    );
+
+    const dots = h(
+      'span',
+      { class: 'atcat__dots', 'aria-hidden': 'true' },
+      ...dishes.slice(0, SLIDES_PER_CARD).map((_, i) => h('i', { class: i === 0 ? 'is-on' : '' }))
+    );
+
+    const tab = h(
+      'button',
+      {
+        class: 'atcat__tab',
+        type: 'button',
+        'data-act': 'category',
+        'data-kind': kind,
+        'data-id': meta.id,
+        'aria-label': `进入${name}`,
+        title: `${name} · ${dishes.length} 道`,
+      },
+      h('span', { class: 'atcat__tab-t', text: name })
+    );
+
+    const media = h(
+      'button',
+      {
+        class: 'atcat__media',
+        type: 'button',
+        'data-act': 'dish',
+        'data-kind': kind,
+        'data-id': meta.id,
+        'data-dish': first.id,
+        'aria-label': `查看${first.name}详情`,
+      },
+      ...slides,
+      dots
+    );
+
+    const caption = h('span', { class: 'atcat__dish', text: first.name });
+
+    const el = h(
+      'article',
+      {
+        class: 'atcat',
+        'data-kind': kind,
+        'data-id': meta.id,
+        'data-dish': first.id,
+        style: `--accent:${accentOf(kind, meta.id)}`,
+      },
+      h(
+        'span',
+        { class: 'atcat__shape' },
+        tab,
+        h(
+          'span',
+          { class: 'atcat__box' },
+          media,
+          h('span', { class: 'atcat__meta' }, caption, h('span', { class: 'atcat__count', text: `${dishes.length} 道` }))
+        )
+      )
+    );
+
+    /* 卡片自己的轮播：节奏带固定偏移，16 张不会同时换图 */
+    const carousel = {
+      el,
+      order: dishes.slice(0, SLIDES_PER_CARD),
+      at: 0,
+      /* 首轮错开：16 张不会在同一帧一起换图 */
+      nextAt: performance.now() + 900 + index * 340 + (kind === 'taste' ? 180 : 0),
+      dwell: 3600 + (index % 5) * 460 + (kind === 'taste' ? 220 : 0),
+      hover: false,
+      show(i) {
+        const n = slides.length;
+        const next = ((i % n) + n) % n;
+        if (next === this.at || n < 2) return;
+        slides[this.at]?.classList.remove('is-on');
+        slides[next].classList.add('is-on');
+        dots.children[this.at]?.classList.remove('is-on');
+        dots.children[next]?.classList.add('is-on');
+        this.at = next;
+        const d = this.order[next];
+        if (!d) return;
+        media.dataset.dish = d.id;
+        el.dataset.dish = d.id;
+        media.setAttribute('aria-label', `查看${d.name}详情`);
+        caption.textContent = d.name;
+      },
+      everTicked: false,
+      tick(now) {
+        if (this.hover) return;
+        this.everTicked = true;
+        if (now < this.nextAt) return;
+        this.nextAt = now + this.dwell;
+        this.show(this.at + 1);
+      },
+      resetClock(ms = 900) {
+        this.nextAt = performance.now() + ms;
+      },
+    };
+    el.addEventListener('pointerenter', () => {
+      carousel.hover = true;
+    });
+    el.addEventListener('pointerleave', () => {
+      carousel.hover = false;
+      carousel.resetClock();
+    });
+    return { el, carousel };
+  }
+
+  /* ---------- 分类卡片页（一页 8 张） ---------- */
+  function buildBoard(side) {
+    const cfg = SIDES[side];
+    const list = cfg.list();
+    const carousels = [];
+    const grid = h('div', { class: `atlas-grid atlas-grid--${side}` });
+    list.forEach((meta, i) => {
+      const built = buildCard(cfg.kind, meta, i);
+      if (!built) return;
+      carousels.push(built.carousel);
+      grid.append(built.el);
     });
 
-  /** 页数保持偶数：一跨页正好两页，不出现「半张纸」 */
-  function shape() {
-    const n = filtered().length;
-    if (!n) return { count: 0, sizes: [] };
-    const raw = Math.ceil(n / PER_PAGE);
-    const count = Math.max(2, raw + (raw % 2));
-    const base = Math.floor(n / count);
-    const rest = n % count;
-    const sizes = Array.from({ length: count }, (_, i) => base + (i < rest ? 1 : 0));
-    return { count, sizes };
+    const head = h(
+      'header',
+      { class: 'atlas-head' },
+      h('p', { class: 'atlas-head__kicker', text: cfg.kicker }),
+      h('h2', { class: 'atlas-head__title', text: cfg.title }),
+      h('span', { class: 'atlas-head__note', text: cfg.note }),
+      h('span', { class: 'atlas-head__count', text: `${list.length} 类 · ${DISHES.length} 道` })
+    );
+
+    return { board: h('section', { class: 'atlas-board', 'data-side': side }, head, grid), carousels };
   }
 
-  const pageCount = () => shape().count;
-  const spreadCount = () => Math.ceil(pageCount() / 2);
+  /* ---------- 分类页：左 = 分类封面，右 = 菜品列表 ---------- */
+  function categoryCover(kind, id) {
+    const meta = metaOf(kind, id);
+    const dishes = dishesOf(kind, id);
+    const isCuisine = kind === 'cuisine';
+    const strip = dishes.slice(0, 3).map((d) =>
+      h(
+        'button',
+        {
+          class: 'atlas-cover__thumb',
+          type: 'button',
+          'data-act': 'dish',
+          'data-dish': d.id,
+          'aria-label': `查看${d.name}`,
+        },
+        guardImage(h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }), d.name, '图片暂不可用')
+      )
+    );
 
-  function sliceOf(pageIndex) {
-    const { sizes } = shape();
-    let at = 0;
-    for (let i = 0; i < pageIndex && i < sizes.length; i++) at += sizes[i];
-    return filtered().slice(at, at + (sizes[pageIndex] || 0));
-  }
+    // 代表菜索引：把剩余纸面占满，避免大片空白
+    const picks = h(
+      'ol',
+      { class: 'atlas-cover__picks' },
+      ...dishes.slice(0, 6).map((d, i) =>
+        h(
+          'li',
+          { class: 'atlas-cover__pick' },
+          h('em', { text: String(i + 1).padStart(2, '0') }),
+          h('b', { text: d.name }),
+          h('span', { text: d.signature || (isCuisine ? TASTE_BY_ID[(d.tastes || [])[0]]?.name : CUISINE_BY_ID[d.cuisine]?.name) || '' })
+        )
+      )
+    );
 
-  function card(d) {
+    const tastes = [...new Set(dishes.flatMap((d) => (d.tastes || []).map((t) => TASTE_BY_ID[t]?.name).filter(Boolean)))];
+    const cuisines = [...new Set(dishes.map((d) => CUISINE_BY_ID[d.cuisine]?.name).filter(Boolean))];
+
     return h(
-      'a',
-      { class: 'atlas__card', href: `/dishes/${d.id}`, 'data-link': '', 'data-dish': d.id },
+      'div',
+      { class: 'atlas-cover', style: `--accent:${accentOf(kind, id)}` },
       h(
-        'div',
-        { class: 'atlas__media' },
-        d.image ? h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }) : null
+        'button',
+        { class: 'atlas-back', type: 'button', 'data-act': 'board' },
+        h('span', { class: 'atlas-back__mark', 'aria-hidden': 'true' }),
+        '返回图鉴'
       ),
+      h('p', { class: 'atlas-cover__kicker', text: isCuisine ? 'CUISINE · 菜系' : 'FLAVOUR · 口味' }),
+      h('h2', { class: 'atlas-cover__title', text: meta.name }),
+      h('p', { class: 'atlas-cover__en', text: meta.en || '' }),
+      h('p', { class: 'atlas-cover__line', text: meta.tagline || '' }),
+      h('p', { class: 'atlas-cover__desc', text: meta.desc || '' }),
       h(
-        'div',
-        { class: 'atlas__body' },
-        h('h3', { class: 'atlas__name', text: d.name }),
+        'dl',
+        { class: 'atlas-cover__facts' },
         h(
           'div',
-          { class: 'atlas__tags' },
-          h('span', { class: 'atlas__tag', text: CUISINE_NAME[d.cuisine] || '' }),
-          (d.tastes || [])[0] ? h('span', { class: 'atlas__tag atlas__tag--soft', text: TASTE_NAME[d.tastes[0]] || '' }) : null
+          {},
+          h('dt', { text: isCuisine ? '地域' : '味觉' }),
+          h('dd', { text: (isCuisine ? meta.region : meta.tagline) || '—' })
         ),
-        h('p', { class: 'atlas__desc', text: (d.oneLiner || d.intro || '').slice(0, 34) })
-      )
+        h('div', {}, h('dt', { text: '菜品' }), h('dd', { text: `${dishes.length} 道` })),
+        h(
+          'div',
+          {},
+          h('dt', { text: isCuisine ? '常见味型' : '涉及菜系' }),
+          h('dd', { text: (isCuisine ? tastes : cuisines).slice(0, 3).join(' · ') || '—' })
+        )
+      ),
+      picks,
+      strip.length ? h('div', { class: 'atlas-cover__strip' }, ...strip) : null,
+      h('p', { class: 'atlas-cover__hint', text: '点右侧图片 · 在书页内展开详情' })
     );
   }
 
-  /** 筛选状态一句话；点了回到第一页 */
-  function filterLine() {
-    const bits = [];
-    if (state.cuisine) bits.push(CUISINE_NAME[state.cuisine]);
-    if (state.taste) bits.push(`${TASTE_NAME[state.taste]}味`);
-    if (state.q.trim()) bits.push(`“${state.q.trim()}”`);
-    return bits.length ? bits.join(' · ') : '全部菜品';
-  }
-
-  function paintFilters(box) {
-    clear(box);
-    box.append(
+  function categoryList(kind, id) {
+    const meta = metaOf(kind, id);
+    const dishes = dishesOf(kind, id);
+    const rows = dishes.map((d) =>
       h(
-        'div',
-        { class: 'atlas__title' },
-        h('b', { text: '中国美食图鉴' }),
-        h('span', { text: `${filtered().length} 道` })
-      ),
-      h(
-        'div',
-        { class: 'atlas__chips' },
+        'article',
+        { class: 'atlas-row', 'data-dish': d.id },
         h(
           'button',
           {
-            class: `atlas__chip${state.cuisine ? '' : ' is-on'}`,
+            class: 'atlas-row__thumb',
             type: 'button',
-            onclick: () => {
-              state.cuisine = '';
-              commit();
-            },
+            'data-act': 'dish',
+            'data-dish': d.id,
+            'aria-label': `查看${d.name}详情`,
           },
-          '全部'
+          guardImage(h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }), d.name, '图片暂不可用')
         ),
-        ...CUISINES.map((c) =>
+        h(
+          'button',
+          { class: 'atlas-row__body', type: 'button', 'data-act': 'dish', 'data-dish': d.id },
+          h('span', { class: 'atlas-row__name', text: d.name }),
           h(
-            'button',
-            {
-              class: `atlas__chip${state.cuisine === c.id ? ' is-on' : ''}`,
-              type: 'button',
-              onclick: () => {
-                state.cuisine = state.cuisine === c.id ? '' : c.id;
-                commit();
-              },
-            },
-            c.name
-          )
-        )
-      ),
-      h(
-        'div',
-        { class: 'atlas__chips atlas__chips--taste' },
-        ...TASTES.slice(0, 6).map((t) =>
-          h(
-            'button',
-            {
-              class: `atlas__chip atlas__chip--taste${state.taste === t.id ? ' is-on' : ''}`,
-              type: 'button',
-              onclick: () => {
-                state.taste = state.taste === t.id ? '' : t.id;
-                commit();
-              },
-            },
-            t.name
-          )
-        )
+            'span',
+            { class: 'atlas-row__tags' },
+            h('em', { text: CUISINE_BY_ID[d.cuisine]?.name || '' }),
+            (d.tastes || [])[0] ? h('em', { class: 'is-soft', text: TASTE_BY_ID[d.tastes[0]]?.name || '' }) : null
+          ),
+          h('span', { class: 'atlas-row__line', text: d.oneLiner || d.intro || '' })
+        ),
+        h('span', { class: 'atlas-row__go', 'aria-hidden': 'true', text: '›' })
       )
     );
-    const input = h('input', {
-      class: 'atlas__search',
-      type: 'search',
-      placeholder: '搜菜名 / 食材',
-      value: state.q,
-      'aria-label': '搜索菜品',
-    });
-    input.addEventListener('input', () => {
-      state.q = input.value;
-      commit({ keepFocus: input });
-    });
-    box.append(input);
+
+    return h(
+      'div',
+      { class: 'atlas-catlist' },
+      h(
+        'header',
+        { class: 'atlas-catlist__head' },
+        h('h3', { class: 'atlas-catlist__title', text: `${meta.name} · ${dishes.length} 道` }),
+        h('span', { class: 'atlas-catlist__hint', text: '点图片 · 详情在书页内展开' })
+      ),
+      h('div', { class: 'atlas-catlist__scroll' }, ...rows)
+    );
   }
 
-  function commit({ keepFocus } = {}) {
-    for (const page of pages.values()) page.rendered = null;
-    for (const page of pages.values()) paintPage(page);
-    onChange?.();
-    if (keepFocus) {
-      // 重绘会换掉输入框：把焦点和光标还回去
-      const again = pages.get('0:left')?.filterBox?.querySelector('.atlas__search');
-      if (again) {
-        again.focus();
-        again.setSelectionRange(again.value.length, again.value.length);
+  /* ---------- 详情：只覆盖点击那一页的四边扩散 ---------- */
+  function openDetail(pageEl, { dishId, origin }) {
+    if (!pageEl || !DISH_BY_ID[dishId]) return null;
+    if (pageEl.querySelector('.atlas-detail')) return null;
+
+    // 一次量完：起点矩形 = 被点图片相对本页纸张的位置
+    const face = pageEl.getBoundingClientRect();
+    const src = (origin && origin.getBoundingClientRect()) || face;
+    const top = Math.max(0, Math.round(src.top - face.top));
+    const left = Math.max(0, Math.round(src.left - face.left));
+    const right = Math.max(0, Math.round(face.right - src.right));
+    const bottom = Math.max(0, Math.round(face.bottom - src.bottom));
+
+    const dish = DISH_BY_ID[dishId];
+    const overlay = h('div', { class: 'atlas-detail', 'data-dish': dishId });
+    overlay.style.setProperty('--ex-t', `${top}px`);
+    overlay.style.setProperty('--ex-r', `${right}px`);
+    overlay.style.setProperty('--ex-b', `${bottom}px`);
+    overlay.style.setProperty('--ex-l', `${left}px`);
+
+    const photo = h(
+      'div',
+      { class: 'atlas-detail__photo', 'aria-hidden': 'true' },
+      guardImage(h('img', { src: dish.image, alt: '' }), dish.name, '')
+    );
+
+    const scroll = h('div', { class: 'atlas-detail__scroll' });
+    const doc = h(
+      'div',
+      { class: 'atlas-detail__doc' },
+      h(
+        'div',
+        { class: 'atlas-detail__bar' },
+        h(
+          'button',
+          { class: 'atlas-back atlas-back--in', type: 'button', 'data-act': 'close-detail' },
+          h('span', { class: 'atlas-back__mark', 'aria-hidden': 'true' }),
+          '返回图鉴'
+        ),
+        h('span', { class: 'atlas-detail__crumb', text: `${CUISINE_BY_ID[dish.cuisine]?.name || ''} · ${dish.name}` })
+      ),
+      scroll
+    );
+
+    overlay.append(photo, doc);
+    pageEl.append(overlay);
+    pageEl.dataset.expanded = '1';
+    openDetails += 1;
+    pageEl.closest('.bk-stage')?.classList.add('is-atlas-expanded');
+    syncLive();
+
+    // 先按「被点图片的位置」量一次，下一帧再放开四条边：起点与被点的图片完全重合
+    void overlay.offsetWidth;
+    requestAnimationFrame(() => overlay.classList.add('is-open'));
+
+    let instance = null;
+    loadDetailView()
+      .then((mod) => mod.mount(scroll, [dishId]))
+      .then((inst) => {
+        instance = inst || null;
+      })
+      .catch((err) => {
+        console.warn('[atlas] 详情挂载失败', err);
+      });
+
+    let closed = false;
+    /** opts.instant：立即收起（切分类 / 离开图鉴时用，不做反向动画） */
+    const close = (onDone, opts) => {
+      if (closed) return;
+      closed = true;
+      closers.delete(close);
+      overlay.classList.add('is-closing');
+      overlay.classList.remove('is-open');
+      pageEl.dataset.expanded = '0';
+      syncLive();
+      const finish = () => {
+        try {
+          instance?.destroy?.();
+        } catch {
+          /* 忽略 */
+        }
+        overlay.remove();
+        openDetails = Math.max(0, openDetails - 1);
+        if (!document.querySelector('.atlas-detail')) {
+          document.querySelectorAll('.bk-stage.is-atlas-expanded').forEach((s) => s.classList.remove('is-atlas-expanded'));
+        }
+        if (typeof onDone === 'function') onDone();
+      };
+      if (opts && opts.instant) {
+        finish();
+        return;
+      }
+      window.setTimeout(finish, REDUCED() ? 60 : EXPAND_MS + 40);
+    };
+
+    closers.add(close);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target.closest('[data-act="close-detail"]')) {
+        e.preventDefault();
+        close();
+        return;
+      }
+      // 详情里的「相关菜品」：不跳走，在这同一页里换一道菜重新扩散；
+      // 但「做菜视频 / 生成菜谱」这类指向其它模块的链接要照常跳转。
+      const anchor = e.target.closest('a[href]');
+      if (anchor && !(anchor.getAttribute('href') || '').startsWith('/dishes')) return;
+      const dishEl = e.target.closest('[data-dish]');
+      const nextId = dishEl?.dataset.dish;
+      if (nextId && nextId !== dishId && DISH_BY_ID[nextId]) {
+        e.preventDefault();
+        e.stopPropagation();
+        const from = dishEl.querySelector('img') || dishEl;
+        // 等旧的那层收干净再开新的，避免同一页叠加两层详情
+        close(() => openDetail(pageEl, { dishId: nextId, origin: from }));
+      }
+    });
+
+    return close;
+  }
+
+  function closeAllDetails() {
+    for (const close of [...closers]) close(undefined, { instant: true });
+  }
+
+  /* ---------- 分类视图切换（不翻页、不重建卡片） ---------- */
+  function paintCategory() {
+    const on = state.view === 'category';
+    for (const [side, page] of pages) {
+      page.el.dataset.view = on ? 'category' : 'board';
+      page.board.hidden = on;
+      page.cat.hidden = !on;
+      if (!on) continue;
+      const key = `${state.kind}:${state.id}:${side}`;
+      let node = listCache.get(key);
+      if (!node) {
+        node = side === 'left' ? categoryCover(state.kind, state.id) : categoryList(state.kind, state.id);
+        listCache.set(key, node);
+      }
+      if (!page.cat.contains(node)) {
+        clear(page.cat);
+        page.cat.append(node);
       }
     }
+    syncLive();
   }
 
-  const stateKey = () => `${state.cuisine}|${state.taste}|${state.q}`;
-
-  function paintPage(page) {
-    // 内容没变就不重画：翻页动画结束时不会重新生成可见页面的 DOM
-    const key = `${stateKey()}#${pageCount()}`;
-    if (page.rendered === key && page.grid.childElementCount) return;
-    page.rendered = key;
-    const items = sliceOf(page.idx);
-    clear(page.grid);
-    items.forEach((d) => page.grid.append(card(d)));
-    if (!items.length) page.grid.append(h('p', { class: 'atlas__empty', text: '没有符合条件的菜' }));
+  function showCategory(kind, id) {
+    if (!metaOf(kind, id)) return;
+    closeAllDetails();
+    state.view = 'category';
+    state.kind = kind;
+    state.id = id;
+    paintCategory();
   }
 
-  /** 生成第 idx 页的纸面（side: 'left' | 'right'） */
+  function showBoard() {
+    closeAllDetails();
+    state.view = 'board';
+    state.kind = '';
+    state.id = '';
+    paintCategory();
+  }
+
+  /* ---------- 页面创建 ---------- */
   function page(idx, side) {
-    const key = `${idx}:${side}`;
+    const key = side === 'right' || idx % 2 === 1 ? 'right' : 'left';
     const cached = pages.get(key);
-    if (cached) {
-      paintPage(cached);
-      return cached.el;
-    }
-    const grid = h('div', { class: 'atlas-page__grid' });
-    let filterBox = null;
-    if (side === 'left' && idx === 0) {
-      filterBox = h('div', { class: 'atlas-page__filter' });
-    }
-    // 纸页上不再有页眉 / 页脚小字：四角只留纸张边框，页码与「第几页」全部去掉
-    const el = h('div', { class: 'atlas-page' }, filterBox, grid);
-    const pageRec = { el, grid, idx, filterBox };
-    pages.set(key, pageRec);
-    if (filterBox) paintFilters(filterBox);
-    paintPage(pageRec);
+    if (cached) return cached.el;
+
+    const built = buildBoard(key);
+    const cat = h('section', { class: 'atlas-cat', hidden: true });
+    const el = h('div', { class: `atlas-page atlas-page--${key}`, 'data-side': key, 'data-view': 'board' }, built.board, cat);
+
+    pages.set(key, { el, board: built.board, cat, carousels: built.carousels });
+    syncLive();
+
+    // 事件全部走委托：卡片很多，逐张绑会拖慢首次开书
+    el.addEventListener('click', (e) => {
+      const act = e.target.closest('[data-act]');
+      if (!act) return;
+      const action = act.dataset.act;
+      if (action === 'category') {
+        e.preventDefault();
+        showCategory(act.dataset.kind, act.dataset.id);
+        return;
+      }
+      if (action === 'board') {
+        e.preventDefault();
+        showBoard();
+        return;
+      }
+      if (action === 'dish') {
+        e.preventDefault();
+        const dishId = act.closest('[data-dish]')?.dataset.dish || act.dataset.dish;
+        const origin = act.matches('img') ? act : act.querySelector('img') || act;
+        openDetail(el, { dishId, origin });
+      }
+    });
+
+    if (state.view === 'category') paintCategory();
     return el;
   }
 
+  /* ---------- 键盘隔离：详情打开时 Esc / 方向键只作用于这一页 ---------- */
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!openDetails) {
+        // 分类视图里 Esc 只退回图鉴，不要合上书
+        if (e.key === 'Escape' && state.view === 'category') {
+          e.preventDefault();
+          e.stopPropagation();
+          showBoard();
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        const btn = document.querySelector('.atlas-detail [data-act="close-detail"]');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        btn.click();
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') e.stopPropagation();
+    },
+    true
+  );
+
   return {
     page,
-    pageCount,
-    spreadCount,
-    /** 数据变了（例如筛选后页数变化）时由书页栈调用 */
+    pageCount: () => 2,
+    spreadCount: () => 1,
     reset() {
-      pages.clear();
+      listCache.clear();
     },
+    /** 图鉴现在是固定的两页十六分类，不再有菜名搜索筛选 */
     get filterLabel() {
-      return filterLine();
+      return '十六分类';
+    },
+    /**
+     * 收起所有页内详情（立即，不做反向动画）：
+     * 离开图鉴章节、合书、翻页前由书页模块调用，避免局部状态悬挂在别处。
+     */
+    closeAll() {
+      closeAllDetails();
+    },
+    get expanded() {
+      return openDetails > 0;
+    },
+    /* 供验收 / 诊断 */
+    get state() {
+      return { ...state };
+    },
+    get carousels() {
+      return [...pages.values()].flatMap((p) => p.carousels);
     },
   };
 }
