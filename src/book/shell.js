@@ -95,6 +95,15 @@ export function createShell(root) {
   );
   const tools = h('div', { class: 'bk-tools' }, sealBtn, sealPanel);
 
+  /* ---------- 返回目录 ---------- */
+  // 目录是画册的第一跨页：回到目录 = 往回翻若干页（走和书签同一条 openChapter）
+  const catalogBtn = h(
+    'button',
+    { class: 'bk-catalog-btn', type: 'button', 'aria-label': '回到目录' },
+    h('span', { class: 'bk-catalog-btn__icon', 'aria-hidden': 'true' }, '☰'),
+    h('span', { class: 'bk-catalog-btn__label', text: '目录' })
+  );
+
   /* ---------- 合上画册 ---------- */
   const backBtn = h(
     'button',
@@ -124,6 +133,7 @@ export function createShell(root) {
     h('div', { class: 'bk-mountains', 'aria-hidden': 'true' }),
     camera,
     tools,
+    catalogBtn,
     backBtn
   );
 
@@ -147,6 +157,7 @@ export function createShell(root) {
     },
     sealBtn,
     sealPanel,
+    catalogBtn,
     backBtn,
     setActive(id) {
       markApi?.setActive(id);

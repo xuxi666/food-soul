@@ -1,0 +1,626 @@
+/* ============================================================
+ * 目录页（画册打开后的第一跨页）
+ * 左页 = 序言：品牌 / 简介 / 网站特色 / 欢迎语
+ * 右页 = 全书目录：三栏分组 + 编号 + 名称 + 一句话 + 细金线
+ *
+ * 版式约定与菜系 / 口味页一致：
+ *   · 纸面本身不滚动，内页按 100% 高度排满（不留大片空白）
+ *   · 字体用宋体系，颜色取深棕 + 淡金 + 朱红
+ *   · 所有边线都是 1px 淡金，不画卡片底、不画网格
+ * ============================================================ */
+
+.bk-pageface--catalog {
+  overflow: hidden;
+}
+
+/* 手机单页：序 + 目录并在一张纸上，纸面本身可以往下读 */
+.bk-pageface--catalog-flow {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.36) transparent;
+}
+
+/* 注意：.catalog 本身是 flex 行，并页版式必须用 .catalog.catalog--flow 提一级特异性 */
+.catalog.catalog--flow {
+  display: block;
+  height: auto;
+  min-height: 100%;
+}
+
+.catalog.catalog--flow .catalog__page {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex: none;
+  width: 100%;
+}
+
+.catalog.catalog--flow .catalog__preface {
+  min-height: 0;
+  padding-bottom: 6px;
+}
+
+/* 并页后两段之间用一条淡金细线隔开，像书里的「序」与「目录」两部分 */
+.catalog.catalog--flow .catalog__contents {
+  min-height: 0;
+  padding-top: 18px;
+  border-top: 1px solid rgba(184, 146, 92, 0.28);
+  margin-top: 4px;
+}
+
+.catalog.catalog--flow .catalog__feats {
+  justify-content: flex-start;
+}
+
+.catalog.catalog--flow .catalog__list {
+  justify-content: flex-start;
+}
+
+.catalog.catalog--flow .catalog__idx-head {
+  margin-top: 2px;
+}
+
+.bk-pageface--catalog .bk-pageface__inner {
+  padding: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+/* 设计变量挂在纸面与容器上：双页模式下 .catalog__page 会被搬进各自的纸面里，
+   外层 .catalog 并不在它的祖先链上，变量必须挂到纸面这一层才生效。 */
+.bk-pageface--catalog,
+.bk-pageface--catalog-flow,
+.bk-pageface--catalog--single,
+.catalog {
+  --ct-serif: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
+  --ct-ink: #3d2917;
+  --ct-ink-2: #5b4025;
+  --ct-muted: #8a6a44;
+  --ct-faint: #9b8062;
+  --ct-gold: rgba(184, 146, 92, 0.42);
+  --ct-gold-soft: rgba(184, 146, 92, 0.22);
+  --ct-red: #b5452f;
+}
+
+.catalog {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.catalog__page {
+  position: relative;
+  flex: 1 1 50%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  color: var(--ct-ink);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.36) transparent;
+}
+
+.catalog__page::-webkit-scrollbar {
+  width: 4px;
+}
+
+.catalog__page::-webkit-scrollbar-thumb {
+  background: rgba(196, 168, 120, 0.34);
+  border-radius: 2px;
+}
+
+/* ---------- 左页：序 ---------- */
+.catalog__preface {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 30px 34px 22px;
+}
+
+.catalog__kicker {
+  margin: 0;
+  font-size: 9.5px;
+  letter-spacing: 0.26em;
+  color: #a9793f;
+}
+
+.catalog__brand {
+  margin: 10px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--ct-serif);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.catalog__brand-cn {
+  font-size: 40px;
+  letter-spacing: 0.14em;
+  color: #33200f;
+}
+
+.catalog__brand-en {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.32em;
+  color: #a08258;
+}
+
+.catalog__slogan {
+  margin: 12px 0 0;
+  font-family: var(--ct-serif);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: #7c4a26;
+}
+
+.catalog__rule {
+  display: block;
+  height: 1px;
+  margin: 16px 0 0;
+  background: linear-gradient(90deg, rgba(197, 160, 104, 0.8), rgba(197, 160, 104, 0.06));
+}
+
+.catalog__intro {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 2;
+  letter-spacing: 0.02em;
+  color: #4a3626;
+  text-align: justify;
+}
+
+.catalog__sec {
+  margin: 20px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--ct-gold);
+}
+
+.catalog__sec-cn {
+  font-family: var(--ct-serif);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: #8a6a44;
+}
+
+.catalog__sec-en {
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  color: #b39a76;
+}
+
+.catalog__feats {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.catalog__feat {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--ct-gold-soft);
+}
+
+.catalog__feat:last-child {
+  border-bottom: 0;
+}
+
+.catalog__feat-no {
+  font-family: var(--ct-serif);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ct-red);
+  opacity: 0.72;
+}
+
+.catalog__feat-name {
+  font-family: var(--ct-serif);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: #3d2917;
+}
+
+.catalog__feat-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #7b6650;
+}
+
+.catalog__welcome {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ct-gold);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.catalog__welcome-text {
+  margin: 0;
+  font-family: var(--ct-serif);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: #8a6a44;
+}
+
+/* 朱红小印：三字竖排，做右下角的落款 */
+.catalog__seal {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 40px;
+  padding: 3px 0;
+  border: 1px solid rgba(181, 69, 47, 0.62);
+  border-radius: 3px;
+  background: rgba(181, 69, 47, 0.05);
+  color: var(--ct-red);
+  font-family: var(--ct-serif);
+  font-size: 10px;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+}
+
+.catalog__seal-char {
+  display: block;
+}
+
+/* ---------- 右页：目录 ---------- */
+.catalog__contents {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 26px 32px 20px 28px;
+}
+
+.catalog__idx-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ct-gold);
+}
+
+.catalog__idx-title {
+  margin: 7px 0 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.catalog__idx-cn {
+  font-family: var(--ct-serif);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #33200f;
+}
+
+.catalog__idx-meta {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--ct-faint);
+}
+
+.catalog__groups {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  min-height: 0;
+}
+
+.catalog__group {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.catalog__group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-weight: 400;
+}
+
+.catalog__group-cn {
+  font-family: var(--ct-serif);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: #8a6a44;
+  white-space: nowrap;
+}
+
+.catalog__group-rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--ct-gold-soft);
+}
+
+.catalog__group-en {
+  font-size: 7.5px;
+  letter-spacing: 0.26em;
+  color: #b39a76;
+  white-space: nowrap;
+}
+
+.catalog__list {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+}
+
+.catalog__item {
+  position: relative;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px 8px 9px;
+  border: 0;
+  border-bottom: 1px solid rgba(184, 146, 92, 0.16);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 180ms ease;
+}
+
+.catalog__list .catalog__item:last-child {
+  border-bottom: 0;
+}
+
+/* 选中：左侧一道该章书签色的细线，名称转朱红 */
+.catalog__item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 2px;
+  background: var(--entry-tint, #b5452f);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.catalog__item:hover,
+.catalog__item:focus-visible {
+  background: rgba(216, 178, 106, 0.1);
+  outline: none;
+}
+
+.catalog__item.is-on {
+  background: rgba(216, 178, 106, 0.08);
+}
+
+.catalog__item.is-on::before {
+  opacity: 0.9;
+}
+
+.catalog__item.is-on .catalog__name {
+  color: var(--entry-tint, #b5452f);
+}
+
+.catalog__no {
+  padding-top: 3px;
+  font-family: var(--ct-serif);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: #b09062;
+}
+
+.catalog__entry {
+  min-width: 0;
+}
+
+.catalog__entry-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.catalog__name {
+  flex: 0 0 auto;
+  font-family: var(--ct-serif);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: #33200f;
+  transition: color 180ms ease;
+}
+
+/* 书目录的引导点线 */
+.catalog__leader {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted rgba(150, 120, 84, 0.45);
+  transform: translateY(-3px);
+}
+
+.catalog__arrow {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: #b09062;
+  opacity: 0.6;
+}
+
+.catalog__desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: #7b6650;
+}
+
+.catalog__note {
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--ct-gold-soft);
+  font-size: 9.5px;
+  line-height: 1.7;
+  color: var(--ct-faint);
+}
+
+.catalog__note-mark {
+  margin-right: 5px;
+  color: #b09062;
+}
+
+/* ---------- 手机：单页模式 ---------
+ * 单页模式里一张纸就是一页，目录拆成「序」与「目录」两页；
+ * 两页各自排满纸面，字号与间距整体收一档。
+ */
+@media (max-width: 860px) {
+  .catalog__preface,
+  .catalog__contents {
+    padding: 22px 22px 18px;
+  }
+
+  .catalog__brand-cn {
+    font-size: 32px;
+  }
+
+  .catalog__slogan {
+    font-size: 12px;
+  }
+
+  .catalog__intro {
+    font-size: 12px;
+    line-height: 1.95;
+  }
+
+  .catalog__feat {
+    padding: 8px 0;
+  }
+
+  .catalog__feat-desc {
+    font-size: 10.5px;
+  }
+
+  .catalog__idx-cn {
+    font-size: 21px;
+  }
+
+  .catalog__name {
+    font-size: 14px;
+  }
+
+  .catalog__item {
+    padding: 7px 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .catalog__preface,
+  .catalog__contents {
+    padding: 18px 18px 16px;
+  }
+
+  .catalog__brand-cn {
+    font-size: 27px;
+    letter-spacing: 0.1em;
+  }
+
+  .catalog__brand-en {
+    letter-spacing: 0.22em;
+  }
+
+  .catalog__slogan {
+    font-size: 11px;
+    margin-top: 9px;
+  }
+
+  .catalog__intro {
+    font-size: 11.5px;
+    line-height: 1.9;
+    margin-top: 12px;
+  }
+
+  .catalog__sec {
+    margin-top: 14px;
+  }
+
+  .catalog__feat {
+    padding: 7px 0;
+  }
+
+  .catalog__feat-name {
+    font-size: 12px;
+  }
+
+  .catalog__feat-desc {
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .catalog__welcome {
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+
+  .catalog__welcome-text {
+    font-size: 10.5px;
+  }
+
+  .catalog__seal {
+    width: 30px;
+    height: 36px;
+    font-size: 9px;
+  }
+
+  .catalog__idx-cn {
+    font-size: 19px;
+  }
+
+  .catalog__idx-meta {
+    font-size: 9px;
+  }
+
+  .catalog__groups {
+    gap: 9px;
+    margin-top: 9px;
+  }
+
+  .catalog__item {
+    grid-template-columns: 24px 1fr;
+    gap: 8px;
+    padding: 6px 7px 6px 7px;
+  }
+
+  .catalog__name {
+    font-size: 13px;
+  }
+
+  .catalog__desc {
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .catalog__note {
+    font-size: 9px;
+    margin-top: 8px;
+    padding-top: 7px;
+  }
+}

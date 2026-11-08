@@ -11,10 +11,11 @@
  * 换页时只是把同一个节点搬到另一张纸上，模块状态（筛选、输入、滚动位置）不会丢。
  */
 import { h } from '../lib/dom.js';
-import { CHAPTERS, EXTRA, chapterById } from './chapters.js';
+import { CHAPTERS, EXTRA, chapterById, chapterOf } from './chapters.js';
 import { createAtlas } from './atlas.js';
 import { mountCategory } from './category.js';
 import { mountVideos } from './videos.js';
+import { mountCatalog } from './catalog.js';
 
 /** 把若干节点装进一张纸的纸面 */
 function wrapFace(bare, nodes, extraClass = '') {
@@ -65,7 +66,7 @@ const SPLITTERS = {
   },
 };
 
-export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
+export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapterNav }) {
   /** 章节 id → { left, right } 两张纸面 */
   const pages = new Map();
   let atlas = null;
@@ -92,6 +93,50 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
   const chapterParams = new Map();
   const defaultParamOf = (id) => (id === 'tastes' ? 'mala' : 'chuan');
 
+  /**
+   * 目录页的两张纸。
+   * 双页模式：左页序言、右页目录，各自排满、都不滚动。
+   * 单页模式（手机）：一本书一次只显示一张纸，而画册没有「下一页」按钮，
+   *   所以把「序 + 目录」并进同一张纸，让读者在一页里往下读就能看到全部条目。
+   */
+  function catalogEntryFor(inst) {
+    const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
+    if (single) {
+      const flow = h(
+        'div',
+        { class: 'catalog catalog--flow' },
+        inst.el.querySelector('.catalog__page--left'),
+        inst.el.querySelector('.catalog__page--right')
+      );
+      return {
+        left: wrapFace(true, [flow], 'bk-pageface--catalog bk-pageface--catalog-flow'),
+        right: wrapFace(true, [], 'bk-pageface--catalog'),
+        instance: inst,
+        single: true,
+      };
+    }
+    return {
+      left: wrapFace(true, [inst.el.querySelector('.catalog__page--left')], 'bk-pageface--catalog'),
+      right: wrapFace(true, [inst.el.querySelector('.catalog__page--right')], 'bk-pageface--catalog'),
+      instance: inst,
+      single: false,
+    };
+  }
+
+  /** 丢掉某一章已建好的纸（横竖屏切换时目录要按新宽度重排） */
+  function disposeChapter(id) {
+    const entry = pages.get(id);
+    if (!entry) return;
+    pages.delete(id);
+    try {
+      entry.instance?.destroy?.();
+    } catch {
+      /* 忽略 */
+    }
+    entry.left?.remove();
+    entry.right?.remove();
+  }
+
   async function ensureChapter(id) {
     const entry = pages.has(id) ? pages.get(id) : await buildChapter(id);
     if (!entry) return null;
@@ -106,6 +151,14 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
   async function buildChapter(id) {
     const def = chapterById(id) || EXTRA[id];
     if (!def) return null;
+
+    // 目录页：同样是「一章」，左右各贴一张纸；条目点击交给书册的 openChapter（与书签同一条路径）
+    if (id === 'catalog') {
+      const inst = mountCatalog(staging, { onPick: (chapterId) => onChapterNav?.(chapterId) });
+      const entry = catalogEntryFor(inst);
+      pages.set(id, entry);
+      return entry;
+    }
 
     if (id === 'cuisines' || id === 'tastes') {
       const kind = id === 'tastes' ? 'taste' : 'cuisine';
@@ -210,19 +263,11 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
   function spreadOfPath(path) {
     ensureAtlas();
     const list = spreads();
-    if (String(path).startsWith('/dishes/')) return -1; // 详情页另走「插入页」
-    if (String(path).startsWith('/admin')) return -1;
-    const id = (() => {
-      const p = String(path).split('?')[0];
-      if (p.startsWith('/cuisines/')) return 'cuisines';
-      if (p.startsWith('/tastes/')) return 'tastes';
-      if (p.startsWith('/dishes')) return 'dishes';
-      if (p === '/recipe') return 'recipe';
-      if (p === '/kitchen' || p === '/recommend') return 'kitchen';
-      if (p === '/community') return 'community';
-      if (p === '/videos') return 'videos';
-      return 'dishes';
-    })();
+    const p = String(path).split('?')[0];
+    if (p.startsWith('/dishes/')) return -1; // 详情页另走「插入页」
+    if (p.startsWith('/admin')) return -1;
+    // 路径 → 章节只有一份映射（chapters.js），这里不再重复写一张表
+    const id = chapterOf(p);
     const at = list.findIndex((s) => s.chapter === id);
     return at < 0 ? 0 : at;
   }
@@ -277,6 +322,9 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
     pageByNumber,
     innerPages,
     disposeInner,
+    disposeChapter,
+    /** 目录页是高亮 / 重排都要现取的一章 */
+    catalogEntry: () => pages.get('catalog') || null,
     get atlas() {
       return atlas;
     },
@@ -288,6 +336,10 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav }) {
     setChapterParam(chapterId, param) {
       if (!chapterId) return;
       chapterParams.set(chapterId, param || defaultParamOf(chapterId));
+    },
+    /** 目录页高亮当前章节（与书签同一份章节 id） */
+    setChapterActive(chapterId) {
+      pages.get('catalog')?.instance?.setActive?.(chapterId);
     },
   };
 }

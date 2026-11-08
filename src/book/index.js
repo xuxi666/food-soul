@@ -21,6 +21,7 @@ import './book.css';
 import './atlas.css';
 import './dish-page.css';
 import './category.css';
+import './catalog.css';
 import './videos.css';
 import { closeAllOverlays } from './overlay.js';
 
@@ -156,6 +157,8 @@ export function initBook({ root }) {
     // 图鉴卡片的三角书签：直接走全局章节导航（和右侧实体书签同一条路径），
     // 目标分类在翻页开始前就定好，落地即目标页，不再二次切换
     onCategoryNav: (kind, id) => openChapterAt(kind, id),
+    // 目录条目的点击：和侧边书签共用 openChapter（同一套翻页控制，同一份章节映射）
+    onChapterNav: (id) => void openChapter(id),
   });
   const sheets = createSheets(shell.content);
 
@@ -165,26 +168,10 @@ export function initBook({ root }) {
    * 这样读到这一章时，这张纸还在右侧（未翻），书签就在右边；
    * 继续往后翻，这张纸被翻到左边，书签自然跟着到左侧，符合实物画册。
    * 书签上不印页码，页码只作为定位数据存在。
+   *
+   * 书签的名字与色标、目录页的条目与名称，都来自 chapters.js 的同一份 CHAPTERS：
+   * 两边只认章节 id，不允许各写一套。
    */
-  const MARK_TINT = {
-    dishes: '#b5452f',
-    cuisines: '#9a7248',
-    tastes: '#c0854a',
-    recipe: '#b08e4e',
-    kitchen: '#6f7f5f',
-    community: '#7a5a40',
-    videos: '#6e8489',
-  };
-  const MARK_LABEL = {
-    dishes: '美食图鉴',
-    cuisines: '八大菜系',
-    tastes: '口味探索',
-    recipe: '菜谱工作台',
-    kitchen: '食材厨房',
-    community: '美食社区',
-    videos: '影像视频',
-  };
-
   // var：让 fit() 在书签创建之前调用 syncMarks() 时安全地拿到空值（function 作用域提升）
   var marksApi = null;
   const marks = createBookmarks({
@@ -192,8 +179,8 @@ export function initBook({ root }) {
       const spread = book.spreadOfChapter(ch.id);
       return {
         id: ch.id,
-        label: MARK_LABEL[ch.id] || ch.label,
-        tint: MARK_TINT[ch.id] || '#b5452f',
+        label: ch.label,
+        tint: ch.tint,
         spread,
         anchorPage: spread * 2 + 3,
       };
@@ -362,6 +349,10 @@ export function initBook({ root }) {
     currentKey = inner ? innerKind || 'dishDetail' : chapterId;
 
     shell.setActive(chapterId);
+    // 目录页里高亮的是同一份章节 id：读到哪一章，目录里那一行就是当前章
+    book.setChapterActive?.(chapterId);
+    // 已经在目录页时不再显示「回到目录」
+    shell.el.classList.toggle('is-on-catalog', chapterId === 'catalog');
     updateBackLabel();
 
     // 地址跟着书页走：翻到哪一章，地址就是那一章
@@ -569,6 +560,8 @@ export function initBook({ root }) {
     if (single === position.single) return;
     const page = position.single ? position.value : position.value * 2 + 2;
     position = single ? { single: true, value: page } : { single: false, value: Math.floor((page - 2) / 2) };
+    // 目录页在单页 / 双页下是两种排法（并页 / 分页），换模式时按新宽度重建一次
+    book.disposeChapter?.('catalog');
     await render();
   }
 
@@ -743,6 +736,12 @@ export function initBook({ root }) {
     void shut();
   });
 
+  /* 返回目录：和书签、目录条目走同一个 openChapter —— 一页一页翻回去，不重开书 */
+  shell.catalogBtn.addEventListener('click', () => {
+    if (mode !== 'open') return;
+    void openChapter('catalog');
+  });
+
   /* ---------------- 印章面板 ---------------- */
   let panelOpen = false;
   const setPanel = (next) => {
@@ -827,7 +826,7 @@ export function initBook({ root }) {
   /** 首开预热：书签、返回键、翻页键平时隐藏，第一次点封面时才在 760ms 那一刻上屏 */
   function warmOpenChrome() {
     if (mode !== 'closed' || busy || phase !== 'CLOSED_TILTED') return;
-    const els = [...shell.el.querySelectorAll('.bk-marks, .bk-back')];
+    const els = [...shell.el.querySelectorAll('.bk-marks, .bk-back, .bk-catalog-btn')];
     if (!els.length) return;
     shell.el.classList.add('is-open');
     for (const el of els) el.style.opacity = '0.01';
@@ -872,6 +871,9 @@ export function initBook({ root }) {
     },
     turn,
     inspect: () => sheets.inspect(),
+    /* 目录页：当前高亮的章节（验收用） */
+    setChapterActive: (id) => book.setChapterActive?.(id),
+    catalogItems: () => [...document.querySelectorAll('.catalog__item')].map((i) => ({ id: i.dataset.chapter, on: i.classList.contains('is-on') })),
     /* 书签当前绑在哪张纸、在哪一侧（诊断 / 验收用） */
     marks: () => (marksApi ? marksApi.state() : []),
     syncMarks,
