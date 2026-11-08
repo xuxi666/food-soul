@@ -1658,3 +1658,96 @@ appRoute(`/chat/cuisine/${id}`, button, accent)      ← 复用菜品详情页�
 - **失败态靠开发期开关验证**：本地数据不会真的失败，所以 `__catDebug.failNextMore()` 只在 DEV 里存在
   （生产构建里这段被摇掉，实测 bundle 里搜不到 `__catDebug`），用来证明失败提示与重试可用；
 - **历史渊源/人物典故/名菜传说**只是从菜系页撤掉，数据还在 `cuisineCulture.js`；`dishes.js` 里每道菜的 `history` 也没动。
+
+---
+
+## 30. 第 33 轮：菜系页中栏重排 + 图鉴外菜品发现
+
+### 30.1 改之前先核对了什么
+
+| 要核对的 | 结论（都是现场读出来的，不是猜的） |
+| --- | --- |
+| 菜系页组件结构 | `src/book/category.js` 的 `paintLeftCuisine` / `paintRightCuisine`（口味页是另外两个 `paint*Taste`） |
+| 左右页高度 | 纸面 `.catb__page` 615×818（1440×900），`.catb__scroll` 内高 818；随窗口变：1366×768→694、1280×800→724、1600×1000→912 |
+| 现有左页组件 | 标题区 / 主视觉 / 风味档案 / 美食文化 / 精选（第 32 轮版，未滚动时 818/818 但模块间 25px 间隙） |
+| 右页分页 | 第 32 轮是本地游标 `dishFeed.fetchDishBatch`（6→10→11），不是 HTTP 分页 |
+| 图鉴数据结构 | `src/data/dishes.js`：97 道，字段 `id/name/cuisine/tastes/image/intro/oneLiner/signature/ingredients/techniques/prep/cook/difficulty/personality` |
+| 现有搜索接口 | 服务端 `POST /api/dishes/search` → `server/dish-search.mjs#searchDishes()`：GLM 联网 → `web_search` 验证菜名 → 真实图片检索 + 哈希去重 → 落盘 `data/generated-dishes.json` + `public/dishes/generated/`；`GET /api/dishes?kind=&id=` 读已落盘的这批；`GET /api/dishes/:id` 单道（`findDish` 同时查图鉴与 AI 库） |
+| AI/检索配置 | `server/config.mjs`：`SEARCH_API_KEY`（zhipu web search）+ 站点 AI；游客走内置 AI（`resolveAIForConfig`），密钥只在服务端 |
+| 图片资源 | 图鉴 `public/dishes/*.jpg`；AI 菜 `public/dishes/generated/ai-<hash>.jpg`（服务端检索后落盘） |
+| 详情路由 | 页内 `openDishOverlay()`（四边扩散），`DISH_BY_ID` 查不到时回退 `api.dish(id)` → 所以 AI 菜不用造假 id 也能进详情 |
+
+### 30.2 左页：四段紧凑专题（不再靠拉大间距填满）
+
+- 顶部（26+61px）：八大菜系导航 + `CUISINE · 菜系` / `川菜 CUISINE` / 一句特色；
+- 中部（395px，左右 48:52）：左边代表菜大图（287×395，竖构图，图内压角「代表菜」+ 底部渐变压菜名与一句话），
+  右边国籍式信息栏：简介（4 行截断）→ 风味档案四行（发源地 / 代表食材 / 主要技法 / 典型风味，行间点线，行高随栏高等分撑满）
+  → `风味关键词` + 标签 → AI 入口（整栏条状，朱红图标与描边）；
+- 下部（141px）：美食文化三栏横带 —— `01 地域风土 / 02 饮食文化 / 03 烹饪特色`，细金线分栏，共用一条上下金线，
+  底部再接一行既有引文（`cultureOf(id).culture.quote`，如「尚滋味，好辛香」—《华阳国志·蜀志》）；
+- 底部（141px）：三道代表菜精选，图片统一 96px 高，菜名 + 一行特征。
+
+数据来源全部是既有字段：`terrain`（地域）/ `CULTURE_EXTRA.festive`（饮食文化，第 32 轮补的 8 条）/ `habit`（烹饪特色）。
+没有新增人物、年代、典故；「历史渊源 / 人物典故 / 名菜传说」仍是删除状态（`cultureOf` 里的 `history/figures/legends` 一条没删）。
+
+模块间距：实测 `10,10,10,10`（上一轮 `space-between` 撑出 25px/个），高度分配 87/395/141/141，底边距 12px。
+
+### 30.3 右页：两段式「加载更多」
+
+```
+点「加载更多」
+  ├─ 图鉴还有没展示的？ → 取下一批（4 道，本地游标，立即）
+  │    标签：正在加载图鉴菜品……   辅助：图鉴还有 N 道未展示
+  └─ 图鉴已全部展示 → 图鉴外发现
+       ├─ 先读 GET /api/dishes?kind=cuisine&id=xxx（已落盘的 AI 菜，免费）
+       │    有 → 追加 3 道，标「新发现」
+       └─ 没有 → POST /api/dishes/search {kind,id,excludeIds:[已展示 id + 规范化菜名],limit:3}
+            服务端：联网检索 → 逐道 web_search 验证 → 取真实图（哈希去重）→ 落盘 → 回传
+            标签：正在发现更多相关菜品……  辅助：联网检索并校验菜名、菜系与图片，通常需要 30–60 秒
+            空结果：如实回「本轮没有找到可用的新菜品…」+ 跳过原因，界面显示在按钮下方
+```
+
+状态机：`正常「加载更多」/ 图鉴加载中 / 发现中 / 失败「重新加载」+「联网检索失败，请稍后再试」/ 连续两轮无结果「再试一次」+「暂时没有发现更多相关菜品」`。
+连续两轮空结果才判定「暂时没有更多」（`DRY_ROUNDS_DONE = 2`），避免一次网络抖动就把入口关死。
+
+去重三重：真实 `id`（图鉴 id / `ai-xxxx`）、规范化菜名（去括注标点）、图片 URL。实测 14 张全无重复；
+切到粤菜再切回川菜，按分类缓存恢复 14 张（含 3 张新发现），滚动位置回 0。
+
+卡片：两列，图片 16:9、名称、一句话、菜系、两个味型 + 时长 + 难度；右上角轻量来源角标 `已收录 / 新发现`（`data-source` 区分，
+口味页不加角标，保持原版式）。点新发现卡片 → 同一个 `openDishOverlay`，`/api/dishes/:id` 取到真实 AI 记录，标题栏写
+「川菜 · 辣子鸡丁」，关闭后右页滚动位与清单不变（实测 scroll 120 保持）。
+
+### 30.4 数据流与安全
+
+- 浏览器只调 `/api/dishes`、`/api/dishes/search`、`/api/dishes/:id`；检索与图片抓取全在服务端，`SEARCH_API_KEY`、模型 key 不出后端；
+- 图鉴外菜品写入的是**既有的 AI 候选库**（`data/generated-dishes.json` + `public/dishes/generated/`，字段带 `aiGenerated/source.type='ai-search'/verificationSources`），
+  不写 `src/data/dishes.js` 这份人工图鉴；界面上以「新发现」区分，用户点开可见来源说明；
+- 不伪造 id：新发现卡片用的是服务端落盘的真实 id。
+
+### 30.5 验收
+
+| 套件 | 结果 |
+| --- | --- |
+| `.tmp/verify-cat33.mjs`（本轮新增，替代 cat32） | 60/60 |
+| `.tmp/verify-cat.mjs`（改：48% 主图、四行档案、文化横带、右页计数） | 55/55 |
+| `.tmp/verify-atlas-nav.mjs` | 82/82 |
+| `.tmp/verify-atlas.mjs` | 37/37 |
+| `.tmp/accept-turn.mjs` | 10/10 |
+| `.tmp/verify-sides.mjs` | 24/24 |
+| `.tmp/verify-kitchen.mjs` | 64/64 |
+| `.tmp/verify-admin-book.mjs` | 25/25 |
+
+控制台错误 0 条。截图（`.tmp/atlas/33-*.png`）：`left-full` / `spread` / `visual` / `band` / `picks` /
+`right-initial` / `right-10` / `right-bottom` / `right-discovered` / `card-new`（新发现角标特写）/ `06-discovered-detail` /
+`08-error` / `09-no-more` / `07-switch-yue` / `10-laptop` / `11-phone` / `12-chat`。
+
+### 30.6 取舍与遗留
+
+- **左页比例不是写死的百分比**：主视觉 `flex: 1 1 auto; min 258px; max 460px` 吃富余高度，其余四段按内容定高。
+  实测 1440→395、1366→279、1280→309、1600→460，四种窗口都 `scrollHeight === clientHeight`；
+- **文化三栏填充靠引文**：三栏正文本身只有 2–3 行，把既有 `quote` 放在横带底部一行，既补高度也不编内容；
+- **联网发现可能返回空**：本地实测两次真实调用都回「本轮没有找到可用的新菜品」（候选被 `web_search` 验证或图片去重挡掉），
+  界面如实显示这条说明而不是塞假菜；能稳定复现「有新菜」的是服务端已经落盘的那 3 道（辣子鸡丁 / 水煮牛肉 / 宫保虾球）；
+- **失败/到底态靠 DEV 开关**：`__catDebug.use('cuisine:chuan').failNextMore() / dryFeed()`，生产构建里没有这段
+  （同纸面会挂镜像实例，所以按分类登记，测试先 `use()` 选中可见的那个）；
+- **手机上左页仍要页内滚动**（278×523 放不下六块），单页模式不做假一屏。

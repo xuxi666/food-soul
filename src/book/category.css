@@ -1357,3 +1357,420 @@
   gap: 6px;
   justify-content: space-between;
 }
+
+/* ============================================================
+ * 第 33 轮：紧凑专题左页 + 右页图鉴外发现
+ *   左页四段：标题 / 主视觉 48:52 / 美食文化三栏 / 代表菜精选
+ *   富余高度全部给主视觉（flex: 1，上限 400px），不再摊成模块间的大空白
+ * ============================================================ */
+
+/* ---------- 左页：整体节奏 ---------- */
+.catb__stack--fit {
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.catb__stack--fit .catb__index {
+  padding-bottom: 5px;
+}
+
+.catb__stack--fit .catb__index-kicker {
+  font-size: 8px;
+}
+
+.catb__stack--fit .catb__chip {
+  padding: 2px 7px;
+  font-size: 10px;
+}
+
+.catb__stack--fit .catb__head {
+  padding: 0;
+}
+
+.catb__stack--fit .catb__kicker {
+  font-size: 8.5px;
+}
+
+.catb__stack--fit .catb__title {
+  margin-top: 2px;
+  font-size: 27px;
+}
+
+.catb__stack--fit .catb__en {
+  margin-left: 8px;
+  font-size: 9px;
+}
+
+.catb__stack--fit .catb__tagline {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+/* ---------- 左页：主视觉（左图 48%）+ 风味档案（右 52%） ---------- */
+.catb__visual--split {
+  flex: 1 1 auto;
+  min-height: 258px;
+  max-height: 460px;
+  grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+  gap: 12px;
+}
+
+.catb__hero--split {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.catb__hero--split .catb__hero-cap--over {
+  padding: 34px 13px 10px;
+}
+
+.catb__hero--split .catb__hero-cap b {
+  font-size: 15px;
+}
+
+.catb__hero--split .catb__hero-cap span {
+  font-size: 9.5px;
+  -webkit-line-clamp: 2;
+  line-height: 1.45;
+}
+
+.catb__panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.catb__panel-desc {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 10.5px;
+  line-height: 1.66;
+  color: #4d3823;
+}
+
+.catb__panel-facts {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--catb-gold-soft);
+}
+
+.catb__panel-row {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px dotted var(--catb-gold-soft);
+}
+
+.catb__panel-row dt {
+  flex: 0 0 46px;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  color: #a9885c;
+}
+
+.catb__panel-row dd {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--catb-ink);
+  text-align: right;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.catb__tags--panel {
+  gap: 4px;
+}
+
+.catb__tags--panel .catb__tag {
+  padding: 1px 6px;
+  font-size: 9px;
+}
+
+.catb__panel .catb__ai {
+  gap: 8px;
+  padding: 6px 10px 6px 8px;
+}
+
+.catb__panel .catb__ai-t {
+  font-size: 12px;
+}
+
+.catb__panel .catb__ai-sub {
+  font-size: 8px;
+}
+
+/* ---------- 左页：美食文化三栏（一条横带，不拆卡片） ---------- */
+.catb__culture-band {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 0 0 auto;
+  padding: 9px 0 8px;
+  border-top: 1px solid var(--catb-gold-soft);
+  border-bottom: 1px solid var(--catb-gold-soft);
+}
+
+.catb__cell {
+  min-width: 0;
+  min-height: 92px;
+  padding: 0 11px;
+  border-left: 1px solid var(--catb-gold-soft);
+}
+
+.catb__cell:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.catb__cell:last-child {
+  padding-right: 0;
+}
+
+.catb__cell-k {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0 0 4px;
+}
+
+.catb__cell-n {
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: rgba(169, 121, 63, 0.62);
+}
+
+.catb__cell-k span {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #7c3f22;
+}
+
+.catb__cell-b {
+  margin: 0;
+  font-size: 10.2px;
+  line-height: 1.72;
+  color: #4d3823;
+  text-align: justify;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+/* ---------- 左页：底部精选（收尾，不占大高度） ---------- */
+.catb__stack--fit .catb__picks {
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.catb__stack--fit .catb__picks-kicker {
+  font-size: 8px;
+}
+
+.catb__stack--fit .catb__pick-row {
+  gap: 8px;
+}
+
+.catb__stack--fit .catb__pick-media img {
+  height: 96px;
+}
+
+.catb__stack--fit .catb__pick-name {
+  font-size: 10.5px;
+}
+
+.catb__stack--fit .catb__pick-sig {
+  font-size: 8px;
+  -webkit-line-clamp: 1;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- 右页：来源标识 ---------- */
+.catb__card-src {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(253, 248, 238, 0.85);
+  font-size: 7.5px;
+  letter-spacing: 0.1em;
+  color: #8a5a2c;
+  pointer-events: none;
+}
+
+.catb__card-media {
+  position: relative;
+}
+
+.catb__card.is-discovered .catb__card-src {
+  background: rgba(176, 58, 46, 0.86);
+  color: #fff4e2;
+}
+
+.catb__card.is-discovered .catb__card-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(176, 58, 46, 0.16);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ---------- 右页：加载更多的错误 / 重试态 ---------- */
+.catb__more.is-error .catb__more-btn {
+  border-color: rgba(176, 58, 46, 0.4);
+  color: #9c3b23;
+}
+
+.catb__more.is-error .catb__more-status {
+  color: #9c3b23;
+}
+
+/* ---------- 窄屏 / 矮屏 ---------- */
+@media (max-width: 900px) {
+  .catb__visual--split {
+    grid-template-columns: 1fr;
+    max-height: none;
+    min-height: 0;
+  }
+
+  .catb__hero--split {
+    height: 190px;
+  }
+
+  .catb__culture-band {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .catb__cell {
+    padding: 7px 0;
+    border-left: 0;
+    border-top: 1px solid var(--catb-gold-soft);
+  }
+
+  .catb__cell:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .catb__cell:last-child {
+    padding-bottom: 0;
+  }
+}
+
+@media (max-height: 740px) {
+  .catb__stack--fit .catb__title {
+    font-size: 23px;
+  }
+
+  .catb__stack--fit .catb__head {
+    padding-bottom: 0;
+  }
+
+  .catb__cell {
+    min-height: 0;
+  }
+
+  .catb__cell-b {
+    -webkit-line-clamp: 3;
+  }
+
+  .catb__band-quote {
+    margin-top: 5px;
+    padding-top: 5px;
+  }
+
+  .catb__visual--split {
+    min-height: 220px;
+  }
+
+  .catb__visual--split {
+    min-height: 232px;
+  }
+
+  .catb__cell-b {
+    -webkit-line-clamp: 4;
+  }
+
+  .catb__stack--fit .catb__pick-media img {
+    height: 62px;
+  }
+}
+
+/* 文化横带底部引文：借用 cuisineCulture 里既有的 quote 字段 */
+.catb__band-quote {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px dotted var(--catb-gold-soft);
+}
+
+.catb__band-q {
+  font-family: var(--catb-serif);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #7c3f22;
+}
+
+.catb__band-from {
+  font-size: 8.5px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  color: #a9885c;
+}
+
+.catb__tagbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.catb__tagbox-k {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  color: #a9885c;
+}
+
+.catb__tagbox .catb__tags {
+  flex-wrap: wrap;
+}
+
+/* 「加载更多」：留一条细金线把它和目录分开，按钮再收窄些，不做成电商大按钮 */
+.catb__more {
+  border-top: 1px solid var(--catb-gold-soft);
+  margin-top: 4px;
+}
+
+.catb__more-btn {
+  max-width: 190px;
+}
