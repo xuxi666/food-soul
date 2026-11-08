@@ -82,6 +82,8 @@ export const TASTES = [
     en: 'Numbing & Fiery',
     desc: '花椒的麻与辣椒的辣同时抵达，热油激出的香气托底。',
     color: '#d1462f',
+    notes: ['麻', '辣', '香', '烫'],
+    crafts: ['炒', '煮', '汆'],
   },
   {
     id: 'xiangla',
@@ -89,6 +91,8 @@ export const TASTES = [
     en: 'Aromatic Heat',
     desc: '辣得有香气、有层次，辣椒与油脂、发酵调味互相成全。',
     color: '#c0392b',
+    notes: ['辣', '香', '干', '鲜'],
+    crafts: ['炒', '煸', '爆'],
   },
   {
     id: 'suanla',
@@ -96,6 +100,8 @@ export const TASTES = [
     en: 'Sour & Hot',
     desc: '酸先行、辣随后，一口把胃口打开，收口干净。',
     color: '#d98324',
+    notes: ['酸', '辣', '鲜', '爽'],
+    crafts: ['煮', '汆', '拌'],
   },
   {
     id: 'qingxian',
@@ -103,6 +109,8 @@ export const TASTES = [
     en: 'Pure & Fresh',
     desc: '几乎不用重调味，靠食材鲜度、火候与一口清汤说话。',
     color: '#6f9a86',
+    notes: ['清', '鲜', '甜', '嫩'],
+    crafts: ['蒸', '灼', '汆'],
   },
   {
     id: 'xianxian',
@@ -110,6 +118,8 @@ export const TASTES = [
     en: 'Savory Depth',
     desc: '盐与鲜的骨架，高汤、酱油、葱油把味道垫得厚实。',
     color: '#a8813f',
+    notes: ['咸', '鲜', '醇', '厚'],
+    crafts: ['炖', '煨', '烧'],
   },
   {
     id: 'xiantian',
@@ -117,6 +127,8 @@ export const TASTES = [
     en: 'Sweet & Mellow',
     desc: '甜不压鲜，酸不抢戏，糖醋之间是温柔的回甘。',
     color: '#c98a6b',
+    notes: ['甜', '鲜', '润', '柔'],
+    crafts: ['炸', '熘', '蒸'],
   },
   {
     id: 'jiangxiang',
@@ -124,6 +136,8 @@ export const TASTES = [
     en: 'Deep Soy Aroma',
     desc: '豆瓣、黄豆酱、甜面酱在锅里炒出酱香，颜色与味道一起沉下去。',
     color: '#7d4f34',
+    notes: ['酱', '香', '咸', '醇'],
+    crafts: ['炒', '烧', '焖'],
   },
   {
     id: 'chunhou',
@@ -131,6 +145,8 @@ export const TASTES = [
     en: 'Rich & Lingering',
     desc: '长时间煨炖出的胶质与脂香，入口厚，回味长。',
     color: '#8a5a3b',
+    notes: ['醇', '厚', '香', '浓'],
+    crafts: ['炖', '煨', '煲'],
   },
 ];
 

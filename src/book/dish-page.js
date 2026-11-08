@@ -265,7 +265,11 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
         'div',
         { class: 'dm-links' },
         h('a', { class: 'dm-link', href: `/videos?q=${encodeURIComponent(dish.name)}`, 'data-link': '' }, '做菜视频'),
-        h('a', { class: 'dm-link', href: `/cuisines/${dish.cuisine}`, 'data-link': '' }, `更多${cuisine?.name || ''}菜`)
+        dish.cuisine
+          ? h('a', { class: 'dm-link', href: `/cuisines/${dish.cuisine}`, 'data-link': '' }, `更多${cuisine?.name || ''}菜`)
+          : tastes[0]
+            ? h('a', { class: 'dm-link', href: `/tastes/${tastes[0].id}`, 'data-link': '' }, `更多${tastes[0].name}菜`)
+            : null
       )
     )
   );

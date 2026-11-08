@@ -10,7 +10,7 @@
  */
 import { h } from '../lib/dom.js';
 import { DISH_BY_ID } from '../data/dishes.js';
-import { CUISINE_BY_ID } from '../data/cuisines.js';
+import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { api } from '../lib/api.js';
 import { guardImage } from '../lib/placeholder.js';
 import { mountComments } from '../components/comments.js';
@@ -91,7 +91,8 @@ export function openDishOverlay(hostEl, opts = {}) {
   let alive = true;
 
   const paintDoc = (dish) => {
-    crumb.textContent = `${CUISINE_BY_ID[dish.cuisine]?.name || ''} · ${dish.name}`;
+    const place = CUISINE_BY_ID[dish.cuisine]?.name || TASTE_BY_ID[(dish.tastes || [])[0]]?.name || '中华料理';
+    crumb.textContent = `${place} · ${dish.name}`;
     overlay.dataset.dish = dish.id;
     const img = photo.querySelector('img');
     if (img) {

@@ -1,19 +1,17 @@
 /**
- * 菜系 / 口味章节：双页杂志式分类页
+ * 菜系 / 口味章节：双页杂志式分类页（两种分类共用同一套版式）
  * ------------------------------------------------------------
- * 菜系页（kind === 'cuisine'）—— 第 32 轮定稿
- *   左页 = 一屏读完的菜系专题（不滚动就看完）：
- *          菜系导航 → 名称/简介 → 代表菜图 + 风味标签 + AI 入口 →
- *          风味档案（4 项）→ 美食文化（精简版）→ 代表菜精选
- *   右页 = 菜品图鉴：无页码、无翻页键，独立纵向滚动，
- *          列表底部一枚「加载更多」，点一次追加一批，到底显示「已到底」
+ * 菜系页（kind === 'cuisine'）与口味页（kind === 'taste'）走同一个框架，
+ * 差别只在「左页取哪些字段、下部横带写什么」：
  *
- *   上一轮左页里的「历史渊源」「人物典故」「名菜传说」三块独立模块已按要求撤掉；
- *   数据没有删（src/data/cuisineCulture.js 仍保留 history / figures / legends）。
+ *   左页 = 一屏读完的专题（不滚动就看完）：
+ *          分类索引 → 名称/英文/简介 → 代表菜图 + 档案 + AI 入口 →
+ *          三栏横带（菜系=地缘文化 / 口味=味型关系）→ 代表菜精选
+ *   右页 = 菜品目录：无页码、无翻页键，独立纵向滚动，
+ *          卡片两列网格 + 来源标识（图鉴收录 / 新发现），
+ *          列表底部一枚「加载更多」：先补图鉴剩余，再联网发现新菜
  *
- * 口味页（kind === 'taste'）
- *   保持原版式（大主图 + 四行档案 + 精选 / 翻页目录），本轮不动。
- *
+ * 数据层见 src/data/dishFeed.js（按分类各存一份已加载状态）。
  * 两张纸各自独立滚动；点菜只在这一页里四边扩散成详情（book/overlay.js），
  * 不换章节、不翻书、不动另一页。
  */
@@ -41,7 +39,7 @@ const logCat = (...args) => {
 import { openDishOverlay, closeAllOverlays } from './overlay.js';
 import { appRoute } from './dish-page.js';
 
-const PER_PAGE = 6; // 口味页每页 6 道；菜系页首屏也是 6 道（正好三行两列）
+const PER_PAGE = 6; // 右页首屏 6 道（正好三行两列），菜系 / 口味一致
 const PICKS = 3;
 // 图鉴批次 / 发现批次由 data/dishFeed.js 统一定义（ATLAS_BATCH / DISCOVER_BATCH）
 /** 仅开发环境：让下一次「加载更多」失败，用来验证失败态（生产构建里永远是 false） */
@@ -67,16 +65,6 @@ function topTokens(list, pick, limit) {
     .sort((a, b) => b[1] - a[1])
     .map(([t]) => t)
     .slice(0, limit);
-}
-
-function flavorTags(kind, id, list) {
-  const tags = topTokens(list, (d) => [d.signature], 6);
-  if (kind === 'taste') {
-    const name = TASTE_BY_ID[id]?.name;
-    const extra = topTokens(list, (d) => d.tastes.map((t) => TASTE_BY_ID[t]?.name || t), 4);
-    return [...new Set([name, ...tags, ...extra].filter(Boolean))].slice(0, 7);
-  }
-  return tags;
 }
 
 const minutes = (d) => (d.prep || 0) + (d.cook || 0);
@@ -113,7 +101,6 @@ export function mountCategory(el, kind, id) {
   const state = {
     kind,
     id,
-    page: 0, // 口味页页码
     loading: false,
     phase: '', // 'atlas' | 'discover'
     notice: '',
@@ -198,19 +185,98 @@ export function mountCategory(el, kind, id) {
     );
   }
 
-  /* ================= 左页 A：紧凑的菜系专题（一屏读完） ================= */
+/* ================= 左页：紧凑专题页（菜系 / 口味共用一套结构） =================
+   * 两种分类走同一套版式，区别只在「取哪些字段」：
+   *   菜系 → 发源地 / 代表食材 / 主要技法 / 典型风味
+   *   口味 → 核心特征 / 主要味觉元素 / 常见食材 / 代表技法
+   * 下部横带同理：菜系用地缘文化，口味用味型关系 —— 都从现有菜品数据派生，不写死文案。
+   */
 
-  function paintLeftCuisine() {
+  /** 口味页用：风味字（麻 / 辣 / 香 / 鲜…），从菜品的 signature 单字里按出现频次统计 */
+  function flavorChars(list, limit = 4) {
+    const map = new Map();
+    for (const d of list) {
+      for (const token of String(d.signature || '').split(/[、·,，/|]+/)) {
+        const t = token.trim();
+        if (t.length !== 1) continue;
+        map.set(t, (map.get(t) || 0) + 1);
+      }
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([t]) => t)
+      .slice(0, limit);
+  }
+
+  /** 口味页用：主要烹饪动词（把「炒豆瓣出红油」这类长句归并成「炒 / 焖 / 烧」） */
+  function craftVerbs(list, limit = 3) {
+    const verbs = ['炒', '蒸', '炖', '烧', '煮', '焖', '拌', '炸', '烤', '卤', '煎', '烩', '煲', '汆', '爆', '煸', '焗', '熏', '熬', '腌'];
+    const map = new Map();
+    for (const d of list) {
+      for (const raw of d.techniques || []) {
+        const text = String(raw);
+        for (const v of verbs) {
+          const n = text.split(v).length - 1;
+          if (n) map.set(v, (map.get(v) || 0) + n);
+        }
+      }
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([v]) => v)
+      .slice(0, limit);
+  }
+
+  /** 口味页用：这个味型和哪些味型最常出现在同一道菜里（数据来自菜品自己的 tastes 数组） */
+  function coTastes(id, limit = 2) {
+    const map = new Map();
+    for (const d of DISHES) {
+      const ts = d.tastes || [];
+      if (!ts.includes(id)) continue;
+      for (const t of ts) {
+        if (!t || t === id) continue;
+        map.set(t, (map.get(t) || 0) + 1);
+      }
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([t, n]) => `${TASTE_BY_ID[t]?.name || t}（${n} 道）`);
+  }
+
+  function paintLeft() {
     const m = meta();
-    const culture = cultureOf(state.id);
-    const extra = cultureExtraOf(state.id);
     if (!m) return;
+    const taste = isTaste();
     const list = dishes();
     const lead = list[0];
+    const culture = taste ? null : cultureOf(state.id);
+    const extra = taste ? null : cultureExtraOf(state.id);
+
     const ingredients = topTokens(list, (d) => d.ingredients, 4);
     const crafts = topTokens(list, (d) => d.techniques, 3);
     const tastes = topTokens(list, (d) => (d.tastes || []).map((t) => TASTE_BY_ID[t]?.name || t), 3);
-    const tags = [...new Set([...(extra?.tags || []), ...tastes].filter(Boolean))].slice(0, 4);
+    const cuisines = topTokens(list, (d) => [CUISINE_BY_ID[d.cuisine]?.name], 3);
+    const feelings = topTokens(list, (d) => [d.signature], 4);
+    const notes = taste ? m.notes || flavorChars(list, 4) : [];
+    const verbs = taste ? m.crafts || craftVerbs(list, 3) : [];
+    const co = taste ? coTastes(state.id, 2) : [];
+    const coShort = co.map((c) => c.replace(/（.*$/, ''));
+    const avgMin = list.length ? Math.round(list.reduce((sum, d) => sum + minutes(d), 0) / list.length) : 0;
+
+    const tags = (taste ? [m.name, ...notes.slice(0, 3)] : [...(extra?.tags || []), ...tastes])
+      .filter(Boolean)
+      .filter((t, i, arr) => arr.indexOf(t) === i)
+      .slice(0, 4);
+
+    const headLine = notes.length ? `${notes.slice(0, 3).join('、')}为主，${coShort.length ? `常与${coShort.join('、')}同菜` : '口味独立成系'}` : '';
+
+    /* 难度分布：口味页横带用「多为家常 / 多为讲究」代替笼统描述 */
+    const diffTally = list.reduce((acc, d) => {
+      acc[d.difficulty] = (acc[d.difficulty] || 0) + 1;
+      return acc;
+    }, {});
+    const diffMajor = Object.entries(diffTally).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
     /* ② 中部：代表菜主视觉（左 48%）+ 风味档案 / 简介 / AI 入口（右 52%） */
     const hero = lead
@@ -232,15 +298,24 @@ export function mountCategory(el, kind, id) {
         )
       : null;
 
+    const rows = taste
+      ? [
+          ['核心特征', headLine || m.desc || '—'],
+          ['主要味觉元素', notes.join(' · ') || feelings.join(' · ') || m.name],
+          ['常见食材', ingredients.join(' · ') || '—'],
+          ['代表技法', verbs.join(' · ') || '—'],
+        ]
+      : [
+          ['发源地', m.region || '—'],
+          ['代表食材', ingredients.join(' · ') || '—'],
+          ['主要技法', crafts.join(' · ') || '—'],
+          ['典型风味', tastes.join(' · ') || m.tagline || '—'],
+        ];
+
     const facts = h(
       'dl',
       { class: 'catb__panel-facts' },
-      ...[
-        ['发源地', m.region || '—'],
-        ['代表食材', ingredients.join(' · ') || '—'],
-        ['主要技法', crafts.join(' · ') || '—'],
-        ['典型风味', tastes.join(' · ') || m.tagline || '—'],
-      ].map(([k, v]) => h('div', { class: 'catb__panel-row' }, h('dt', { text: k }), h('dd', { text: v || '—' })))
+      ...rows.map(([k, v]) => h('div', { class: 'catb__panel-row' }, h('dt', { text: k }), h('dd', { text: v || '—' })))
     );
 
     const ai = h(
@@ -254,7 +329,8 @@ export function mountCategory(el, kind, id) {
         onclick: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          void appRoute(`/chat/cuisine/${state.id}`, e.currentTarget, m.accent || '#b03a2e');
+          const accent = taste ? m.color || '#b0794a' : m.accent || '#b03a2e';
+          void appRoute(`/chat/${taste ? 'taste' : 'cuisine'}/${state.id}`, e.currentTarget, accent);
         },
       },
       h('span', { class: 'catb__ai-ico', 'aria-hidden': 'true' }, h('i', {}), h('i', {})),
@@ -262,7 +338,7 @@ export function mountCategory(el, kind, id) {
         'span',
         { class: 'catb__ai-copy' },
         h('b', { class: 'catb__ai-t', text: `和${m.name}聊天` }),
-        h('span', { class: 'catb__ai-sub', text: '由该菜系的 AI 人格应答' })
+        h('span', { class: 'catb__ai-sub', text: taste ? '由该味型的 AI 人格应答' : '由该菜系的 AI 人格应答' })
       )
     );
 
@@ -284,12 +360,20 @@ export function mountCategory(el, kind, id) {
 
     const visual = h('div', { class: 'catb__visual catb__visual--split' }, hero, panel);
 
-    /* ③ 下部：美食文化三栏（共享一个横带，不拆成大卡片） */
-    const cells = [
-      ['地域风土', culture?.terrain],
-      ['饮食文化', extra?.festive],
-      ['烹饪特色', culture?.habit],
-    ].filter(([, text]) => !!text);
+    /* ③ 下部：三栏横带（菜系 = 地缘文化，口味 = 味型关系） */
+    const cells = (
+      taste
+        ? [
+            ['常见地域', cuisines.join(' · ') || '各地都有'],
+            ['味型关系', co.length ? `常与「${co.join('」「')}」同现` : '独立成味，较少与其它味型同菜出现'],
+            ['用时与难度', `${avgMin ? `平均 ${avgMin} 分钟` : '时间不等'}${diffMajor ? ` · 难度：${DIFFICULTY_LABEL[diffMajor] || diffMajor}` : ''}`],
+          ]
+        : [
+            ['地域风土', culture?.terrain],
+            ['饮食文化', extra?.festive],
+            ['烹饪特色', culture?.habit],
+          ]
+    ).filter(([, text]) => !!text);
 
     const band = h(
       'section',
@@ -309,7 +393,7 @@ export function mountCategory(el, kind, id) {
       )
     );
 
-    const story = culture?.culture || null;
+    const story = taste ? null : culture?.culture;
     if (story?.quote?.text) {
       band.append(
         h(
@@ -334,74 +418,7 @@ export function mountCategory(el, kind, id) {
     clear(leftScroll);
     leftScroll.append(stack);
     leftScroll.scrollTop = 0;
-  }/* ================= 左页 B：口味页（保持原样） ================= */
-
-  function paintLeftTaste() {
-    const m = meta();
-    if (!m) return;
-    const list = dishes();
-    const lead = list[0];
-    const tags = flavorTags(state.kind, state.id, list);
-    const ingredients = topTokens(list, (d) => d.ingredients, 4);
-    const crafts = topTokens(list, (d) => d.techniques, 4);
-    const cuisines = topTokens(list, (d) => [CUISINE_BY_ID[d.cuisine]?.name], 3);
-
-    const rows = [
-      ['味觉', m.desc],
-      ['常见于', cuisines.join(' · ') || '—'],
-      ['代表食材', ingredients.join(' · ') || '—'],
-      ['主要技法', crafts.join(' · ') || '—'],
-    ];
-
-    const head = h(
-      'header',
-      { class: 'catb__head' },
-      h('p', { class: 'catb__kicker', text: 'FLAVOR · 口味探索' }),
-      h('h1', { class: 'catb__title' }, m.name, m.en ? h('span', { class: 'catb__en', text: m.en }) : null),
-      h('p', { class: 'catb__tagline', text: `「${m.name}」味型 · ${list.length} 道菜` }),
-      h('p', { class: 'catb__desc', text: m.desc })
-    );
-
-    const hero = lead
-      ? h(
-          'figure',
-          { class: 'catb__hero' },
-          guardImage(
-            h('img', { src: lead.image, alt: lead.alt || lead.name, loading: 'eager', decoding: 'async' }),
-            lead.name,
-            '图片暂不可用'
-          ),
-          h(
-            'figcaption',
-            { class: 'catb__hero-cap' },
-            h('b', { text: lead.name }),
-            h('span', { text: lead.oneLiner || lead.intro || '' })
-          ),
-          h('span', { class: 'catb__hero-tag', text: '代表菜' })
-        )
-      : null;
-
-    const facts = h(
-      'dl',
-      { class: 'catb__facts' },
-      ...rows.map(([k, v]) => h('div', { class: 'catb__fact' }, h('dt', { text: k }), h('dd', { text: v || '—' })))
-    );
-
-    const flavor = tags.length
-      ? h(
-          'div',
-          { class: 'catb__flavor' },
-          h('p', { class: 'catb__flavor-kicker', text: '风味特征' }),
-          h('div', { class: 'catb__tags' }, ...tags.map((t) => h('em', { class: 'catb__tag', text: t })))
-        )
-      : null;
-
-    const stack = h('div', { class: 'catb__stack' }, indexBlock(), head, hero, facts, flavor, picksBlock(list));
-    clear(leftScroll);
-    leftScroll.append(stack);
-  }
-
-  /* ================= 右页 A：菜品目录 + 图鉴外发现 ================= */
+  }  /* ================= 右页 A：菜品目录 + 图鉴外发现 ================= */
 
   let rightGrid = null;
   let rightMore = null;
@@ -555,7 +572,7 @@ export function mountCategory(el, kind, id) {
     }
   }
 
-  function paintRightCuisine() {
+  function paintRight() {
     const m = meta();
     if (!m) return;
     const f = currentFeed();
@@ -602,76 +619,6 @@ export function mountCategory(el, kind, id) {
     rightScroll.append(h('div', { class: 'catb__stack catb__stack--deck' }, top, rightGrid, rightMore));
     rightScroll.scrollTop = 0;
     paintRightHead(f);
-  }/* ================= 右页 B：口味页（原分页目录，保持不动） ================= */
-
-  function paintRightTaste() {
-    const m = meta();
-    if (!m) return;
-    const list = dishes();
-    const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
-    if (state.page >= pages) state.page = pages - 1;
-    const slice = list.slice(state.page * PER_PAGE, state.page * PER_PAGE + PER_PAGE);
-
-    const top = h(
-      'header',
-      { class: 'catb__top' },
-      h(
-        'div',
-        { class: 'catb__top-copy' },
-        h('h2', { class: 'catb__top-title', text: `${m.name} · 菜品目录` }),
-        h('p', { class: 'catb__top-meta', text: `共 ${list.length} 道 · 第 ${state.page + 1} / ${pages} 页` }),
-        h('p', { class: 'catb__top-note', text: `味型档案在左页 · 点图片在本页展开详情` })
-      ),
-      pages > 1
-        ? h(
-            'div',
-            { class: 'catb__pager' },
-            h(
-              'button',
-              {
-                class: 'catb__turn',
-                type: 'button',
-                disabled: state.page <= 0 ? '' : null,
-                'aria-label': '上一页',
-                onclick: () => {
-                  if (state.page <= 0) return;
-                  state.page -= 1;
-                  paintRightTaste();
-                },
-              },
-              '‹'
-            ),
-            h('span', { class: 'catb__pager-now', text: `${state.page + 1}/${pages}` }),
-            h(
-              'button',
-              {
-                class: 'catb__turn',
-                type: 'button',
-                disabled: state.page >= pages - 1 ? '' : null,
-                'aria-label': '下一页',
-                onclick: () => {
-                  if (state.page >= pages - 1) return;
-                  state.page += 1;
-                  paintRightTaste();
-                },
-              },
-              '›'
-            )
-          )
-        : null
-    );
-
-    const grid = h(
-      'div',
-      { class: 'catb__grid' },
-      ...slice.map(dishCard),
-      ...(slice.length ? [] : [h('p', { class: 'catb__empty', text: '这个分类暂时没有菜' })])
-    );
-
-    const scrollTop = rightScroll.scrollTop;
-    clear(rightScroll);
-    rightScroll.append(h('div', { class: 'catb__stack' }, top, grid));
-    rightScroll.scrollTop = scrollTop;
   }
 
   /* ---------- 菜品卡（两页共用；source 只是右页的来源标识） ---------- */
@@ -696,14 +643,12 @@ export function mountCategory(el, kind, id) {
           d.name,
           '图片暂不可用'
         ),
-        // 来源标识只在菜系页出现（口味页沿用原版式，不额外加徽标）
-        opts.source
-          ? h('span', {
-              class: `catb__card-src${discovered ? ' is-new' : ''}`,
-              'data-src': discovered ? 'discovered' : 'atlas',
-              text: discovered ? '新发现' : '图鉴收录',
-            })
-          : null
+        // 来源标识：图鉴原有 →「图鉴收录」，联网发现 →「新发现」（菜系 / 口味两页一致）
+        h('span', {
+          class: `catb__card-src${discovered ? ' is-new' : ''}`,
+          'data-src': discovered ? 'discovered' : 'atlas',
+          text: discovered ? '新发现' : '图鉴收录',
+        })
       ),
       h(
         'button',
@@ -712,7 +657,7 @@ export function mountCategory(el, kind, id) {
           'span',
           { class: 'catb__card-head' },
           h('b', { class: 'catb__card-name', text: d.name }),
-          h('em', { class: 'catb__card-cuisine', text: CUISINE_BY_ID[d.cuisine]?.name || '' })
+          h('em', { class: 'catb__card-cuisine', text: CUISINE_BY_ID[d.cuisine]?.name || (isTaste() ? meta()?.name || '' : '') })
         ),
         h('span', { class: 'catb__card-line', text: d.oneLiner || d.intro || '' }),
         h(
@@ -727,13 +672,8 @@ export function mountCategory(el, kind, id) {
   }
 
   function paint() {
-    if (isTaste()) {
-      paintLeftTaste();
-      paintRightTaste();
-      return;
-    }
-    paintLeftCuisine();
-    paintRightCuisine();
+    paintLeft();
+    paintRight();
   }
 
   /* ---------- 分类切换（同一跨页原地换内容，只改地址不翻书） ---------- */
@@ -742,7 +682,6 @@ export function mountCategory(el, kind, id) {
     if (!nextId || nextId === state.id) return;
     closeAllOverlays({ instant: true });
     state.id = nextId;
-    state.page = 0;
     state.requestId += 1; // 作废还在路上的旧批次
     state.loading = false;
     state.error = '';
@@ -849,7 +788,6 @@ export function mountCategory(el, kind, id) {
       if (nextKind === state.kind && nextId === state.id) return;
       state.kind = nextKind;
       state.id = nextId;
-      state.page = 0;
       state.requestId += 1;
       state.loading = false;
       state.error = '';
@@ -871,7 +809,6 @@ export function mountCategory(el, kind, id) {
       return {
         kind: state.kind,
         id: state.id,
-        page: state.page,
         loading: state.loading,
         phase: state.phase,
         error: state.error,

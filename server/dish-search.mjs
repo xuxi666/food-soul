@@ -45,8 +45,64 @@ const CUISINE_THEMES = {
 };
 const REGION_OF = { chuan: '四川', yue: '广东', lu: '山东', su: '江苏', zhe: '浙江', min: '福建', xiang: '湖南', hui: '安徽' };
 
+/* 味型侧的检索方向：同样是「方向」不是菜名，每轮换一组，避免反复搜同一批 */
+const TASTE_THEMES = {
+  mala: ['川渝麻辣名菜', '重庆火锅与江湖菜', '水煮系列', '麻辣凉菜', '麻辣香锅类'],
+  xiangla: ['湘菜香辣代表菜', '川味香辣菜', '干锅爆炒香辣菜', '辣椒炒肉类', '香辣小吃'],
+  suanla: ['酸辣汤羹类', '酸辣粉面小吃', '泡椒酸辣菜', '酸汤类菜肴', '醋香开胃菜'],
+  qingxian: ['清蒸海鲜', '白灼与水煮本味菜', '上汤时蔬', '清炖汤品', '原味家常菜'],
+  xianxian: ['咸鲜家常菜', '高汤煨制菜', '豉油葱油类', '咸鲜宴席菜', '咸鲜小炒'],
+  xiantian: ['糖醋类菜肴', '蜜汁与挂霜菜', '甜口烧菜', '鲜甜海河鲜', '甜味小吃'],
+  jiangxiang: ['酱香卤味', '豆瓣酱香菜', '甜面酱与面酱菜', '酱烧菜', '酱香家常菜'],
+  chunhou: ['红烧肉肘子类', '老火煨炖菜', '胶质浓香菜', '砂锅菜', '慢炖汤菜'],
+};
+
+/** 按分类取检索方向：菜系用 CUISINE_THEMES，口味用 TASTE_THEMES */
+/* 菜名里的风味线索：只用来排除「菜名明摆着是别的味型」的候选 */
+const TASTE_NAME_HINTS = {
+  mala: ['麻辣', '麻婆', '水煮', '花椒', '椒麻'],
+  xiangla: ['香辣', '剁椒', '干锅', '辣椒炒', '小炒'],
+  suanla: ['酸辣', '酸汤', '泡椒', '酸菜', '醋'],
+  qingxian: ['清蒸', '白灼', '上汤', '清炖', '原味'],
+  xianxian: ['咸鲜', '葱油', '豉油', '高汤'],
+  xiantian: ['糖醋', '蜜汁', '拔丝', '挂霜', '甜'],
+  jiangxiang: ['酱香', '酱爆', '酱焖', '卤', '酱'],
+  chunhou: ['红烧', '扣肉', '煨', '砂锅', '浓汤'],
+};
+
+/* 菜系佐证词：模型给的菜系要能在检索结果里找到对应地域，否则宁可不写 */
+const CUISINE_WORDS = {
+  chuan: ['川菜', '四川', '成都', '重庆', '川味', '巴蜀'],
+  yue: ['粤菜', '广东', '广州', '潮汕', '客家', '顺德', '广府'],
+  lu: ['鲁菜', '山东', '济南', '胶东', '孔府'],
+  su: ['苏菜', '江苏', '扬州', '南京', '苏州', '淮扬'],
+  zhe: ['浙菜', '浙江', '杭州', '宁波', '绍兴', '温州'],
+  min: ['闽菜', '福建', '福州', '厦门', '泉州', '闽南'],
+  xiang: ['湘菜', '湖南', '长沙', '湘西', '湘潭'],
+  hui: ['徽菜', '安徽', '徽州', '皖南'],
+};
+
+/** 菜名本身是否指向另一个味型（是则不给当前味型收录，省一轮检索） */
+function nameTasteConflict(name, target) {
+  const hit = (id) => (TASTE_NAME_HINTS[id] || []).some((w) => String(name).includes(w));
+  if (hit(target)) return false; // 菜名明确指向本味型，放行
+  return Object.keys(TASTE_NAME_HINTS).some((id) => id !== target && hit(id));
+}
+
+/** 菜系是否有检索结果佐证（找不到就当未知，不硬写） */
+function cuisineSupported(id, text) {
+  const words = CUISINE_WORDS[id] || [];
+  const hay = String(text || '');
+  return words.some((w) => hay.includes(w));
+}
+
+function deckThemes(context) {
+  const base = context.kind === 'taste' ? TASTE_THEMES[context.fallbackTaste] : CUISINE_THEMES[context.fallbackCuisine];
+  return base && base.length ? base : null;
+}
+
 function themeFor(context, round) {
-  const base = CUISINE_THEMES[context.fallbackCuisine] || [
+  const base = deckThemes(context) || [
     `${context.label}经典名菜`,
     `${context.label}地方特色菜`,
     `${context.label}传统小吃`,
@@ -179,6 +235,34 @@ let cache = null;
 let hashCache = null;
 const inflight = new Map();
 
+/** 旧记录自愈：口味页的记录按当前判据复检（菜名味型冲突的丢掉，菜系无佐证的抹掉） */
+/** 旧记录自愈：口味页的记录按当前判据复检 —— 菜名指向别的味型的丢掉，
+ *  菜系一律抹掉（同时把文案里顺带写死的菜系名换掉，避免前后矛盾）。 */
+function sanitizeGenerated(list) {
+  const targetOf = (d) => (d?.source?.requestedKind === 'taste' ? d.source.categoryId || '' : '');
+  return list
+    .filter((d) => d && typeof d.id === 'string' && typeof d.name === 'string')
+    .filter((d) => {
+      const target = targetOf(d);
+      return !target || !nameTasteConflict(d.name, target);
+    })
+    .map((d) => {
+      const target = targetOf(d);
+      if (!target || !d.cuisine) return d;
+      const oldName = CUISINE_BY_ID[d.cuisine]?.name || '';
+      const swap = (v) => (oldName ? String(v || '').split(oldName).join('中国菜') : v);
+      return {
+        ...d,
+        cuisine: '',
+        alt: `${d.name}（中国菜）`,
+        oneLiner: swap(d.oneLiner),
+        intro: swap(d.intro),
+        signature: swap(d.signature),
+        knowledge: (d.knowledge || []).map(swap),
+      };
+    });
+}
+
 function readGenerated() {
   if (cache) return cache;
   cache = [];
@@ -187,7 +271,7 @@ function readGenerated() {
       const parsed = JSON.parse(fs.readFileSync(GEN_FILE, 'utf8'));
       const list = Array.isArray(parsed) ? parsed : parsed?.dishes;
       if (Array.isArray(list)) {
-        cache = list.filter((d) => d && typeof d.id === 'string' && typeof d.name === 'string');
+        cache = sanitizeGenerated(list);
       }
     }
   } catch {
@@ -255,12 +339,13 @@ function pickTastes(raw, fallbackTaste) {
   return [fb];
 }
 
-function pickCuisine(raw, fallbackCuisine) {
+function pickCuisine(raw, fallbackCuisine, allowEmpty = false) {
   const id = String(raw || '').trim();
   if (CUISINE_IDS.includes(id)) return id;
   const hit = CUISINES.find((c) => c.name === id || (id && (c.name.includes(id) || id.includes(c.name))));
   if (hit) return hit.id;
-  return fallbackCuisine && CUISINE_IDS.includes(fallbackCuisine) ? fallbackCuisine : 'chuan';
+  if (fallbackCuisine && CUISINE_IDS.includes(fallbackCuisine)) return fallbackCuisine;
+  return allowEmpty ? '' : 'chuan';
 }
 
 function pickTechniques(raw) {
@@ -277,7 +362,7 @@ function makeId(name, cuisine) {
 function contextFor(kind, id) {
   if (kind === 'taste') {
     const taste = TASTE_BY_ID[id];
-    return taste ? { kind, label: taste.name + '味型', fallbackTaste: taste.id, fallbackCuisine: '' } : null;
+    return taste ? { kind, label: taste.name + '味型', fallbackTaste: taste.id, fallbackCuisine: '', desc: taste.desc || '' } : null;
   }
   if (kind === 'cuisine') {
     const cuisine = CUISINE_BY_ID[id];
@@ -295,15 +380,19 @@ async function askModel(context, excludeNames, want, modelConfig, themes = [], r
 
   const user = [
     `请为「${context.label}」提出 ${want} 道站内还没有的真实菜品候选（已有 ${excludeNames.length} 道，不要重复）。`,
-    '只输出精简 JSON：{"dishes":[{"name":"中文菜名(2-10字)","ingredients":["主料1","主料2"],"intro":"一句话介绍(不超过30字)"}]}',
-    '每道菜必须给 name 与 1-4 个主料；味型、菜系、技法、时间由系统按分类自动补全，不要输出这些字段。',
+    context.kind === 'taste'
+      ? '只输出精简 JSON：{"dishes":[{"name":"中文菜名(2-10字)","cuisine":"菜系id","tastes":["味型id"],"ingredients":["主料1","主料2"],"intro":"一句话介绍(不超过30字)"}]}'
+      : '只输出精简 JSON：{"dishes":[{"name":"中文菜名(2-10字)","ingredients":["主料1","主料2"],"intro":"一句话介绍(不超过30字)"}]}',
+    context.kind === 'taste'
+      ? `每道菜都要给 tastes（只能取 ${TASTE_IDS.join('/')}）：第一位填这道菜真正的主味型，必须就是 ${context.fallbackTaste}；主味型不是这个的菜不要提。`
+      : '每道菜必须给 name 与 1-4 个主料；味型、菜系、技法、时间由系统按分类自动补全，不要输出这些字段。',
     context.kind === 'all'
       ? `例外：本次按“全部”检索，请额外给出 cuisine（只能取：${CUISINE_IDS.join('/')}）与 tastes（只能取：${TASTE_IDS.join('/')}）。`
       : '',
     context.kind === 'cuisine' && context.fallbackCuisine
       ? `本次只收「${context.label}」的菜（菜系 id: ${context.fallbackCuisine}），其它菜系一律不要；请优先给有代表性、但站内还没收录的经典菜。`
       : context.kind === 'taste' && context.fallbackTaste
-        ? `本次只收符合「${context.label}」（味型 id: ${context.fallbackTaste}）的菜，按真实食材与烹饪方式判断，不要只看菜名里的字。`
+        ? `本次只收符合「${context.label}」的菜（味型 id: ${context.fallbackTaste}${context.desc ? `，特征：${context.desc}` : ''}）。判断依据是这道菜的主要风味，不是菜名里有没有相关字眼。`
         : '本次收全国范围内的常见家常菜。',
     themes.length ? `本轮优先从这些方向里找（这是检索方向，不是菜名，也不要照抄成菜名）：${themes.join('、')}。` : '',
     round > 0 ? '上一轮候选已被验证过，本轮请换地区、换类型，不要再给同一批菜。' : '',
@@ -470,6 +559,10 @@ export async function searchDishes(input = {}) {
             stats.sameName += 1;
             continue;
           }
+          if (kind === 'taste' && nameTasteConflict(name, context.fallbackTaste)) {
+            skipped.push({ name, reason: '菜名指向别的味型' });
+            continue;
+          }
           if (existingNames.has(name) || excludeIds.has(name) || looksLikeExisting(name, existingNames)) {
             stats.sameName += 1;
             skipped.push({ name, reason: '站内已有同名/近名菜品，已跳过' });
@@ -558,8 +651,12 @@ export async function searchDishes(input = {}) {
       for (const entry of pool) {
         if (items.length >= limit) break;
         const { raw, name, verdict } = entry;
-        const cuisine = pickCuisine(raw?.cuisine, context.fallbackCuisine);
-        if (!cuisine) {
+        let cuisine = pickCuisine(raw?.cuisine, context.fallbackCuisine, kind === 'taste');
+        // 口味页不认菜系：联网发现只保证「菜是真的 + 主味型对得上」。
+        // 菜系由模型顺口猜的并不可靠（实测把酸辣土豆丝写成浙菜、麻辣烫写成闽菜），
+        // 所以一律留空，卡片改显示味型（需求允许「所属地域或类型」）。
+        if (kind === 'taste') cuisine = '';
+        if (!cuisine && kind === 'cuisine') {
           skipped.push({ name, reason: '缺少菜系' });
           continue;
         }
@@ -567,10 +664,11 @@ export async function searchDishes(input = {}) {
           skipped.push({ name, reason: `菜系不符（${CUISINE_BY_ID[cuisine]?.name || cuisine}）` });
           continue;
         }
+        const rawTastes = Array.isArray(raw?.tastes) ? raw.tastes : raw?.tastes ? [raw.tastes] : [];
         let tastes = pickTastes(raw?.tastes, context.fallbackTaste);
         if (!tastes.length) tastes = [cuisine === 'chuan' ? 'mala' : 'xianxian'];
-        if (kind === 'taste' && !tastes.includes(context.fallbackTaste)) {
-          skipped.push({ name, reason: '味型不符' });
+        if (kind === 'taste' && (!tastes.includes(context.fallbackTaste) || (rawTastes.length && tastes[0] !== context.fallbackTaste))) {
+          skipped.push({ name, reason: `味型不符（主味型是${TASTE_BY_ID[tastes[0]]?.name || tastes[0]}）` });
           continue;
         }
         const id = makeId(name, cuisine);
