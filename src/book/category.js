@@ -1,14 +1,18 @@
 /**
  * 菜系 / 口味章节：双页杂志式分类页
  * ------------------------------------------------------------
- * 菜系页（kind === 'cuisine'）
- *   左页 = 菜系文化专题：索引 → 标题 → 小主图 + 简介 / 风味 / AI 入口 →
- *          风味档案 → 美食文化 → 历史渊源 → 人物典故 → 名菜传说 → 代表菜精选
- *   右页 = 菜品图鉴：无页码、无翻页键，独立纵向滚动，滚到底分批加载更多
+ * 菜系页（kind === 'cuisine'）—— 第 32 轮定稿
+ *   左页 = 一屏读完的菜系专题（不滚动就看完）：
+ *          菜系导航 → 名称/简介 → 代表菜图 + 风味标签 + AI 入口 →
+ *          风味档案（4 项）→ 美食文化（精简版）→ 代表菜精选
+ *   右页 = 菜品图鉴：无页码、无翻页键，独立纵向滚动，
+ *          列表底部一枚「加载更多」，点一次追加一批，到底显示「已到底」
+ *
+ *   上一轮左页里的「历史渊源」「人物典故」「名菜传说」三块独立模块已按要求撤掉；
+ *   数据没有删（src/data/cuisineCulture.js 仍保留 history / figures / legends）。
  *
  * 口味页（kind === 'taste'）
- *   保持第 28 轮的版式不变（大主图 + 档案 + 精选 / 翻页目录），
- *   本轮只改菜系页：两条分支各画各的，互不影响。
+ *   保持原版式（大主图 + 四行档案 + 精选 / 翻页目录），本轮不动。
  *
  * 两张纸各自独立滚动；点菜只在这一页里四边扩散成详情（book/overlay.js），
  * 不换章节、不翻书、不动另一页。
@@ -16,29 +20,21 @@
 import { h, clear } from '../lib/dom.js';
 import { DISHES, DIFFICULTY_LABEL } from '../data/dishes.js';
 import { CUISINES, CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../data/cuisines.js';
-import { cultureOf } from '../data/cuisineCulture.js';
+import { cultureOf, cultureExtraOf } from '../data/cuisineCulture.js';
+import { listCategoryDishes, fetchDishBatch, preloadDishImages } from '../data/dishFeed.js';
 import { guardImage } from '../lib/placeholder.js';
 import { openDishOverlay, closeAllOverlays } from './overlay.js';
 import { appRoute } from './dish-page.js';
 
-const PER_PAGE = 6; // 口味页每页 6 道；菜系页每次加载 6 道
-/** 按菜名找菜（名菜传说要引用每道菜自己的 history 字段） */
-const DISH_BY_NAME = new Map(DISHES.map((d) => [d.name, d]));
+const PER_PAGE = 6; // 口味页每页 6 道；菜系页首屏也是 6 道（正好三行两列）
 const PICKS = 3;
+const MORE_LIMIT = 4; // 菜系页每次「加载更多」追加 4 道（两行）
+/** 仅开发环境：让下一次「加载更多」失败，用来验证失败态（生产构建里永远是 false） */
+let DEBUG_FAIL_NEXT = false;
 
 /* ---------------- 数据派生（全部来自现有菜品字段，不编造） ---------------- */
 
-function dishesOf(kind, id) {
-  const list = DISHES.filter((d) => (kind === 'taste' ? (d.tastes || []).includes(id) : d.cuisine === id));
-  const seenName = new Set();
-  const seenImage = new Set();
-  return list.filter((d) => {
-    if (!d.image || seenName.has(d.name) || seenImage.has(d.image)) return false;
-    seenName.add(d.name);
-    seenImage.add(d.image);
-    return true;
-  });
-}
+const dishesOf = (kind, id) => listCategoryDishes(kind, id);
 
 /** 出现频次最高的词（食材 / 技法 / 风味词） */
 function topTokens(list, pick, limit) {
@@ -96,15 +92,19 @@ function enableWheelScroll(container) {
   );
 }
 
-/** 名菜传说：直接用每道菜自己的 history 字段，并标出它是「相传」还是「记载」 */
-function legendKind(text) {
-  return /相传|传说|据说|说法|附会|追述/.test(text || '') ? 'legend' : 'record';
-}
-
 /* ---------------- 章节 ---------------- */
 
 export function mountCategory(el, kind, id) {
-  const state = { kind, id, page: 0, loaded: PER_PAGE, loading: false };
+  const state = {
+    kind,
+    id,
+    page: 0, // 口味页页码
+    loaded: PER_PAGE, // 菜系页游标：已经铺出来的条数
+    loading: false,
+    hasMore: true,
+    error: false,
+    requestId: 0, // 切换菜系后作废旧请求
+  };
 
   const isTaste = () => state.kind === 'taste';
   const meta = () => (isTaste() ? TASTE_BY_ID[state.id] : CUISINE_BY_ID[state.id]);
@@ -182,24 +182,25 @@ export function mountCategory(el, kind, id) {
     );
   }
 
-  /* ================= 左页 A：菜系文化专题 ================= */
+  /* ================= 左页 A：一屏读完的菜系专题 ================= */
 
   function paintLeftCuisine() {
     const m = meta();
     const culture = cultureOf(state.id);
-    if (!m || !culture) return;
+    const extra = cultureExtraOf(state.id);
+    if (!m) return;
     const list = dishes();
     const lead = list[0];
-    const tags = flavorTags('cuisine', state.id, list);
-    const ingredients = topTokens(list, (d) => d.ingredients, 5);
-    const crafts = topTokens(list, (d) => d.techniques, 5);
+    const ingredients = topTokens(list, (d) => d.ingredients, 4);
+    const crafts = topTokens(list, (d) => d.techniques, 3);
     const tastes = topTokens(list, (d) => (d.tastes || []).map((t) => TASTE_BY_ID[t]?.name || t), 3);
+    const tags = [...new Set([...(extra?.tags || []), ...tastes].filter(Boolean))].slice(0, 5);
 
-    /* 主视觉 + 右侧简介 / 风味 / AI 入口 */
+    /* 代表菜图（比上一轮略大）+ 右侧简介 / 风味 / AI 入口 */
     const hero = lead
       ? h(
           'figure',
-          { class: 'catb__hero catb__hero--sm' },
+          { class: 'catb__hero catb__hero--lg' },
           guardImage(
             h('img', { src: lead.image, alt: lead.alt || lead.name, loading: 'eager', decoding: 'async' }),
             lead.name,
@@ -246,141 +247,52 @@ export function mountCategory(el, kind, id) {
       ai
     );
 
-    const visual = h('div', { class: 'catb__visual' }, hero, aside);
+    const visual = h('div', { class: 'catb__visual catb__visual--lg' }, hero, aside);
 
-    /* 风味档案 */
-    const rows = [
-      ['发源地', m.region || '—'],
-      ['地域特色', culture.terrain],
-      ['主要食材', ingredients.join(' · ') || '—'],
-      ['烹饪技法', crafts.join(' · ') || '—'],
-      ['典型味型', tastes.join(' · ') || m.tagline || '—'],
-      ['饮食特点', culture.habit],
-    ];
+    /* 风味档案：四项，全部真实取值 */
     const facts = h(
       'dl',
       { class: 'catb__facts catb__facts--cuisine' },
-      ...rows.map(([k, v]) => h('div', { class: 'catb__fact' }, h('dt', { text: k }), h('dd', { text: v || '—' })))
+      ...[
+        ['发源地', m.region || '—'],
+        ['主要食材', ingredients.join(' · ') || '—'],
+        ['烹饪技法', crafts.join(' · ') || '—'],
+        ['典型味型', tastes.join(' · ') || m.tagline || '—'],
+      ].map(([k, v]) => h('div', { class: 'catb__fact' }, h('dt', { text: k }), h('dd', { text: v || '—' })))
     );
 
-    const secKick = (no, text) => h('p', { class: 'catb__sec-kick' }, h('i', { text: no }), h('span', { text }));
+    /* 美食文化（精简版）：一句破题 + 地域 / 日常 / 节庆三点 + 关键词 */
+    const points = [
+      ['地域', culture?.terrain],
+      ['日常', culture?.habit],
+      ['节庆', extra?.festive],
+    ].filter(([, text]) => !!text);
 
-    /* 01 美食文化 */
     const cultureSec = h(
       'section',
-      { class: 'catb__sec', 'data-sec': 'culture' },
-      secKick('01', '美食文化'),
-      h('p', { class: 'catb__lead', text: culture.culture.lead }),
-      h('p', { class: 'catb__body', text: culture.culture.body }),
-      h(
-        'blockquote',
-        { class: 'catb__quote' },
-        h('p', { class: 'catb__quote-text', text: `「${culture.culture.quote.text}」` }),
-        h(
-          'cite',
-          { class: 'catb__quote-from' },
-          culture.culture.quote.from,
-          culture.culture.quote.note ? h('em', { text: ` · ${culture.culture.quote.note}` }) : null
-        )
-      )
-    );
-
-    /* 02 历史渊源 */
-    const historySec = h(
-      'section',
-      { class: 'catb__sec', 'data-sec': 'history' },
-      secKick('02', '历史渊源'),
-      h(
-        'ol',
-        { class: 'catb__line' },
-        ...culture.history.map((item) =>
-          h('li', {}, h('b', { class: 'catb__line-era', text: item.era }), h('span', { class: 'catb__line-text', text: item.text }))
-        )
-      )
-    );
-
-    /* 03 人物典故 */
-    const figuresSec = h(
-      'section',
-      { class: 'catb__sec', 'data-sec': 'figures' },
-      secKick('03', '人物典故'),
-      h(
-        'div',
-        { class: 'catb__figs' },
-        ...culture.figures.map((f) =>
-          h(
-            'article',
-            { class: 'catb__fig' },
-            h(
-              'p',
-              { class: 'catb__fig-head' },
-              h('b', { class: 'catb__fig-name', text: f.name }),
-              h('span', { class: 'catb__fig-era', text: f.era }),
-              h(
-                'span',
-                { class: `catb__fig-badge${f.kind === 'legend' ? ' is-legend' : ''}` },
-                f.kind === 'legend' ? '民间传说' : '史料'
-              )
-            ),
-            h('p', { class: 'catb__fig-text', text: f.text })
+      { class: 'catb__sec catb__sec--culture', 'data-sec': 'culture' },
+      h('p', { class: 'catb__sec-kick' }, h('i', { text: '01' }), h('span', { text: '美食文化' })),
+      culture?.culture?.lead ? h('p', { class: 'catb__lead', text: culture.culture.lead }) : null,
+      points.length
+        ? h(
+            'ul',
+            { class: 'catb__points' },
+            ...points.map(([k, text]) => h('li', { class: 'catb__point' }, h('b', { class: 'catb__point-k', text: k }), h('span', { class: 'catb__point-v', text })))
           )
-        )
-      )
+        : null,
+      tags.length
+        ? h('div', { class: 'catb__culture-tags' }, ...tags.map((t) => h('em', { class: 'catb__tag catb__tag--soft', text: t })))
+        : null
     );
-
-    /* 04 名菜传说（文字全部来自菜品自己的 history 字段） */
-    const legends = culture.legends
-      .map((name) => {
-        const d = list.find((x) => x.name === name) || DISH_BY_NAME.get(name);
-        return d && d.history ? { dish: d, text: d.history } : null;
-      })
-      .filter(Boolean);
-    const legendSec = legends.length
-      ? h(
-          'section',
-          { class: 'catb__sec', 'data-sec': 'legends' },
-          secKick('04', '名菜传说'),
-          h(
-            'div',
-            { class: 'catb__legends' },
-            ...legends.map(({ dish, text }) => {
-              const kindOf = legendKind(text);
-              return h(
-                'article',
-                { class: 'catb__legend' },
-                h(
-                  'span',
-                  { class: 'catb__legend-media' },
-                  guardImage(h('img', { src: dish.image, alt: dish.alt || dish.name, loading: 'lazy', decoding: 'async' }), dish.name, '')
-                ),
-                h(
-                  'div',
-                  { class: 'catb__legend-body' },
-                  h(
-                    'p',
-                    { class: 'catb__legend-head' },
-                    h('b', { class: 'catb__legend-name', text: dish.name }),
-                    h('span', { class: `catb__legend-badge${kindOf === 'legend' ? ' is-legend' : ''}` }, kindOf === 'legend' ? '相传·民间说法' : '史料记载')
-                  ),
-                  h('p', { class: 'catb__legend-text', text })
-                )
-              );
-            })
-          )
-        )
-      : null;
 
     const stack = h(
       'div',
-      { class: 'catb__stack catb__stack--cuisine' },
+      { class: 'catb__stack catb__stack--cuisine catb__stack--fit' },
       indexBlock(),
       headBlock(m),
       visual,
       facts,
       cultureSec,
-      historySec,
-      figuresSec,
-      legendSec,
       picksBlock(list)
     );
 
@@ -456,86 +368,89 @@ export function mountCategory(el, kind, id) {
     leftScroll.append(stack);
   }
 
-  /* ================= 右页 A：菜系页，连续纵向滚动 + 分批加载 ================= */
+  /* ================= 右页 A：菜系页，两列 + 显式「加载更多」 ================= */
 
   let rightGrid = null;
   let rightMore = null;
-  let rightSentinel = null;
-  let observer = null;
-  /* 打开这一页时哨兵可能本来就在视野里：那只说明「还没翻就到底了」，
-     要等读者真的滚动过一次，才允许自动续下一批，避免一进来就把全部菜品铺开 */
-  let deckScrolled = false;
+  let rightMoreBtn = null;
+  let rightMoreLabel = null;
+  let rightMoreText = null;
 
-  /** 哨兵是否已经靠到可视区底部（rootMargin 240px 内） */
-  function sentinelNear(extra = 240) {
-    if (!rightSentinel || !rightScroll) return false;
-    const box = rightScroll.getBoundingClientRect();
-    const line = rightSentinel.getBoundingClientRect();
-    return line.top - box.bottom < extra;
+  function resetCursor(list) {
+    state.loaded = Math.min(PER_PAGE, list.length);
+    state.hasMore = state.loaded < list.length;
+    state.loading = false;
+    state.error = false;
   }
 
-  /* 滚动一发生就主动量一次：哨兵本来就在视野里时，IntersectionObserver
-     不会再来一次「进入」回调，得自己补这一下 */
-  rightScroll.addEventListener(
-    'scroll',
-    () => {
-      deckScrolled = true;
-      if (sentinelNear()) loadMore();
-    },
-    { passive: true }
-  );
-
-  function moreState(list) {
-    if (!rightMore) return;
-    const rest = list.length - state.loaded;
-    clear(rightMore);
-    if (rest > 0) {
-      rightMore.append(
-        h(
-          'button',
-          {
-            class: 'catb__more-btn',
-            type: 'button',
-            'data-act': 'more',
-            onclick: () => loadMore(),
-          },
-          `继续往下翻 · 还有 ${rest} 道`
-        )
-      );
-    } else {
-      rightMore.append(h('p', { class: 'catb__more-end', text: `已到底 · 共 ${list.length} 道` }));
+  function moreStatus(list) {
+    if (!rightMoreBtn || !rightMoreText || !rightMoreLabel) return;
+    const rest = Math.max(0, list.length - state.loaded);
+    if (state.loading) {
+      rightMoreBtn.disabled = true;
+      rightMoreLabel.textContent = '正在加载…';
+      rightMoreText.textContent = `还有 ${rest} 道`;
+      rightMore.classList.add('is-loading');
+      return;
     }
-    rightMore.classList.toggle('is-loading', state.loading);
+    rightMoreBtn.disabled = false;
+    rightMore.classList.remove('is-loading');
+    if (state.error) {
+      rightMoreLabel.textContent = '重新加载';
+      rightMoreText.textContent = '加载失败，请再试一次';
+      rightMore.hidden = false;
+      return;
+    }
+    if (state.hasMore) {
+      rightMoreLabel.textContent = '加载更多';
+      rightMoreText.textContent = `还有 ${rest} 道`;
+      rightMore.hidden = false;
+    } else {
+      rightMoreLabel.textContent = '加载更多';
+      rightMoreText.textContent = `已到底 · 共 ${list.length} 道`;
+      rightMore.hidden = true; // 没有更多时按钮收起来，只留一行低调的收尾
+    }
   }
 
-  function appendBatch(list) {
-    if (!rightGrid) return;
-    const from = rightGrid.children.length;
-    const next = list.slice(from, state.loaded);
-    for (const d of next) rightGrid.append(dishCard(d));
-  }
-
-  function loadMore() {
-    const list = dishes();
-    if (state.loading || state.loaded >= list.length) return;
+  /** 点一次「加载更多」：取下一批 → 追到末尾 → 滚动位置不动 */
+  async function loadMore() {
+    if (state.loading || !state.hasMore) return;
+    const token = ++state.requestId;
+    const kind = state.kind;
+    const id = state.id;
     state.loading = true;
-    state.loaded = Math.min(list.length, state.loaded + PER_PAGE);
-    rightMore?.classList.add('is-loading');
-    const label = rightMore?.querySelector('.catb__more-btn');
-    if (label) label.textContent = '正在翻页…';
-    // 让「正在加载」这一帧先画出来，再补卡片，避免长任务卡住滚动
-    window.setTimeout(() => {
-      appendBatch(list);
-      state.loading = false;
-      moreState(list);
-    }, 160);
+    state.error = false;
+    moreStatus(dishes());
+    try {
+      // 只在开发环境可注入的一次失败，用来验证失败态（生产构建里不存在）
+      if (import.meta.env?.DEV && DEBUG_FAIL_NEXT) {
+        DEBUG_FAIL_NEXT = false;
+        throw new Error('debug: load-more failure');
+      }
+      const batch = await fetchDishBatch(kind, id, { offset: state.loaded, limit: MORE_LIMIT });
+      // 期间换了菜系 / 又点了一次：这批作废，绝不混进别的分类
+      if (token !== state.requestId || batch.kind !== state.kind || batch.id !== state.id) return;
+      await preloadDishImages(batch.items);
+      if (token !== state.requestId || batch.id !== state.id) return;
+      for (const d of batch.items) rightGrid.append(dishCard(d));
+      state.loaded = batch.nextOffset;
+      state.hasMore = batch.hasMore;
+    } catch (err) {
+      if (token === state.requestId) state.error = true;
+      if (import.meta.env?.DEV) console.warn('[catb] 加载更多失败', err);
+    } finally {
+      if (token === state.requestId) {
+        state.loading = false;
+        moreStatus(dishes());
+      }
+    }
   }
 
   function paintRightCuisine() {
     const m = meta();
     if (!m) return;
     const list = dishes();
-    state.loaded = Math.min(Math.max(PER_PAGE, state.loaded || PER_PAGE), Math.max(list.length, PER_PAGE));
+    resetCursor(list);
 
     const top = h(
       'header',
@@ -551,26 +466,26 @@ export function mountCategory(el, kind, id) {
 
     rightGrid = h('div', { class: 'catb__grid catb__grid--scroll' }, ...list.slice(0, state.loaded).map(dishCard));
     if (!list.length) rightGrid.append(h('p', { class: 'catb__empty', text: '这个分类暂时没有菜' }));
-    rightMore = h('div', { class: 'catb__more' });
-    rightSentinel = h('div', { class: 'catb__sentinel', 'aria-hidden': 'true' });
-    moreState(list);
+
+    rightMoreBtn = h(
+      'button',
+      {
+        class: 'catb__more-btn',
+        type: 'button',
+        'data-act': 'more',
+        onclick: () => void loadMore(),
+      },
+      h('span', { class: 'catb__more-label', text: '加载更多' }),
+      h('i', { class: 'catb__more-ico', 'aria-hidden': 'true' })
+    );
+    rightMoreLabel = rightMoreBtn.querySelector('.catb__more-label');
+    rightMoreText = h('p', { class: 'catb__more-status' });
+    rightMore = h('div', { class: 'catb__more' }, rightMoreBtn, rightMoreText);
+    moreStatus(list);
 
     clear(rightScroll);
-    rightScroll.append(h('div', { class: 'catb__stack catb__stack--deck' }, top, rightGrid, rightMore, rightSentinel));
+    rightScroll.append(h('div', { class: 'catb__stack catb__stack--deck' }, top, rightGrid, rightMore));
     rightScroll.scrollTop = 0;
-    deckScrolled = false;
-
-    observer?.disconnect();
-    if ('IntersectionObserver' in window) {
-      observer = new IntersectionObserver(
-        (entries) => {
-          if (!deckScrolled) return;
-          if (entries.some((e) => e.isIntersecting)) loadMore();
-        },
-        { root: rightScroll, rootMargin: '0px 0px 240px 0px', threshold: 0.01 }
-      );
-      observer.observe(rightSentinel);
-    }
   }
 
   /* ================= 右页 B：口味页（原分页目录，保持不动） ================= */
@@ -695,8 +610,11 @@ export function mountCategory(el, kind, id) {
     closeAllOverlays({ instant: true });
     state.id = nextId;
     state.page = 0;
+    state.requestId += 1; // 作废还在路上的旧批次
     state.loaded = PER_PAGE;
     state.loading = false;
+    state.hasMore = true;
+    state.error = false;
     paint();
     const href = isTaste() ? `/tastes/${nextId}` : `/cuisines/${nextId}`;
     if (location.pathname !== href) history.replaceState({ path: href }, '', href);
@@ -728,6 +646,15 @@ export function mountCategory(el, kind, id) {
 
   paint();
 
+  if (import.meta.env?.DEV) {
+    // 验收用的小开关：下一次「加载更多」直接失败，看失败提示与重试
+    window.__catDebug = {
+      failNextMore() {
+        DEBUG_FAIL_NEXT = true;
+      },
+    };
+  }
+
   return {
     el: root,
     /** 地址里带了别的分类（书签 / 深链接 / 前进后退）：只换内容，不重建纸面 */
@@ -736,8 +663,11 @@ export function mountCategory(el, kind, id) {
       state.kind = nextKind;
       state.id = nextId;
       state.page = 0;
+      state.requestId += 1;
       state.loaded = PER_PAGE;
       state.loading = false;
+      state.hasMore = true;
+      state.error = false;
       closeAllOverlays({ instant: true });
       paint();
     },
@@ -748,14 +678,20 @@ export function mountCategory(el, kind, id) {
     setSwitchHandler(fn) {
       onSwitch = fn;
     },
-    /** 滚到底部时由 IntersectionObserver 自动触发，也允许外部显式调用 */
+    /** 「加载更多」：按钮点击走这里，也允许外部显式调用（测试/自动化） */
     loadMore,
     get state() {
-      return { ...state, kind: state.kind, id: state.id, page: state.page, loaded: state.loaded, total: dishes().length };
+      return {
+        kind: state.kind,
+        id: state.id,
+        page: state.page,
+        loaded: state.loaded,
+        loading: state.loading,
+        hasMore: state.hasMore,
+        total: dishes().length,
+      };
     },
     destroy() {
-      observer?.disconnect();
-      observer = null;
       closeAllOverlays({ instant: true });
       root.remove();
     },
