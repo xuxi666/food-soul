@@ -929,6 +929,10 @@ export function initBook({ root }) {
     get sheets() {
       return sheets;
     },
+    /* 开合阶段：CLOSED_TILTED / OPENING / EXPANDING / READING / SHRINKING / CLOSING */
+    get phase() {
+      return phase;
+    },
     get pages() {
       return book;
     },
