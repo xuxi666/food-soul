@@ -61,10 +61,12 @@ function track(feed, d, source = 'atlas') {
 }
 
 function isFresh(feed, d) {
-  if (!d || !d.id || !d.name || !d.image) return false;
+  // 图鉴外发现的菜可能暂时拿不到可靠图片（服务端会给占位标记），
+  // 不能因为缺图就把整道菜丢掉
+  if (!d || !d.id || !d.name) return false;
   if (feed.usedIds.has(d.id)) return false;
   if (feed.usedNames.has(normalizeName(d.name))) return false;
-  if (feed.usedImages.has(d.image)) return false;
+  if (d.image && feed.usedImages.has(d.image)) return false;
   return true;
 }
 
@@ -91,6 +93,8 @@ export function getFeed(kind, id) {
     dryRounds: 0,
     done: false,
     lastNotice: '',
+    lastReason: '',
+    lastStats: null,
   };
   feeds.set(key, feed);
   return feed;
@@ -173,19 +177,28 @@ export async function discoverBatch(feed, limit = DISCOVER_BATCH) {
     if (!isFresh(feed, d)) continue;
     items.push(d);
   }
+  feed.lastReason = res?.reason || '';
+  feed.lastStats = res?.stats || null;
   if (items.length) {
     items.forEach((d) => track(feed, d, 'discovered'));
     feed.items = [...feed.items, ...items];
     feed.dryRounds = 0;
     feed.lastNotice = '';
-    return { items, source: 'search', status: 'ok', note: res?.note || '' };
+    return { items, source: 'search', status: 'ok', note: res?.note || '', reason: res?.reason || 'ok', stats: res?.stats || null };
   }
 
   // 一条都没拿到：如实记下服务端给的说明，不做「假装还有更多」
   feed.dryRounds += 1;
-  feed.lastNotice = res?.note || '暂时没有发现更多可用的相关菜品。';
+  feed.lastNotice = res?.note || '本次没有发现新的可靠菜品，可以尝试再次探索。';
   if (feed.dryRounds >= DRY_ROUNDS_DONE) feed.done = true;
-  return { items: [], source: 'none', status: res?.status || 'empty', note: feed.lastNotice };
+  return {
+    items: [],
+    source: 'none',
+    status: res?.status || 'empty',
+    note: feed.lastNotice,
+    reason: res?.reason || '',
+    stats: res?.stats || null,
+  };
 }
 
 /** 用户点「再试一次」：清掉「已到底」的判断，允许重新检索一轮 */

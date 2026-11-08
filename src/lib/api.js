@@ -66,7 +66,8 @@ async function jsonFetch(url, options = {}) {
     await res.text().catch(() => '');
   }
   if (!res.ok) {
-    if (data.error) throw new Error(data.error);
+    // 服务端有些失败态只给 note（例如「联网检索超时」），同样要展示给用户
+    if (data.error || data.note) throw new Error(data.error || data.note);
     if (res.status === 413) throw new Error('内容太大（图片过多或过大），请压缩后再试');
     if (res.status === 502 || res.status === 504) throw new Error('服务暂时不可用，请稍后重试');
     if (res.status === 401) throw new Error('登录已失效，请重新登录');

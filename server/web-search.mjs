@@ -1,5 +1,5 @@
 /**
- * 联网检索（自建 SearXNG）。
+ * 联网检索：自建 SearXNG → 360 搜索 → Bing RSS（按优先级兜底）。
  * ------------------------------------------------------------
  * 只用自建实例，不再依赖任何付费检索 API：
  *   SEARXNG_URL=http://127.0.0.1:8080
@@ -251,6 +251,108 @@ async function bingRssSearch(q, { timeout }) {
   }
 }
 
+/* ---------------- 360 搜索（公开结果页；中文菜品名命中率最高） ---------------- */
+
+const SO360 = 'https://www.so.com/s';
+
+/** 测试或私有部署可覆盖；显式设为空串表示关闭 360 */
+function so360Base() {
+  const raw = process.env.SO360_URL !== undefined ? process.env.SO360_URL : SO360;
+  return String(raw || '');
+}
+
+function htmlToText(v) {
+  return String(v || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** 解析 360 结果页：<li class="res-list"> 里的 h3 标题 + 摘要，真实地址在 data-mdurl */
+function parseSo360(html) {
+  const out = [];
+  const text = String(html || '');
+  const chunks = text.split('<li class="res-list"').slice(1);
+  for (const chunk of chunks) {
+    const body = chunk.split('<li class="res-list"')[0].split('</ul>')[0];
+    const h3 = body.match(/<h3[^>]*>([\s\S]*?)<\/h3>/);
+    if (!h3) continue;
+    const title = htmlToText(h3[1]);
+    if (!title) continue;
+    const md = body.match(/data-mdurl="([^"]+)"/);
+    const href = (body.match(/<h3[^>]*>[\s\S]*?href="([^"]+)"/) || [])[1] || '';
+    let url = md ? md[1] : href;
+    if (url.startsWith('/')) url = 'https://www.so.com' + url;
+    if (!/^https?:\/\//i.test(url)) continue;
+    const sum =
+      body.match(/<span class="res-list-summary"[^>]*>([\s\S]*?)<\/span>/) ||
+      body.match(/<p class="res-desc"[^>]*>([\s\S]*?)<\/p>/) ||
+      body.match(/<div class="res-desc"[^>]*>([\s\S]*?)<\/div>/);
+    out.push({
+      title: title.slice(0, 120),
+      site: 'so360',
+      url,
+      snippet: htmlToText(sum ? sum[1] : '').slice(0, 600),
+      publishDate: '',
+      refer: 'so360',
+      host: hostOf(url),
+    });
+    if (out.length >= 12) break;
+  }
+  return dedupe(out);
+}
+
+async function so360Search(q, { timeout }) {
+  const url = so360Base() + '?q=' + encodeURIComponent(q);
+  const started = Date.now();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.min(timeout, 12000));
+  logSearch({ stage: 'so360-request', q: cleanText(q, 40) });
+  try {
+    const res = await fetch(url, {
+      headers: {
+        accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      signal: ctrl.signal,
+      redirect: 'follow',
+    });
+    if (!res.ok) {
+      logSearch({ stage: 'so360-response', status: res.status, duration: Date.now() - started + 'ms' });
+      return { ok: false, sources: [], errorKind: res.status === 429 ? 'rate_limit' : 'failed', httpStatus: res.status };
+    }
+    const html = await res.text();
+    const sources = parseSo360(html);
+    logSearch({
+      stage: 'so360-response',
+      status: res.status,
+      results: sources.length,
+      duration: Date.now() - started + 'ms',
+    });
+    return { ok: true, sources };
+  } catch (err) {
+    const aborted = err?.name === 'AbortError';
+    logSearch({
+      stage: 'so360-transport',
+      kind: aborted ? 'timeout' : 'network',
+      cause: err?.cause?.code || err?.code || '-',
+      duration: Date.now() - started + 'ms',
+    });
+    return { ok: false, sources: [], errorKind: aborted ? 'timeout' : 'network', httpStatus: 0 };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * @param {string} query
  * @param {{count?:number, timeout?:number}} [opts]
@@ -263,7 +365,7 @@ export async function webSearch(query, opts = {}) {
     return { status: 'empty', errorKind: '', httpStatus: 0, retryable: false, sources: [], message: '检索词为空。' };
   }
   const hasSearxng = Boolean(searxngBase());
-  if (!hasSearxng && !bingBase()) {
+  if (!hasSearxng && !so360Base() && !bingBase()) {
     logSearch({ stage: 'config', kind: 'not_configured' });
     return {
       status: 'unavailable',
@@ -287,14 +389,20 @@ export async function webSearch(query, opts = {}) {
     CACHE.delete(cacheKey);
   }
 
-  // 自建实例与 Bing RSS 并行：任何一个有结果就能用，机房 IP 被限流时不至于整条挂掉
+  // 三路并行：自建实例（最准）→ 360（中文命中率高）→ Bing RSS（兜底）。
+  // 按优先级合并，前面拿到足够结果就不再混入后面的噪声。
   const runOnce = async () => {
-    const [bing, sx] = await Promise.all([
-      bingBase() ? bingRssSearch(q, { timeout }) : Promise.resolve({ ok: false, sources: [] }),
+    const [sx, so, bing] = await Promise.all([
       hasSearxng ? requestOnce(q, { count, timeout }) : Promise.resolve(null),
+      so360Base() ? so360Search(q, { timeout }) : Promise.resolve({ ok: false, sources: [] }),
+      bingBase() ? bingRssSearch(q, { timeout }) : Promise.resolve({ ok: false, sources: [] }),
     ]);
-    const sources = dedupe([...(sx?.ok ? sx.sources : []), ...bing.sources]).slice(0, Math.max(count, 6));
-    return { sources, sx, bing };
+    let sources = sx?.ok && sx.sources.length ? [...sx.sources] : [];
+    if (sources.length < Math.min(count, 3) && so.ok) sources = dedupe([...sources, ...so.sources]);
+    if (sources.length < Math.min(count, 3) && bing.sources?.length) {
+      sources = dedupe([...sources, ...bing.sources]);
+    }
+    return { sources: sources.slice(0, Math.max(count, 6)), sx, so, bing };
   };
 
   let last = null;
@@ -316,11 +424,19 @@ export async function webSearch(query, opts = {}) {
       return value;
     }
 
-    // 两边都空时也重试一次：引擎冷却几秒后常能返回
+    // 都空时也重试一次：引擎冷却几秒后常能返回
     const sxFailed = r.sx && !r.sx.ok;
+    const soFailed = r.so && !r.so.ok;
     last = sxFailed
       ? r.sx
-      : { errorKind: '', httpStatus: 200, retryable: false, message: '没有检索到相关资料。', empty: true };
+      : soFailed && !r.sources.length
+        ? {
+            errorKind: r.so.errorKind || 'failed',
+            httpStatus: r.so.httpStatus || 0,
+            retryable: r.so.errorKind !== 'rate_limit',
+            message: '360 检索暂不可用（' + (r.so.errorKind || 'failed') + '）',
+          }
+        : { errorKind: '', httpStatus: 200, retryable: false, message: '没有检索到相关资料。', empty: true };
 
     if (attempt === MAX_ATTEMPTS - 1) break;
     if (sxFailed && !r.sx.retryable) break;

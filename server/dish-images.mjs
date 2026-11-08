@@ -81,6 +81,28 @@ function parseBing(html) {
   return out;
 }
 
+/** 360 图片：公开结果 JSON 的 img / thumb，title 里通常带菜名（用于相关性筛选） */
+function parseSo360Images(text) {
+  const out = [];
+  try {
+    const j = JSON.parse(text);
+    for (const item of j.list || []) {
+      if (!item || typeof item !== 'object') continue;
+      const url = item.img || item.thumb || item.thumb_bak || item.downurl;
+      if (!url || !/^https?:\/\//.test(url)) continue;
+      out.push({
+        url,
+        source: item.link || item.comm_purl || '',
+        title: String(item.title || item.litetitle || '').replace(/<[^>]+>/g, ''),
+      });
+      if (out.length >= 12) break;
+    }
+  } catch {
+    /* 忽略 */
+  }
+  return out;
+}
+
 /** 百度图片：公开结果 JSON 的 thumbURL / middleURL */
 function parseBaidu(text) {
   const out = [];
@@ -115,13 +137,24 @@ export async function searchImageCandidates(query) {
       candidates.push({ ...c, provider, referer });
     }
   };
+  // 360 图片：返回的 title 与菜品相关性最好，优先用
   try {
-    push(parseBaidu(await fetchText(
-      'https://image.baidu.com/search/acjson?tn=resultjson_com&word=' + encodeURIComponent(query) + '&pn=0&rn=12',
-      'https://image.baidu.com/'
-    )), '百度图片', 'https://image.baidu.com/');
+    push(parseSo360Images(await fetchText(
+      'https://image.so.com/j?q=' + encodeURIComponent(query) + '&src=srp&sn=0&pn=16',
+      'https://image.so.com/'
+    )), '360图片', 'https://image.so.com/');
   } catch {
     /* 网络受限时忽略 */
+  }
+  if (candidates.length < 3) {
+    try {
+      push(parseBaidu(await fetchText(
+        'https://image.baidu.com/search/acjson?tn=resultjson_com&word=' + encodeURIComponent(query) + '&pn=0&rn=12',
+        'https://image.baidu.com/'
+      )), '百度图片', 'https://image.baidu.com/');
+    } catch {
+      /* 网络受限时忽略 */
+    }
   }
   if (candidates.length < 3) {
     try {

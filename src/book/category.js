@@ -32,7 +32,12 @@ import {
   ATLAS_BATCH,
   DISCOVER_BATCH,
 } from '../data/dishFeed.js';
-import { guardImage } from '../lib/placeholder.js';
+import { guardImage, dishPlaceholder } from '../lib/placeholder.js';
+
+/** 仅开发环境：把「加载更多」的每一步都打到控制台，便于排查（生产构建里整段被摇掉） */
+const logCat = (...args) => {
+  if (import.meta.env?.DEV) console.info('[catalog]', ...args);
+};
 import { openDishOverlay, closeAllOverlays } from './overlay.js';
 import { appRoute } from './dish-page.js';
 
@@ -114,6 +119,7 @@ export function mountCategory(el, kind, id) {
     notice: '',
     error: false,
     requestId: 0, // 切换菜系后作废旧请求
+    clicks: 0, // 「加载更多」点击计数（只用于日志）
   };
 
   const isTaste = () => state.kind === 'taste';
@@ -435,26 +441,31 @@ export function mountCategory(el, kind, id) {
     const rest = atlasRemaining(f);
     if (state.loading) {
       rightMoreBtn.disabled = true;
-      rightMoreLabel.textContent = state.phase === 'atlas' ? '正在加载图鉴菜品……' : '正在发现更多相关菜品……';
-      rightMoreText.textContent =
-        state.phase === 'atlas' ? `图鉴还有 ${rest} 道未展示` : '联网检索并校验菜名、菜系与图片，通常需要 30–60 秒';
       rightMore.classList.add('is-loading');
       rightMore.hidden = false;
+      if (state.phase === 'atlas') {
+        rightMoreLabel.textContent = '正在加载图鉴菜品……';
+        rightMoreText.textContent = `图鉴还有 ${rest} 道未展示`;
+      } else {
+        rightMoreLabel.textContent = '正在发现更多相关菜品……';
+        rightMoreText.textContent = '联网检索并逐条验证菜名、菜系与图片，通常需要 10–40 秒';
+      }
       return;
     }
     rightMoreBtn.disabled = false;
     rightMore.classList.remove('is-loading');
     rightMore.hidden = false;
     if (state.error) {
-      rightMoreLabel.textContent = '重新加载';
-      rightMoreText.textContent = state.error.slice(0, 60) || '加载失败，请再试一次';
+      // 检索服务不可用 / 超时：明确说清楚，不能伪装成「没有更多」
+      rightMoreLabel.textContent = '重新搜索';
+      rightMoreText.textContent = state.error.slice(0, 60) || '暂时无法连接美食检索服务，请稍后重试。';
       rightMore.classList.add('is-error');
       return;
     }
     rightMore.classList.remove('is-error');
     if (f.done) {
-      rightMoreLabel.textContent = '再试一次';
-      rightMoreText.textContent = '暂时没有发现更多相关菜品';
+      rightMoreLabel.textContent = '重新搜索';
+      rightMoreText.textContent = (state.notice || '本次没有发现新的可靠菜品，可以尝试再次探索。').slice(0, 60);
       return;
     }
     rightMoreLabel.textContent = '加载更多';
@@ -479,8 +490,17 @@ export function mountCategory(el, kind, id) {
     state.loading = true;
     state.error = '';
     state.notice = '';
+    state.clicks = (state.clicks || 0) + 1;
     state.phase = atlasRemaining(f) > 0 ? 'atlas' : 'discover';
     if (state.phase === 'discover' && f.done) retryDiscovery(f);
+    const keepScroll = rightScroll ? rightScroll.scrollTop : 0;
+    logCat('click', {
+      cuisine: state.id,
+      click: state.clicks,
+      phase: state.phase,
+      shown: f.items.length,
+      atlasRest: atlasRemaining(f),
+    });
     moreStatus();
 
     try {
@@ -490,7 +510,8 @@ export function mountCategory(el, kind, id) {
         if (token !== state.requestId) return;
         const items = takeAtlasBatch(f, ATLAS_BATCH);
         for (const d of items) rightGrid.append(dishCard(d, { source: 'atlas' }));
-        state.notice = items.length ? '' : '图鉴菜品已全部展示';
+        state.notice = items.length ? `已补充 ${items.length} 道图鉴菜品` : '图鉴菜品已全部展示';
+        logCat('atlas-batch', { added: items.length, rest: atlasRemaining(f) });
       } else {
         if (import.meta.env?.DEV && DEBUG_FAIL_NEXT) {
           DEBUG_FAIL_NEXT = false;
@@ -499,16 +520,32 @@ export function mountCategory(el, kind, id) {
         const res = await discoverBatch(f, DISCOVER_BATCH);
         if (token !== state.requestId) return; // 期间换了菜系：这批不进界面
         for (const d of res.items) rightGrid.append(dishCard(d, { source: 'discovered' }));
-        state.notice = res.note || '';
+        // 界面只说结论，为什么没找到（候选数、被谁跳过）留在控制台与后端日志里
+        state.notice = res.items.length
+          ? `发现了 ${res.items.length} 道新菜品`
+          : res.status === 'failed'
+            ? '暂时无法连接美食检索服务，请稍后重试。'
+            : '本次没有发现新的可靠菜品，可以尝试再次探索。';
+        if (!res.items.length) logCat('discover:empty', { reason: res.reason, note: res.note });
+        logCat('discover', {
+          status: res.status,
+          reason: res.reason,
+          added: res.items.length,
+          stats: res.stats,
+          done: f.done,
+        });
       }
       paintRightHead(f);
+      if (rightScroll) rightScroll.scrollTop = keepScroll; // 追加不跳动滚动位置
     } catch (err) {
       if (token === state.requestId) {
-        // 服务端会回「请先登录 / 检索服务未配置 / 本轮超时」这类可直接展示的说明，
-        // 只有网络层的「请求失败 (503)」才换成一句通用提示
+        // 服务端会回「请先登录 / 检索超时 / 服务不可用」这类可直接展示的说明
         const raw = String(err?.message || '');
-        state.error = !raw || /^请求失败|^debug:/.test(raw) ? '联网检索失败，请稍后再试' : raw.slice(0, 60);
-        if (import.meta.env?.DEV) console.warn('[catb] 发现菜品失败', err);
+        state.error =
+          !raw || /^请求失败|Failed to fetch|NetworkError|^debug:/.test(raw)
+            ? '暂时无法连接美食检索服务，请稍后重试。'
+            : raw.slice(0, 60);
+        logCat('error', { message: raw.slice(0, 160) });
       }
     } finally {
       if (token === state.requestId) {
@@ -648,9 +685,25 @@ export function mountCategory(el, kind, id) {
       h(
         'button',
         { class: 'catb__card-media', type: 'button', 'data-act': 'dish', 'data-dish': d.id, 'aria-label': `查看${d.name}详情` },
-        guardImage(h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }), d.name, '图片暂不可用'),
+        guardImage(
+          h('img', {
+            // 图鉴外发现暂时没有可靠配图时用统一占位图，不拿别的菜的图顶替
+            src: d.image || dishPlaceholder(d.name, d.imageNote || '暂无可靠配图'),
+            alt: d.alt || d.name,
+            loading: 'lazy',
+            decoding: 'async',
+          }),
+          d.name,
+          '图片暂不可用'
+        ),
         // 来源标识只在菜系页出现（口味页沿用原版式，不额外加徽标）
-        opts.source ? h('span', { class: 'catb__card-src', text: discovered ? '新发现' : '已收录' }) : null
+        opts.source
+          ? h('span', {
+              class: `catb__card-src${discovered ? ' is-new' : ''}`,
+              'data-src': discovered ? 'discovered' : 'atlas',
+              text: discovered ? '新发现' : '图鉴收录',
+            })
+          : null
       ),
       h(
         'button',
@@ -767,6 +820,26 @@ export function mountCategory(el, kind, id) {
     };
     registry.instances[self.key] = self;
     registry.use = (key) => Object.assign(registry, registry.instances[key] || {});
+  }
+
+  // 仅开发环境：给自动化测试和排查留一个只读把手（生产构建里被摇掉）
+  if (import.meta.env?.DEV) {
+    // 书里可能同时挂着好几页分类页，取「当前可见的那一页」，避免拿到别的实例
+    const handle = {
+      state,
+      el: root,
+      feed: () => currentFeed(),
+      items: () => currentFeed().items.slice(),
+      loadMore: () => loadMore(),
+      failNext: () => {
+        DEBUG_FAIL_NEXT = true;
+      },
+    };
+    window.__catbs = (window.__catbs || []).filter((x) => x.el && x.el.isConnected);
+    window.__catbs.push(handle);
+    window.__catb = handle;
+    window.__catbActive = () =>
+      window.__catbs.find((x) => x.el && x.el.isConnected && x.el.getClientRects().length > 0) || handle;
   }
 
   return {
