@@ -79,7 +79,19 @@ body.is-book {
   --page-lip: rgba(120, 82, 56, 0.07);   /* 上下纸边 */
   --page-gutter-shade: rgba(120, 82, 56, 0.18);
   --page-inner-inset: 7px;        /* 内侧装饰线离纸边多远 */
-  --closed-tx: calc(var(--closed-scale, 0.52) * -25%);
+  --closed-tx: calc(var(--closed-scale, 0.585) * -25%);
+  /*
+   * 合书状态的独立尺寸参数：只作用于「合上 / 回正」，不影响打开后的版式。
+   * closed-scale     整体缩放（宽高同增）
+   * closed-stretch   封面纵向再拉长一点，让合上的书更修长挺拔（打开时回到 1）
+   * mk-base-*        书签的基准宽/字号/内边距，JS 会在此基础上按书口长度收放
+   */
+  --closed-scale: 0.585;
+  --closed-cover-stretch: 1.06;
+  --mark-w: 42px;
+  --mk-base-font: 14.5px;
+  --mk-base-pad: 7px;
+  --mk-base-gap: 5px;
   position: relative;
   width: var(--book-w, 1100px);
   height: var(--book-h, 720px);
@@ -91,12 +103,12 @@ body.is-book {
 
 /* 合上：左移让封面居中，顺时针倾斜 15°，并缩到小书尺寸 */
 .bk-book--closed {
-  transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
+  transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.585));
 }
 
 /* 回正：保持小书尺寸，只把 15° 收回 0° */
 .bk-book--straight {
-  transform: translateX(var(--closed-tx)) rotateZ(0deg) scale(var(--closed-scale, 0.52));
+  transform: translateX(var(--closed-tx)) rotateZ(0deg) scale(var(--closed-scale, 0.585));
 }
 
 /* 展开：双页露出，略大于小书 */
@@ -113,7 +125,7 @@ body.is-book {
  */
 @keyframes bk-book-open {
   0% {
-    transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.52));
+    transform: translateX(var(--closed-tx)) rotateZ(15deg) scale(var(--closed-scale, 0.585));
   }
   58% {
     transform: translateX(0) rotateZ(0deg) scale(0.7);
@@ -625,6 +637,16 @@ body.is-book {
   transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/*
+ * 合上时封面纵向再拉长 closed-cover-stretch：合上的书更修长，
+ * 但这是纯 transform，打开状态（封面高度仍 100%）与页面版式一点没变。
+ */
+.bk-book--closed .bk-cover,
+.bk-book--straight .bk-cover {
+  /* 不要在这里写 translateZ：preserve-3d 下把封面推到 z=-3 会被同一层的纸页压住 */
+  transform: translateZ(0px) rotateY(0deg) scaleY(var(--closed-cover-stretch, 1.06));
+}
+
 .bk-book--open .bk-cover,
 .bk-book--reading .bk-cover {
   transform: translateZ(-3px) rotateY(-180deg);
@@ -636,7 +658,7 @@ body.is-book {
  */
 @keyframes bk-cover-open {
   from {
-    transform: translateZ(-3px) rotateY(0deg);
+    transform: translateZ(0px) rotateY(0deg) scaleY(var(--closed-cover-stretch, 1.06));
   }
   to {
     transform: translateZ(-3px) rotateY(-180deg);
@@ -712,56 +734,57 @@ body.is-book {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 9px;
   text-align: center;
-  padding: 40px;
+  padding: 40px 34px;
 }
 
 .bk-cover__kicker {
-  margin: 0 0 12px;
-  font-size: 9.5px;
+  margin: 0 0 16px;
+  font-size: 15px;
   letter-spacing: 0.34em;
-  color: rgba(122, 80, 38, 0.95);
+  color: #6a4022;
   text-indent: 0.34em;
 }
 
 .bk-cover__title {
   margin: 0;
-  font-size: clamp(30px, 3.4vw, 46px);
+  font-size: clamp(40px, 4.4vw, 72px);
   font-weight: 500;
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;
-  color: #4a2415;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  color: #3b1a0e;
+  text-shadow: 0 1px 0 rgba(255, 248, 232, 0.55);
 }
 
 .bk-cover__en {
   margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.42em;
-  text-indent: 0.42em;
-  color: rgba(122, 80, 38, 0.95);
+  font-size: clamp(14px, 1.2vw, 19px);
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: #5a3418;
 }
 
 .bk-cover__rule {
   display: block;
-  width: 62px;
+  width: 84px;
   height: 1px;
-  margin: 18px 0;
-  background: linear-gradient(to right, transparent, rgba(186, 140, 78, 0.9), transparent);
+  margin: 22px 0;
+  background: linear-gradient(to right, transparent, rgba(168, 122, 62, 0.95), transparent);
 }
 
 .bk-cover__sub {
   margin: 0;
-  font-size: 12px;
+  font-size: 17px;
   letter-spacing: 0.16em;
-  color: #6b3a22;
+  color: #4a2915;
 }
 
 .bk-cover__hint {
-  margin: 26px 0 0;
-  font-size: 11px;
+  margin: 30px 0 0;
+  font-size: 15px;
   letter-spacing: 0.2em;
-  color: rgba(122, 80, 38, 0.85);
+  color: rgba(106, 62, 30, 0.92);
   animation: bk-breathe 2.6s ease-in-out infinite;
 }
 
@@ -849,7 +872,8 @@ body.is-book {
  */
 .bk-marks {
   --page-w: 50%;
-  --mark-out: 34px;
+  /* 书签宽度与「伸出书口的长度」都由 --mark-w 推导，改一处即可整体等比 */
+  --mark-out: var(--mark-w, 42px);
   position: absolute;
   top: 50%;
   left: 0;
@@ -895,16 +919,16 @@ body.is-book {
   position: relative;
   display: block;
   pointer-events: auto;
-  width: 34px;
+  width: var(--mark-w, 42px);
   /* 内侧插进书页 4px：书签是夹在纸里的，不是贴在外面 */
   margin-right: 4px;
-  padding: var(--mk-pad, 13px) 0;
+  padding: var(--mk-pad, 7px) 0;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   /* 字号由 JS 按书页高度收起（--mk-font），小窗口时书签列不会越过书页上下沿 */
-  font-size: var(--mk-font, 12.5px);
+  font-size: var(--mk-font, var(--mk-base-font, 14.5px));
   line-height: 1;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.12em;
   color: #6d4a2c;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 62%),
@@ -1227,27 +1251,44 @@ body.is-book {
   /* 手机端同样是合拢倾斜 15°，只是不左移（单页没有左右之分） */
   .bk-book {
     --closed-tx: 0%;
+    /* 手机另有自己的合书尺寸，不沿用桌面数值：屏幕窄，书要占更多纵向空间 */
+    --closed-scale: 0.64;
+    --closed-cover-stretch: 1.06;
+    --mark-w: 36px;
+    --mk-base-font: 13px;
+    --mk-base-pad: 6px;
+    --mk-base-gap: 4px;
   }
 
   .bk-book--closed {
-    transform: rotateZ(15deg) scale(var(--closed-scale, 0.52));
+    transform: rotateZ(15deg) scale(var(--closed-scale, 0.56));
   }
 
   .bk-book--straight {
-    transform: rotateZ(0deg) scale(var(--closed-scale, 0.52));
+    transform: rotateZ(0deg) scale(var(--closed-scale, 0.56));
   }
 
   /* 单页模式只有一条书口（右侧），书签统一在右缘，不做左右分布 */
   .bk-marks {
     --page-w: 100%;
-    --mark-out: 28px;
   }
 
   .bk-mark {
-    width: 30px;
-    padding: var(--mk-pad, 11px) 0;
-    font-size: var(--mk-font, 11.5px);
-    letter-spacing: 0.16em;
+    width: var(--mark-w, 36px);
+    padding: var(--mk-pad, 6px) 0;
+    font-size: var(--mk-font, var(--mk-base-font, 13px));
+    letter-spacing: 0.1em;
+  }
+
+  .bk-cover__kicker {
+    font-size: 12.5px;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+
+  .bk-cover__body {
+    padding: 34px 24px;
+    gap: 8px;
   }
 
   .bk-turn--prev {
@@ -1530,7 +1571,8 @@ body.is-book {
 
 /* ---------- 阅读态：书签更贴书边、阴影更轻，翻页按钮回到书内 ---------- */
 .bk-stage.is-reading .bk-marks {
-  --mark-out: 30px;
+  /* 阅读态书签更贴书边：伸出量比合上时再收 5px */
+  --mark-out: calc(var(--mark-w, 42px) - 5px);
 }
 
 .bk-stage.is-reading .bk-mark {

@@ -248,17 +248,30 @@ export function initBook({ root }) {
    * 两者一比就知道该放大/缩小多少，保证上端不出书角、下端不落到书外。
    * 一切都是相对书本体的，窗口变化时 fit() 会重算。
    */
-  const CLOSED_SCALE = 0.52;
+  /*
+   * 合书尺寸、封面纵向拉伸、书签基准值都写在 CSS 里（桌面/手机各一套），
+   * 这里只读，不在 JS 里另存一份常数，避免两边数值走散。
+   */
+  function cssNum(name, fallback) {
+    const el = shell.book || shell.el;
+    const v = parseFloat(getComputedStyle(el).getPropertyValue(name));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  }
+
   function fitMarks() {
     if (!marksApi || !lastBox) return;
     const layer = marksApi.layer;
     const bookH = lastBox.h;
     if (!bookH) return;
+    const closedScale = cssNum('--closed-scale', 0.585);
+    const stretch = cssNum('--closed-cover-stretch', 1.06);
     // 1) 先按书页高度收字号：书小时书签跟着收，保证整列不越过书页上下沿
-    const BASE = 12.5;
+    const BASE = cssNum('--mk-base-font', 14.5);
+    const basePad = cssNum('--mk-base-pad', 11);
+    const baseGap = cssNum('--mk-base-gap', 6);
     shell.el.style.setProperty('--mk-font', `${BASE}px`);
-    shell.el.style.setProperty('--mk-pad', '13px');
-    shell.el.style.setProperty('--mk-gap', '6px');
+    shell.el.style.setProperty('--mk-pad', `${basePad}px`);
+    shell.el.style.setProperty('--mk-gap', `${baseGap}px`);
     let h = layer.offsetHeight || 0;
     if (!h) return;
     const target = bookH * 0.94;
@@ -269,8 +282,8 @@ export function initBook({ root }) {
       h = layer.offsetHeight || h;
     }
     // 2) 还不够就收内边距和间距（竖排文字的高度主要由这两项撑起来）
-    let pad = 13;
-    let gap = 6;
+    let pad = basePad;
+    let gap = baseGap;
     while (h > target && pad > 5) {
       pad = Math.max(5, pad - 2);
       gap = Math.max(2, gap - 1);
@@ -278,10 +291,11 @@ export function initBook({ root }) {
       shell.el.style.setProperty('--mk-gap', `${gap}px`);
       h = layer.offsetHeight || h;
     }
-    // 2) 合上时再按封面书口长度放大：整列正好落在封面右缘那条书口上
-    const fore = bookH * CLOSED_SCALE;
-    const native = (layer.offsetHeight || h) * CLOSED_SCALE;
-    const scale = Math.min(1.35, Math.max(0.78, (fore * 0.92) / native));
+    // 3) 合上时按「封面书口长度」放大：整列正好落在封面右缘那条书口上
+    //    封面在合上时额外纵向拉长 stretch，书口长度也要跟着算进去。
+    const fore = bookH * closedScale * stretch;
+    const native = (layer.offsetHeight || h) * closedScale;
+    const scale = Math.min(2.2, Math.max(0.78, (fore * 0.92) / native));
     shell.el.style.setProperty('--mk-scale', scale.toFixed(3));
   }
 
