@@ -465,6 +465,13 @@ export function initBook({ root }) {
     }
   }
 
+  /**
+   * 站内页面（AI 聊天等）的转场会把内容层换掉，书页 DOM 跟着被卸掉，
+   * 但画册状态还停在「开着」。这时再点书里的链接或按浏览器返回，
+   * 在空壳上重建并不可靠 —— 直接整页重进，走深链接开书那条老路。
+   */
+  const bookDomGone = () => mode === 'open' && !document.querySelector('.bk-sheet');
+
   /* ---------------- 显示某个路径 ---------------- */
   const INNER_KEYS = new Set(['dishDetail', 'admin', 'notFound']);
 
@@ -765,6 +772,11 @@ export function initBook({ root }) {
     e.preventDefault();
     if (busy) return;
     const path = url.pathname + url.search;
+    if (bookDomGone()) {
+      // 从 AI 聊天等站内页返回：书页已不在 DOM 里，整页重进更稳
+      location.assign(path);
+      return;
+    }
     if (mode === 'closed') {
       history.pushState({ path }, '', path);
       // 后台 / 菜品详情这类内页：先把书打开，再落到内页那一叠纸
@@ -781,6 +793,10 @@ export function initBook({ root }) {
 
   window.addEventListener('popstate', () => {
     if (busy) return;
+    if (bookDomGone()) {
+      location.reload();
+      return;
+    }
     const path = location.pathname + location.search;
     if (mode === 'closed') {
       shell.setActive(chapterOf(path));
