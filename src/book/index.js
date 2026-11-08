@@ -23,8 +23,6 @@ import './dish-page.css';
 import './category.css';
 import './videos.css';
 import { closeAllOverlays } from './overlay.js';
-import { createBookOpen3D } from './open3d.js';
-import './open3d.css';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -95,44 +93,6 @@ export function initBook({ root }) {
   }
 
   fit();
-
-  /* ---------------- 3D 开书层 ---------------- */
-  /*
-   * 合上状态由 WebGL 接管：真实厚度的封面、纸芯、圆书脊，接触阴影。
-   * 没有 WebGL / 系统开了「减少动态效果」时，open3d 为 null，走原来的 CSS 开书流程。
-   */
-  const prefersReduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  let open3d = null;
-  try {
-    open3d = prefersReduced()
-      ? null
-      : createBookOpen3D({
-          stage: shell.el,
-          coverEl: shell.cover,
-          bookEl: shell.book,
-        });
-  } catch (err) {
-    open3d = null;
-    if (import.meta.env?.DEV) console.warn('[book] 3D 开书不可用，回退到 CSS 开书', err);
-  }
-  if (open3d) {
-    shell.el.append(open3d.el);
-    // 先让 3D 封面画出来，再藏起 DOM 封面 —— 顺序反了会闪一帧空白
-    open3d.showClosed();
-    shell.el.classList.add('is-3d');
-    window.__bookOpen3D = {
-      play: () => open3d.play(),
-      pause: () => open3d.pause(),
-      resume: () => open3d.resume(),
-      reset: () => open3d.reset(),
-      seek: (t) => open3d.seek(t),
-      dispose: () => open3d.dispose(),
-      get state() {
-        return open3d.state;
-      },
-    };
-  }
-
   const stopObserve = observeLayout(() => {
     const before = lastBox;
     fit();
@@ -486,34 +446,6 @@ export function initBook({ root }) {
       setBookState('bk-book--opening');
       marksOpen = true;
       syncMarks();
-
-      /*
-       * 3D 开书：封面绕书脊掀起（有厚度、有加速减速）、纸页按次序散开并弯曲、
-       * 投影随封面运动而变化；最后一帧正好是摊开的双页。
-       * 动画期间 DOM 书藏在下面，结束时直接摆到打开态再交叉淡出，肉眼看不到切换。
-       */
-      if (open3d && !prefersReduced()) {
-        shell.el.classList.add('is-3d');
-        open3d.showClosed();
-        await open3d.play();
-        await sheets.fan(200);
-        /*
-         * 交接：3D 最后一帧和打开后的双页位置一致，这里把 DOM 书直接摆到打开态，
-         * 让两者交叉淡出（260ms）。淡出不阻塞交互 —— 书一开就能翻页。
-         */
-        shell.el.classList.remove('is-3d');
-        shell.el.classList.add('is-open', 'is-3d-handoff');
-        setBookState('bk-book--reading');
-        blendShadowTo(1, 0);
-        setPhase('READING');
-        mode = 'open';
-        syncChrome();
-        syncMarks();
-        void open3d.hide(260).then(() => shell.el.classList.remove('is-3d-handoff'));
-        if (innerTarget) await showPath(path, { flip: false });
-        return;
-      }
-
       const fanning = sheets.fan(OPEN_MS - 160);
       await wait(CHROME_MS);
       blendShadowTo(1, 520);
@@ -793,11 +725,6 @@ export function initBook({ root }) {
       setBookState('bk-book--closed');
       setPhase('CLOSED_TILTED');
       mode = 'closed';
-      if (open3d) {
-        open3d.reset();
-        open3d.showClosed();
-        shell.el.classList.add('is-3d');
-      }
       await wait(420);
     } finally {
       busy = false;
