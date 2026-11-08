@@ -1,65 +1,31 @@
 /* ============================================================
- * 目录页（画册打开后的第一跨页）
- * 左页 = 序言：品牌 / 简介 / 网站特色 / 欢迎语
- * 右页 = 全书目录：三栏分组 + 编号 + 名称 + 一句话 + 细金线
+ * 目录页（画册打开后的第一跨页）—— 第二轮重排
+ * 左页 = 品牌序章：题头 / 主视觉摄影 / 品牌介绍 / 五项特色 / 收尾
+ * 右页 = 全书目录：分组 · 编号 · 名称 · 介绍 · 书签小标 · 页码与翻页提示
  *
- * 版式约定与菜系 / 口味页一致：
- *   · 纸面本身不滚动，内页按 100% 高度排满（不留大片空白）
- *   · 字体用宋体系，颜色取深棕 + 淡金 + 朱红
- *   · 所有边线都是 1px 淡金，不画卡片底、不画网格
+ * 版式约定：
+ *   · 纸面本身不滚动，内容按 100% 高度排满（用 flex 分配，不靠 space-between 硬撑）
+ *   · 宋体系 + 深棕 / 淡金 / 朱红；边线一律 1px 淡金，不画卡片底与网格
+ *   · 主视觉宽度 ≈ 左页纸宽的 89%（= 内容栏宽），高度吃剩余空间，cover 裁切不拉伸
  * ============================================================ */
+
+/* 设计变量挂在纸面与容器上：双页模式下 .catalog__page 会被搬进各自的纸面里，
+   外层 .catalog 并不在它的祖先链上，变量必须挂到纸面这一层才生效。 */
+.bk-pageface--catalog,
+.bk-pageface--catalog-flow,
+.catalog {
+  --ct-serif: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
+  --ct-ink: #3d2917;
+  --ct-ink-2: #5b4025;
+  --ct-muted: #8a6a44;
+  --ct-faint: #9b8062;
+  --ct-gold: rgba(184, 146, 92, 0.42);
+  --ct-gold-soft: rgba(184, 146, 92, 0.2);
+  --ct-red: #b5452f;
+}
 
 .bk-pageface--catalog {
   overflow: hidden;
-}
-
-/* 手机单页：序 + 目录并在一张纸上，纸面本身可以往下读 */
-.bk-pageface--catalog-flow {
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(196, 168, 120, 0.36) transparent;
-}
-
-/* 注意：.catalog 本身是 flex 行，并页版式必须用 .catalog.catalog--flow 提一级特异性 */
-.catalog.catalog--flow {
-  display: block;
-  height: auto;
-  min-height: 100%;
-}
-
-.catalog.catalog--flow .catalog__page {
-  height: auto;
-  min-height: 0;
-  overflow: visible;
-  flex: none;
-  width: 100%;
-}
-
-.catalog.catalog--flow .catalog__preface {
-  min-height: 0;
-  padding-bottom: 6px;
-}
-
-/* 并页后两段之间用一条淡金细线隔开，像书里的「序」与「目录」两部分 */
-.catalog.catalog--flow .catalog__contents {
-  min-height: 0;
-  padding-top: 18px;
-  border-top: 1px solid rgba(184, 146, 92, 0.28);
-  margin-top: 4px;
-}
-
-.catalog.catalog--flow .catalog__feats {
-  justify-content: flex-start;
-}
-
-.catalog.catalog--flow .catalog__list {
-  justify-content: flex-start;
-}
-
-.catalog.catalog--flow .catalog__idx-head {
-  margin-top: 2px;
 }
 
 .bk-pageface--catalog .bk-pageface__inner {
@@ -68,20 +34,13 @@
   height: 100%;
 }
 
-/* 设计变量挂在纸面与容器上：双页模式下 .catalog__page 会被搬进各自的纸面里，
-   外层 .catalog 并不在它的祖先链上，变量必须挂到纸面这一层才生效。 */
-.bk-pageface--catalog,
-.bk-pageface--catalog-flow,
-.bk-pageface--catalog--single,
-.catalog {
-  --ct-serif: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
-  --ct-ink: #3d2917;
-  --ct-ink-2: #5b4025;
-  --ct-muted: #8a6a44;
-  --ct-faint: #9b8062;
-  --ct-gold: rgba(184, 146, 92, 0.42);
-  --ct-gold-soft: rgba(184, 146, 92, 0.22);
-  --ct-red: #b5452f;
+/* 手机单页：序 + 目录并在一张纸上，纸面可以往下读 */
+.bk-pageface--catalog-flow {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 168, 120, 0.36) transparent;
 }
 
 .catalog {
@@ -112,23 +71,33 @@
   border-radius: 2px;
 }
 
-/* ---------- 左页：序 ---------- */
-.catalog__preface {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  padding: 30px 34px 22px;
-}
-
+/* ---------- 通用小字 ---------- */
 .catalog__kicker {
   margin: 0;
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.26em;
   color: #a9793f;
 }
 
+/* ============================================================
+ * 左页
+ * ============================================================ */
+.catalog__preface {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100%;
+  padding: 24px 34px 18px;
+}
+
+.catalog__masthead {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .catalog__brand {
-  margin: 10px 0 0;
+  margin: 9px 0 0;
   display: flex;
   align-items: baseline;
   gap: 12px;
@@ -138,113 +107,177 @@
 }
 
 .catalog__brand-cn {
-  font-size: 40px;
-  letter-spacing: 0.14em;
-  color: #33200f;
+  font-size: 42px;
+  letter-spacing: 0.13em;
+  color: #32200f;
 }
 
 .catalog__brand-en {
   font-family: 'Inter', sans-serif;
   font-size: 10px;
   font-weight: 300;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.34em;
   color: #a08258;
 }
 
 .catalog__slogan {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   font-family: var(--ct-serif);
-  font-size: 13px;
+  font-size: 13.5px;
   letter-spacing: 0.05em;
   color: #7c4a26;
 }
 
-.catalog__rule {
-  display: block;
-  height: 1px;
+/* ---------- 主视觉 ---------- */
+.catalog__hero {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 168px;
+  /* 横图不用无上限放大：超过这个高度就停下来，剩余高度交给间距，
+     免得图片被裁成近乎方形，也免得下半页出现空白 */
+  max-height: 400px;
   margin: 16px 0 0;
-  background: linear-gradient(90deg, rgba(197, 160, 104, 0.8), rgba(197, 160, 104, 0.06));
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+/* 图外细边框：外一圈暖金，内留 3px 纸色，像画册里的贴片 */
+.catalog__hero-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(184, 146, 92, 0.55);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.catalog__hero-frame::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(184, 146, 92, 0.28);
+}
+
+.catalog__hero-img {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center 55%;
+}
+
+.catalog__hero-note {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 2px 0;
+  border-top: 0;
+}
+
+.catalog__hero-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.catalog__hero-mark {
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: #b09062;
+  border: 1px solid var(--ct-gold-soft);
+  padding: 1px 4px;
+}
+
+.catalog__hero-name {
+  font-family: var(--ct-serif);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: #3d2917;
+}
+
+.catalog__hero-meta {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--ct-faint);
+}
+
+.catalog__hero-theme {
+  font-family: var(--ct-serif);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: #9a7a52;
+  white-space: nowrap;
+}
+
+/* ---------- 品牌介绍 ---------- */
 .catalog__intro {
-  margin: 16px 0 0;
+  flex: 0 0 auto;
+  margin: 12px 0 0;
+  padding: 0 2px;
   font-size: 12.5px;
-  line-height: 2;
-  letter-spacing: 0.02em;
+  line-height: 1.95;
+  letter-spacing: 0.015em;
   color: #4a3626;
   text-align: justify;
 }
 
-.catalog__sec {
-  margin: 20px 0 0;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--ct-gold);
-}
-
-.catalog__sec-cn {
-  font-family: var(--ct-serif);
-  font-size: 12px;
-  letter-spacing: 0.2em;
-  color: #8a6a44;
-}
-
-.catalog__sec-en {
-  font-size: 8px;
-  letter-spacing: 0.24em;
-  color: #b39a76;
-}
-
+/* ---------- 五项特色：底部横向一排 ---------- */
 .catalog__feats {
+  flex: 0 0 auto;
   list-style: none;
-  margin: 2px 0 0;
-  padding: 0;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--ct-gold);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .catalog__feat {
-  display: grid;
-  grid-template-columns: 24px 1fr;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--ct-gold-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 8px 0 0;
+  border-right: 1px solid var(--ct-gold-soft);
 }
 
 .catalog__feat:last-child {
-  border-bottom: 0;
+  border-right: 0;
+  padding-right: 0;
 }
 
 .catalog__feat-no {
   font-family: var(--ct-serif);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--ct-red);
-  opacity: 0.72;
+  opacity: 0.78;
 }
 
 .catalog__feat-name {
   font-family: var(--ct-serif);
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   color: #3d2917;
+  white-space: nowrap;
 }
 
 .catalog__feat-desc {
-  display: block;
-  margin-top: 3px;
-  font-size: 11px;
-  line-height: 1.7;
+  font-size: 9.5px;
+  line-height: 1.6;
   color: #7b6650;
 }
 
+/* ---------- 收尾 ---------- */
 .catalog__welcome {
-  margin-top: 16px;
-  padding-top: 12px;
+  flex: 0 0 auto;
+  margin-top: 14px;
+  padding-top: 11px;
   border-top: 1px solid var(--ct-gold);
   display: flex;
   align-items: center;
@@ -260,40 +293,37 @@
   color: #8a6a44;
 }
 
-/* 朱红小印：三字竖排，做右下角的落款 */
+/* 朱红小印：三字竖排 */
 .catalog__seal {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 40px;
-  padding: 3px 0;
-  border: 1px solid rgba(181, 69, 47, 0.62);
+  width: 32px;
+  height: 38px;
+  border: 1px solid rgba(181, 69, 47, 0.6);
   border-radius: 3px;
   background: rgba(181, 69, 47, 0.05);
   color: var(--ct-red);
   font-family: var(--ct-serif);
-  font-size: 10px;
-  line-height: 1.15;
-  letter-spacing: 0.06em;
+  font-size: 9.5px;
+  line-height: 1.12;
 }
 
-.catalog__seal-char {
-  display: block;
-}
-
-/* ---------- 右页：目录 ---------- */
+/* ============================================================
+ * 右页
+ * ============================================================ */
 .catalog__contents {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  padding: 26px 32px 20px 28px;
+  padding: 24px 30px 18px 28px;
 }
 
 .catalog__idx-head {
-  padding-bottom: 10px;
+  flex: 0 0 auto;
+  padding-bottom: 9px;
   border-bottom: 1px solid var(--ct-gold);
 }
 
@@ -307,45 +337,46 @@
 
 .catalog__idx-cn {
   font-family: var(--ct-serif);
-  font-size: 25px;
+  font-size: 26px;
   font-weight: 600;
   letter-spacing: 0.12em;
-  color: #33200f;
+  color: #32200f;
 }
 
 .catalog__idx-meta {
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   color: var(--ct-faint);
 }
 
+.catalog__idx-hint {
+  margin: 7px 0 0;
+  font-family: var(--ct-serif);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: #8a6a44;
+}
+
+/* ---------- 分组 ---------- */
 .catalog__groups {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 12px;
-  min-height: 0;
-}
-
-.catalog__group {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  margin-top: 13px;
 }
 
 .catalog__group-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-weight: 400;
 }
 
 .catalog__group-cn {
   font-family: var(--ct-serif);
-  font-size: 10.5px;
+  font-size: 10px;
   letter-spacing: 0.2em;
   color: #8a6a44;
   white-space: nowrap;
@@ -359,143 +390,433 @@
 
 .catalog__group-en {
   font-size: 7.5px;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.24em;
   color: #b39a76;
   white-space: nowrap;
 }
 
 .catalog__list {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 0;
 }
 
+/* ---------- 目录条目 ---------- */
 .catalog__item {
   position: relative;
   width: 100%;
   display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 10px;
+  grid-template-columns: 30px minmax(0, 1fr) 46px;
   align-items: start;
-  padding: 8px 10px 8px 9px;
+  gap: 10px;
+  padding: 8px 8px;
   border: 0;
-  border-bottom: 1px solid rgba(184, 146, 92, 0.16);
+  border-bottom: 1px solid rgba(184, 146, 92, 0.15);
   background: none;
   text-align: left;
   cursor: pointer;
   font: inherit;
   color: inherit;
-  transition: background 180ms ease;
+  transition: background 170ms ease;
 }
 
 .catalog__list .catalog__item:last-child {
   border-bottom: 0;
 }
 
-/* 选中：左侧一道该章书签色的细线，名称转朱红 */
+/* 悬停 / 聚焦：条目与自己那枚实体书签同时点亮 */
 .catalog__item::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 9px;
-  bottom: 9px;
+  top: 8px;
+  bottom: 8px;
   width: 2px;
   background: var(--entry-tint, #b5452f);
   opacity: 0;
-  transition: opacity 180ms ease;
+  transition: opacity 170ms ease;
 }
 
 .catalog__item:hover,
-.catalog__item:focus-visible {
+.catalog__item:focus-visible,
+.catalog__item.is-link {
   background: rgba(216, 178, 106, 0.1);
   outline: none;
 }
 
+.catalog__item:hover::before,
+.catalog__item:focus-visible::before,
+.catalog__item.is-link::before {
+  opacity: 0.75;
+}
+
 .catalog__item.is-on {
-  background: rgba(216, 178, 106, 0.08);
+  background: rgba(216, 178, 106, 0.09);
 }
 
 .catalog__item.is-on::before {
   opacity: 0.9;
 }
 
-.catalog__item.is-on .catalog__name {
-  color: var(--entry-tint, #b5452f);
+.catalog__item.is-pressed {
+  background: rgba(216, 178, 106, 0.16);
 }
 
 .catalog__no {
-  padding-top: 3px;
+  padding-top: 2px;
   font-family: var(--ct-serif);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  letter-spacing: 0.04em;
   color: #b09062;
 }
 
 .catalog__entry {
   min-width: 0;
+  display: block;
 }
 
-.catalog__entry-line {
+.catalog__entry-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
 
 .catalog__name {
-  flex: 0 0 auto;
   font-family: var(--ct-serif);
-  font-size: 15px;
-  letter-spacing: 0.08em;
-  color: #33200f;
-  transition: color 180ms ease;
+  font-size: 16px;
+  letter-spacing: 0.07em;
+  color: #32200f;
+  transition: color 170ms ease;
 }
 
-/* 书目录的引导点线 */
-.catalog__leader {
-  flex: 1 1 auto;
-  border-bottom: 1px dotted rgba(150, 120, 84, 0.45);
-  transform: translateY(-3px);
+.catalog__item:hover .catalog__name,
+.catalog__item.is-link .catalog__name {
+  color: var(--entry-tint, #b5452f);
 }
 
-.catalog__arrow {
+/* 书签小标：与书口那枚实体书签同色、同名、同竖排 */
+.catalog__chip {
   flex: 0 0 auto;
-  font-size: 12px;
-  color: #b09062;
-  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  padding: 2px 3px;
+  border: 1px solid color-mix(in srgb, var(--chip-tint, #b5452f) 55%, transparent);
+  border-bottom-width: 2px;
+  border-radius: 2px 2px 3px 3px;
+  background: color-mix(in srgb, var(--chip-tint, #b5452f) 8%, transparent);
+  color: var(--chip-tint, #b5452f);
+  font-family: var(--ct-serif);
+  font-size: 8.5px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+.catalog__item:hover .catalog__chip,
+.catalog__item.is-link .catalog__chip {
+  background: color-mix(in srgb, var(--chip-tint, #b5452f) 16%, transparent);
 }
 
 .catalog__desc {
   display: block;
-  margin-top: 3px;
-  font-size: 10.5px;
-  line-height: 1.6;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.62;
   color: #7b6650;
+  letter-spacing: 0.01em;
 }
 
+/* 条目右端：页码 + 翻页提示 */
+.catalog__tail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  padding-top: 2px;
+}
+
+.catalog__pages {
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: #b09062;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.catalog__turn {
+  font-family: var(--ct-serif);
+  font-size: 12px;
+  line-height: 1;
+  color: #b09062;
+  opacity: 0.75;
+  transition: transform 170ms ease, opacity 170ms ease;
+}
+
+.catalog__item:hover .catalog__turn,
+.catalog__item.is-link .catalog__turn {
+  transform: translateX(2px);
+  opacity: 1;
+}
+
+/* ---------- 右页页脚 ---------- */
 .catalog__note {
-  margin: 10px 0 0;
-  padding-top: 9px;
+  flex: 0 0 auto;
+  margin: 14px 0 0;
+  padding-top: 10px;
   border-top: 1px solid var(--ct-gold-soft);
+  display: flex;
+  gap: 6px;
   font-size: 9.5px;
-  line-height: 1.7;
+  line-height: 1.75;
   color: var(--ct-faint);
 }
 
 .catalog__note-mark {
-  margin-right: 5px;
+  flex: 0 0 auto;
   color: #b09062;
 }
 
-/* ---------- 手机：单页模式 ---------
- * 单页模式里一张纸就是一页，目录拆成「序」与「目录」两页；
- * 两页各自排满纸面，字号与间距整体收一档。
- */
-@media (max-width: 860px) {
-  .catalog__preface,
+.catalog__note-text {
+  display: block;
+}
+
+.catalog__colophon {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  color: #b39a76;
+}
+
+.catalog__colophon-left {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.catalog__colophon-right {
+  white-space: nowrap;
+}
+
+.catalog__colophon-rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(184, 146, 92, 0.12), rgba(184, 146, 92, 0.34), rgba(184, 146, 92, 0.12));
+}
+
+/* ============================================================
+ * 单页模式（手机）：序 + 目录并在一张纸上
+ * ============================================================ */
+.catalog.catalog--flow {
+  display: block;
+  height: auto;
+  min-height: 100%;
+}
+
+.catalog.catalog--flow .catalog__page {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex: none;
+  width: 100%;
+}
+
+.catalog.catalog--flow .catalog__preface {
+  min-height: 0;
+  padding-bottom: 4px;
+}
+
+.catalog.catalog--flow .catalog__hero {
+  flex: none;
+  height: 210px;
+  min-height: 0;
+}
+
+.catalog.catalog--flow .catalog__contents {
+  min-height: 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(184, 146, 92, 0.28);
+  margin-top: 10px;
+}
+
+.catalog.catalog--flow .catalog__colophon {
+  margin-top: 16px;
+}
+
+/* ---------- 高窗口（1600×1000 等）：主视觉可以再高一点，少留空气 ---------- */
+@media (min-height: 920px) {
+  .catalog__hero {
+    max-height: 470px;
+  }
+}
+
+/* ---------- 矮窗口（1280×800 / 1366×768 等）：整体收一档，保证仍然一屏读完 ---------- */
+@media (max-height: 880px) {
+  .catalog__preface {
+    padding: 18px 28px 14px;
+  }
+
   .catalog__contents {
-    padding: 22px 22px 18px;
+    padding: 18px 24px 14px 22px;
+  }
+
+  .catalog__brand-cn {
+    font-size: 34px;
+  }
+
+  .catalog__slogan {
+    margin-top: 8px;
+    font-size: 12.5px;
+  }
+
+  .catalog__hero {
+    margin-top: 12px;
+    min-height: 150px;
+  }
+
+  .catalog__intro {
+    margin-top: 10px;
+    line-height: 1.85;
+  }
+
+  .catalog__feats {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .catalog__welcome {
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+
+  .catalog__idx-head {
+    padding-bottom: 8px;
+  }
+
+  .catalog__idx-cn {
+    font-size: 23px;
+  }
+
+  .catalog__idx-hint {
+    margin-top: 5px;
+  }
+
+  .catalog__groups {
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .catalog__item {
+    padding: 7px 8px;
+  }
+
+  .catalog__desc {
+    margin-top: 3px;
+    line-height: 1.6;
+  }
+
+  .catalog__note {
+    margin-top: 10px;
+    padding-top: 8px;
+  }
+
+  .catalog__colophon {
+    padding-top: 8px;
+  }
+}
+
+/* ---------- 更矮（1366×768）：再收一档 ---------- */
+@media (max-height: 790px) {
+  .catalog__contents {
+    padding: 14px 22px 12px 20px;
+  }
+
+  .catalog__idx-hint {
+    margin-top: 4px;
+    font-size: 10.5px;
+  }
+
+  .catalog__groups {
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  .catalog__item {
+    padding: 5px 8px;
+  }
+
+  .catalog__desc {
+    margin-top: 2px;
+    line-height: 1.55;
+  }
+
+  .catalog__note {
+    margin-top: 8px;
+    padding-top: 7px;
+    line-height: 1.65;
+  }
+
+  .catalog__colophon {
+    padding-top: 6px;
+  }
+
+  .catalog__preface {
+    padding: 15px 26px 12px;
+  }
+
+  .catalog__intro {
+    line-height: 1.8;
+  }
+
+  .catalog__feats {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+}
+
+/* ---------- 平板 / 窄窗 ---------- */
+@media (max-width: 1240px) {
+  .catalog__preface {
+    padding: 20px 26px 16px;
+  }
+
+  .catalog__contents {
+    padding: 20px 24px 16px 22px;
+  }
+
+  .catalog__brand-cn {
+    font-size: 36px;
+  }
+
+  .catalog__feat-name {
+    font-size: 11.5px;
+  }
+
+  .catalog__feat-desc {
+    font-size: 9px;
+  }
+
+  .catalog__name {
+    font-size: 14.5px;
+  }
+}
+
+/* ---------- 手机 ---------- */
+@media (max-width: 860px) {
+  .catalog__preface {
+    padding: 20px 20px 14px;
+  }
+
+  .catalog__contents {
+    padding: 18px 20px 14px;
   }
 
   .catalog__brand-cn {
@@ -506,36 +827,68 @@
     font-size: 12px;
   }
 
+  .catalog__hero {
+    margin-top: 12px;
+  }
+
+  .catalog.catalog--flow .catalog__hero {
+    height: 178px;
+  }
+
   .catalog__intro {
     font-size: 12px;
-    line-height: 1.95;
+    line-height: 1.9;
+  }
+
+  .catalog__feats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
   }
 
   .catalog__feat {
-    padding: 8px 0;
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .catalog__feat:last-child {
+    grid-column: 1 / -1;
   }
 
   .catalog__feat-desc {
-    font-size: 10.5px;
+    font-size: 9.5px;
   }
 
   .catalog__idx-cn {
-    font-size: 21px;
-  }
-
-  .catalog__name {
-    font-size: 14px;
+    font-size: 22px;
   }
 
   .catalog__item {
-    padding: 7px 8px;
+    grid-template-columns: 26px minmax(0, 1fr) 42px;
+    gap: 8px;
+    padding: 9px 6px;
+    min-height: 56px;
+  }
+
+  .catalog__name {
+    font-size: 14.5px;
+  }
+
+  .catalog__desc {
+    font-size: 10.5px;
+  }
+
+  .catalog__colophon {
+    margin-top: 14px;
   }
 }
 
 @media (max-width: 520px) {
-  .catalog__preface,
+  .catalog__preface {
+    padding: 16px 16px 12px;
+  }
+
   .catalog__contents {
-    padding: 18px 18px 16px;
+    padding: 16px 16px 12px;
   }
 
   .catalog__brand-cn {
@@ -549,35 +902,39 @@
 
   .catalog__slogan {
     font-size: 11px;
-    margin-top: 9px;
+    margin-top: 8px;
+  }
+
+  .catalog.catalog--flow .catalog__hero {
+    height: 150px;
+  }
+
+  .catalog__hero-theme {
+    display: none;
   }
 
   .catalog__intro {
     font-size: 11.5px;
-    line-height: 1.9;
-    margin-top: 12px;
+    line-height: 1.85;
+    margin-top: 10px;
   }
 
-  .catalog__sec {
-    margin-top: 14px;
-  }
-
-  .catalog__feat {
-    padding: 7px 0;
+  .catalog__feats {
+    margin-top: 11px;
+    padding-top: 10px;
   }
 
   .catalog__feat-name {
-    font-size: 12px;
+    font-size: 11.5px;
   }
 
   .catalog__feat-desc {
-    font-size: 10px;
-    line-height: 1.6;
+    font-size: 9.5px;
   }
 
   .catalog__welcome {
-    margin-top: 12px;
-    padding-top: 10px;
+    margin-top: 11px;
+    padding-top: 9px;
   }
 
   .catalog__welcome-text {
@@ -585,8 +942,8 @@
   }
 
   .catalog__seal {
-    width: 30px;
-    height: 36px;
+    width: 28px;
+    height: 34px;
     font-size: 9px;
   }
 
@@ -594,33 +951,37 @@
     font-size: 19px;
   }
 
-  .catalog__idx-meta {
-    font-size: 9px;
+  .catalog__idx-hint {
+    font-size: 10px;
   }
 
   .catalog__groups {
-    gap: 9px;
-    margin-top: 9px;
+    gap: 10px;
+    margin-top: 10px;
   }
 
   .catalog__item {
-    grid-template-columns: 24px 1fr;
-    gap: 8px;
-    padding: 6px 7px 6px 7px;
+    grid-template-columns: 24px minmax(0, 1fr) 38px;
+    gap: 7px;
+    padding: 8px 4px;
   }
 
   .catalog__name {
-    font-size: 13px;
+    font-size: 13.5px;
   }
 
   .catalog__desc {
     font-size: 10px;
-    line-height: 1.5;
+    line-height: 1.55;
+  }
+
+  .catalog__chip {
+    font-size: 8px;
   }
 
   .catalog__note {
     font-size: 9px;
-    margin-top: 8px;
-    padding-top: 7px;
+    margin-top: 10px;
+    padding-top: 8px;
   }
 }

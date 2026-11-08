@@ -1051,6 +1051,30 @@ body.is-book {
     inset 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
+/* 目录联动：鼠标停在目录某一条上，书口对应的那枚书签抬手示意；
+   反过来停在书签上，目录里那一条也会亮。只是视觉提示，不改变选中态。 */
+.bk-mark.is-link {
+  transform: translateX(var(--mark-lift)) rotateY(var(--mark-flip));
+  border-color: var(--mark-tint, #b5452f);
+  box-shadow:
+    -4px 5px 14px rgba(118, 82, 52, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.bk-mark.is-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--mark-tint, #b5452f);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.bk-mark.is-link .bk-mark__label {
+  color: var(--mark-tint, #b5452f);
+}
+
 /* 当前章节：克制的朱红，不再闪动 */
 .bk-mark.is-on {
   background:

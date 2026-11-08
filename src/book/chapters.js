@@ -35,13 +35,21 @@ export const CATALOG_GROUPS = [
 
 /**
  * 章节表
- *   id     模块标识（书签 / 目录 / 地址映射共用这一个）
- *   label  书签上的短名（竖排，最多 4 字）
- *   title  目录里的正式名称
- *   desc   目录里的一句话介绍
- *   group  目录分组 id
- *   tint   书签侧边色标
- *   href   入口地址（分类页带默认分类）
+ * 每个模块字段（目录与书签都只读这一份）：
+ *   id     模块标识（目录行 / 书签 / 地址映射共用这一个）
+ *   label  书签名称（竖排两个字，目录行右侧的小书签标用的也是它）
+ *   title  显示名称（目录行的章节名）
+ *   desc   简短介绍（目录行下方的一句话）
+ *   group  所属分组（目录分栏，见 CATALOG_GROUPS）
+ *   num    两位编号（目录行左侧）
+ *   tint   书签色标（书口书签、目录里的小书签标同色）
+ *   side   书签所在书口。书签绑在「该章首跨页的右页」纸边上，
+ *          读到这一章时在右书口，往后翻会随纸转到左书口——实际侧别由纸张角度实时算，
+ *          这里的值只是初始状态。
+ *   href   目标页面（分类页带默认分类）
+ *
+ * 翻页索引 / 页码不在配置里写死，由 chapterSpread() / chapterPages() 按本表顺序算：
+ * 顺序即书页顺序，插入或删除一章不需要改任何别处。
  */
 export const CHAPTERS = [
   {
@@ -52,7 +60,7 @@ export const CHAPTERS = [
     group: 'explore',
     num: '00',
     tint: '#8d6a3f',
-    side: 'left',
+    side: 'right',
     href: '/catalog',
     layout: 'catalog',
   },
@@ -64,7 +72,7 @@ export const CHAPTERS = [
     group: 'explore',
     num: '01',
     tint: '#b5452f',
-    side: 'left',
+    side: 'right',
     href: '/dishes',
     load: load('dishes'),
     layout: 'atlas',
@@ -77,7 +85,7 @@ export const CHAPTERS = [
     group: 'explore',
     num: '02',
     tint: '#9a7248',
-    side: 'left',
+    side: 'right',
     href: '/cuisines/chuan',
     load: load('cuisine'),
     params: ['chuan'],
@@ -91,7 +99,7 @@ export const CHAPTERS = [
     group: 'explore',
     num: '03',
     tint: '#c0854a',
-    side: 'left',
+    side: 'right',
     href: '/tastes/mala',
     load: load('taste'),
     params: ['mala'],
@@ -180,6 +188,21 @@ export function chapterOf(pathname) {
 
 export function chapterIndex(id) {
   return CHAPTERS.findIndex((c) => c.id === id);
+}
+
+/**
+ * 章节 → 跨页索引（书页顺序 = 章节顺序）。
+ * 目录条目上的「翻页索引」和书签上的 anchorPage 都从这里算，避免各写一套。
+ */
+export function chapterSpread(id) {
+  const i = chapterIndex(id);
+  return i < 0 ? 0 : i;
+}
+
+/** 章节的首跨页页码：[左页, 右页]；page1 是扉页，所以跨页 s = 2s+2 / 2s+3 */
+export function chapterPages(id) {
+  const s = chapterSpread(id);
+  return [s * 2 + 2, s * 2 + 3];
 }
 
 /** 详情页 / 后台这类不在书签里的路径 */
