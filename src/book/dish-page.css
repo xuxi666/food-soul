@@ -1,0 +1,558 @@
+/* ============================================================
+ * 菜品详情：单页纵向美食专题
+ * 与书页共用的记号：暖米白 / 浅茶金细线 / 朱红强调 / 宋体标题
+ * ============================================================ */
+
+.bk-stage,
+.bk-pageface {
+  --dm-serif: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
+  --dm-ink: #3d2917;
+  --dm-ink-2: #5b4025;
+  --dm-ink-3: #7d6142;
+  --dm-gold: rgba(184, 146, 92, 0.42);
+  --dm-gold-soft: rgba(184, 146, 92, 0.22);
+  --dm-paper: #fffaf0;
+}
+
+.dm {
+  position: relative;
+  padding: 4px 20px 34px;
+  color: var(--dm-ink);
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+
+/*
+ * 深链接 /dishes/:id 走书的「内页」：切页会把 .dm-sec 搬进左右两张纸，
+ * .dm 外壳留在暂存区，所以纸面上要补一层同样的基准字色。
+ */
+.bk-pageface .dm-sec {
+  color: var(--dm-ink);
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+
+/* ---------- 标题区 ---------- */
+.dm-head {
+  padding: 2px 0 0;
+}
+
+.dm-head__kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: #a9793f;
+  text-transform: uppercase;
+}
+
+.dm-head__kicker i {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+.dm-title {
+  margin: 6px 0 0;
+  font-family: var(--dm-serif);
+  font-size: 31px;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: 0.04em;
+  color: #33200f;
+}
+
+.dm-title__en {
+  margin-left: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #a08258;
+  vertical-align: middle;
+}
+
+.dm-line {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--dm-ink-2);
+}
+
+/* ---------- 主视觉 ---------- */
+.dm-hero {
+  position: relative;
+  margin: 14px 0 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #efe3cd;
+}
+
+.dm-hero img {
+  width: 100%;
+  aspect-ratio: 2.45 / 1;
+  object-fit: cover;
+}
+
+.dm-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(120, 82, 42, 0.22);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.dm-hero__cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 34px 14px 10px;
+  background: linear-gradient(to top, rgba(42, 26, 12, 0.72), rgba(42, 26, 12, 0.18) 62%, transparent);
+  color: #fff6e4;
+}
+
+.dm-hero__cap b {
+  font-family: var(--dm-serif);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.dm-hero__cap span {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0.88;
+}
+
+/* ---------- 基础信息 ---------- */
+.dm-facts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--dm-gold);
+  border-bottom: 1px solid var(--dm-gold);
+}
+
+.dm-facts li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px 6px;
+  border-left: 1px solid var(--dm-gold-soft);
+}
+
+.dm-facts li:first-child {
+  border-left: 0;
+  padding-left: 2px;
+}
+
+.dm-facts b {
+  font-size: 8.5px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: #a9885c;
+}
+
+.dm-facts span {
+  font-size: 12.5px;
+  color: var(--dm-ink);
+}
+
+/* ---------- 分区通用 ---------- */
+.dm-sec {
+  margin: 22px 0 0;
+}
+
+.dm-kick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.dm-kick i {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--accent, #b57b4a);
+}
+
+.dm-kick span {
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: #8a6a44;
+}
+
+.dm-kick::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(to right, var(--dm-gold), transparent);
+}
+
+.dm-lead {
+  font-size: 13px;
+  line-height: 1.95;
+  color: #462f1a;
+  text-align: justify;
+}
+
+.dm-body {
+  font-size: 12.5px;
+  line-height: 1.95;
+  color: var(--dm-ink-2);
+  text-align: justify;
+}
+
+.dm-quote {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--accent, #c08552);
+  background: linear-gradient(to right, rgba(216, 178, 106, 0.16), rgba(216, 178, 106, 0));
+  font-size: 12px;
+  line-height: 1.85;
+  color: #5d4227;
+}
+
+.dm-note {
+  margin: 8px 0 0;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: #9c815c;
+}
+
+/* ---------- 风味档案 ---------- */
+.dm-flavor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dm-flavor em {
+  padding: 3px 11px;
+  border: 1px solid var(--dm-gold);
+  border-radius: 999px;
+  background: rgba(255, 251, 242, 0.7);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #6d4a2a;
+}
+
+/* ---------- 食材清单 ---------- */
+.dm-ing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dm-ing li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px dotted rgba(176, 138, 90, 0.34);
+}
+
+.dm-ing i {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  color: #b28c5c;
+}
+
+.dm-ing span {
+  font-size: 12.5px;
+  color: var(--dm-ink);
+}
+
+/* ---------- 烹饪步骤 ---------- */
+.dm-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dm-steps li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--dm-gold-soft);
+}
+
+.dm-steps li:last-child {
+  border-bottom: 0;
+}
+
+.dm-step__no {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--accent, #b57b4a);
+  border-radius: 50%;
+  font-family: var(--dm-serif);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent, #a2603a);
+}
+
+.dm-step__name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: #3c2716;
+  line-height: 1.6;
+  padding-top: 1px;
+}
+
+/* ---------- 技法与要点 ---------- */
+.dm-craft {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--dm-gold-soft);
+}
+
+.dm-craft li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 14px 6px 0;
+}
+
+.dm-craft b {
+  font-size: 8.5px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: #a9885c;
+}
+
+.dm-craft span {
+  font-size: 12px;
+  color: var(--dm-ink-2);
+}
+
+.dm-sub {
+  margin: 12px 0 2px;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  color: #a9793f;
+}
+
+.dm-notes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: dmnote;
+}
+
+.dm-notes li {
+  position: relative;
+  counter-increment: dmnote;
+  padding: 5px 0 5px 20px;
+  font-size: 12px;
+  line-height: 1.85;
+  color: #4a3320;
+  text-align: justify;
+}
+
+.dm-notes li::before {
+  content: counter(dmnote) '.';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  font-size: 9.5px;
+  color: #b28c5c;
+}
+
+/* ---------- 相关菜品 ---------- */
+.dm-related {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.dm-rel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dm-rel__media {
+  display: block;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #efe3cd;
+}
+
+.dm-rel__media img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  transition: transform 420ms ease;
+}
+
+.dm-rel:hover .dm-rel__media img {
+  transform: scale(1.04);
+}
+
+.dm-rel__name {
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--dm-ink);
+}
+
+.dm-rel__sig {
+  font-size: 9px;
+  color: #9c815c;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 站内入口 ---------- */
+.dm-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dm-link {
+  padding: 5px 12px;
+  border: 1px solid var(--dm-gold);
+  border-radius: 2px;
+  background: rgba(255, 251, 242, 0.6);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #6d4a2a;
+  cursor: pointer;
+}
+
+.dm-link:hover {
+  border-color: rgba(184, 146, 92, 0.7);
+  background: rgba(255, 250, 238, 0.95);
+}
+
+/* ---------- AI 人格 ---------- */
+.dm-ai {
+  padding: 12px 14px 13px;
+  border: 1px solid var(--dm-gold);
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(255, 251, 243, 0.85), rgba(250, 240, 222, 0.5));
+}
+
+.dm-ai__who {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dm-ai__name {
+  font-family: var(--dm-serif);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #33200f;
+}
+
+.dm-ai__arch {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #a9793f;
+}
+
+.dm-ai__lang {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--dm-ink-2);
+}
+
+.dm-ai__rhythm {
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  line-height: 1.8;
+  color: #8a6d4c;
+}
+
+.dm-ai__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+/* ---------- 评论 ---------- */
+.dm-comments .comment-form,
+.dm-comments .comment-item {
+  border-color: var(--dm-gold-soft) !important;
+  background: rgba(255, 251, 243, 0.55) !important;
+}
+
+.dm-comments .comment-form textarea {
+  font-size: 12px;
+}
+
+/* ---------- 窄页（手机单页 / 平板竖屏） ---------- */
+@media (max-width: 900px) {
+  .dm {
+    padding: 2px 14px 28px;
+  }
+
+  .dm-title {
+    font-size: 25px;
+  }
+
+  .dm-title__en {
+    display: block;
+    margin: 3px 0 0;
+    font-size: 10px;
+  }
+
+  .dm-hero img {
+    aspect-ratio: 1.9 / 1;
+  }
+
+  .dm-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dm-facts li:nth-child(3) {
+    border-left: 0;
+    padding-left: 2px;
+  }
+
+  .dm-ing {
+    grid-template-columns: 1fr;
+  }
+
+  .dm-related {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -685,6 +685,11 @@
   opacity: 1;
 }
 
+.atlas-detail__doc.is-swapping {
+  opacity: 0;
+  transition: opacity 140ms ease 0ms;
+}
+
 .atlas-detail.is-closing .atlas-detail__doc {
   opacity: 0;
   transition-delay: 0ms;

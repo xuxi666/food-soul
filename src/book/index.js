@@ -19,8 +19,10 @@ import { computeLayout, observeLayout } from './layout.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
 import './atlas.css';
+import './dish-page.css';
 import './category.css';
 import './videos.css';
+import { closeAllOverlays } from './overlay.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -372,8 +374,9 @@ export function initBook({ root }) {
   function chapterHrefOfPage(n, ch) {
     if (!ch) return null;
     if (ch.id === 'cuisines' || ch.id === 'tastes') {
-      const cur = location.pathname.startsWith(ch.href.split('/').slice(0, 2).join('/')) ? location.pathname : ch.href;
-      return cur;
+      const root = ch.href.split('/').slice(0, 2).join('/');
+      const param = book.getChapterParam?.(ch.id);
+      return param ? `${root}/${param}` : ch.href;
     }
     return ch.href;
   }
@@ -403,7 +406,12 @@ export function initBook({ root }) {
     try {
       const single = lastBox.mode === 'single';
       const path = location.pathname || '/dishes';
-      const innerTarget = INNER_KEYS.has(moduleOf(path).key);
+      const bootInfo = moduleOf(path);
+      // 书签直接打开 /cuisines/yue、/tastes/qingxian：先把分类 id 交给章节，再摆纸
+      if (bootInfo.key === 'cuisines' || bootInfo.key === 'tastes') {
+        book.setChapterParam?.(bootInfo.key, bootInfo.params?.[0]);
+      }
+      const innerTarget = INNER_KEYS.has(bootInfo.key);
       /*
        * 预定位：先把纸张摆到目标跨页，再开书。
        * 这样封面一掀开，看到的就是目标章节那一跨页的正反面内容，
@@ -459,8 +467,10 @@ export function initBook({ root }) {
 
   async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
-    // 换章节 / 进内页：图鉴的页内详情属于上一页，先原样收起
-    if (info.key !== 'dishes') book.atlas?.closeAll?.();
+    // 换章节 / 进内页：页内详情属于上一页，先原样收起
+    if (info.key !== 'dishes') closeAllOverlays({ instant: true });
+    // 菜系 / 口味带分类 id：地址说哪个就换哪个（书签、深链接、前进后退都走这里）
+    if (info.key === 'cuisines' || info.key === 'tastes') book.setChapterParam?.(info.key, info.params?.[0]);
     const isInner = INNER_KEYS.has(info.key);
 
     // 进后台：先记住此刻的画册位置（章节 + 具体跨页），退出时原样回来
@@ -593,7 +603,9 @@ export function initBook({ root }) {
   async function openChapter(id) {
     const chapter = chapterById(id);
     if (!chapter) return;
-    if (id !== 'dishes') book.atlas?.closeAll?.();
+    if (id !== 'dishes') closeAllOverlays({ instant: true });
+    // 书签是章节入口：回到该分类的默认代表（川菜 / 麻辣鲜香）
+    book.setChapterParam?.(id, chapter.href.split('/')[2]);
     if (busy) { pendingChapter = id; return; }
     const target = book.spreadOfChapter(id);
 
@@ -637,7 +649,7 @@ export function initBook({ root }) {
   /* ---------------- 合上 ---------------- */
   async function shut() {
     if (mode !== 'open' || busy) return;
-    book.atlas?.closeAll?.();
+    closeAllOverlays({ instant: true });
     busy = true;
     try {
       setPhase('SHRINKING');

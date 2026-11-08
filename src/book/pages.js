@@ -17,8 +17,8 @@ import { mountCategory } from './category.js';
 import { mountVideos } from './videos.js';
 
 /** 把若干节点装进一张纸的纸面 */
-function wrapFace(bare, nodes) {
-  const face = h('div', { class: `bk-pageface${bare ? ' bk-pageface--bare' : ''}` });
+function wrapFace(bare, nodes, extraClass = '') {
+  const face = h('div', { class: `bk-pageface${bare ? ' bk-pageface--bare' : ''}${extraClass ? ` ${extraClass}` : ''}` });
   const inner = h('div', { class: 'bk-pageface__inner' });
   for (const node of nodes) if (node) inner.append(node);
   face.append(inner);
@@ -43,10 +43,11 @@ const SPLITTERS = {
     return { left, right };
   },
   dishDetail(root) {
+    // 左页：页头 + 主视觉 + 介绍 · 来历；右页：风味 / 食材 / 步骤 / 要点 / 相关 / AI / 评论
     const hero = root.querySelector('.detail-hero');
     const blocks = [...root.querySelectorAll('.cat-block')];
-    const left = [root.querySelector('.page-head'), hero, blocks[0]];
-    const right = blocks.slice(1);
+    const left = [root.querySelector('.page-head'), hero, ...blocks.slice(0, 4)];
+    const right = blocks.slice(4);
     return { left, right };
   },
   admin(root) {
@@ -83,17 +84,34 @@ export function createPageBook({ staging, onAtlasChange }) {
   const atlasSpreadCount = () => (atlas ? atlas.spreadCount() : 1);
 
   /* ---------------- 定制双页 / 整章模块 ---------------- */
+
+  /** 菜系 / 口味当前停在哪个分类（地址里带 id：/cuisines/yue、/tastes/mala） */
+  const chapterParams = new Map();
+  const defaultParamOf = (id) => (id === 'tastes' ? 'mala' : 'chuan');
+
   async function ensureChapter(id) {
-    if (pages.has(id)) return pages.get(id);
+    const entry = pages.has(id) ? pages.get(id) : await buildChapter(id);
+    if (!entry) return null;
+    if (id === 'cuisines' || id === 'tastes') {
+      // 章节只建一次；分类换了就换内容，不重建纸面（滚动、卡片节点都留着）
+      const kind = id === 'tastes' ? 'taste' : 'cuisine';
+      entry.instance?.update?.(kind, chapterParams.get(id) || defaultParamOf(id));
+    }
+    return entry;
+  }
+
+  async function buildChapter(id) {
     const def = chapterById(id) || EXTRA[id];
     if (!def) return null;
 
     if (id === 'cuisines' || id === 'tastes') {
       const kind = id === 'tastes' ? 'taste' : 'cuisine';
-      const inst = mountCategory(staging, kind, def.params?.[0] || (id === 'tastes' ? 'mala' : 'chuan'));
+      const inst = mountCategory(staging, kind, chapterParams.get(id) || defaultParamOf(id));
+      // 页内芯片换分类：把新 id 记在书页模块这边，书重绘时不会被旧参数拉回去
+      inst.setSwitchHandler?.((href) => chapterParams.set(id, String(href || '').split('/').filter(Boolean).pop()));
       const left = inst.el.querySelector('.catb__page--left');
       const right = inst.el.querySelector('.catb__page--right');
-      const entry = { left: wrapFace(true, [left]), right: wrapFace(true, [right]), instance: inst };
+      const entry = { left: wrapFace(true, [left], 'bk-pageface--cat'), right: wrapFace(true, [right], 'bk-pageface--cat'), instance: inst };
       pages.set(id, entry);
       return entry;
     }
@@ -257,6 +275,15 @@ export function createPageBook({ staging, onAtlasChange }) {
     disposeInner,
     get atlas() {
       return atlas;
+    },
+    /** 当前停在哪个分类（写地址时用，保证地址与内容一致） */
+    getChapterParam(chapterId) {
+      return chapterParams.get(chapterId) || defaultParamOf(chapterId);
+    },
+    /** 地址里的分类 id（书签 / 深链接 / 前进后退）交代给章节实例 */
+    setChapterParam(chapterId, param) {
+      if (!chapterId) return;
+      chapterParams.set(chapterId, param || defaultParamOf(chapterId));
     },
   };
 }

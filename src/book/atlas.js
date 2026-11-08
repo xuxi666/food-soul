@@ -14,22 +14,12 @@
  * 所以轮播位置、图片缓存、纸面滚动都不会被重置。
  */
 import { h, clear } from '../lib/dom.js';
-import { DISHES, DISH_BY_ID } from '../data/dishes.js';
+import { DISHES } from '../data/dishes.js';
 import { CUISINES, CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../data/cuisines.js';
 import { guardImage } from '../lib/placeholder.js';
-
-/*
- * 详情页模块按需加载：dish-detail 会 import router，而 router 又 import 各视图，
- * 静态引入会在图鉴与路由之间形成循环依赖（启动即报 TDZ 错误）。
- */
-let detailModule = null;
-const loadDetailView = () => {
-  if (!detailModule) detailModule = import('../views/dish-detail.js').then((m) => m.default);
-  return detailModule;
-};
+import { openDishOverlay, closeAllOverlays, overlayCount } from './overlay.js';
 
 const SLIDES_PER_CARD = 5;
-const EXPAND_MS = 620;
 
 const SIDES = {
   left: {
@@ -79,8 +69,7 @@ export function createAtlas({ onChange } = {}) {
   const live = new Set(); // 正在跑的轮播（只有可见的那一页）
   const listCache = new Map(); // `${kind}:${id}:${side}` → 分类页节点
   let ticker = 0;
-  let openDetails = 0;
-  const closers = new Set();
+    const closers = new Set();
 
   /* ---------- 轮播调度：一个定时器驱动所有卡片，节奏各自独立 ---------- */
   function ensureTicker() {
@@ -399,130 +388,20 @@ export function createAtlas({ onChange } = {}) {
     );
   }
 
-  /* ---------- 详情：只覆盖点击那一页的四边扩散 ---------- */
-  function openDetail(pageEl, { dishId, origin }) {
-    if (!pageEl || !DISH_BY_ID[dishId]) return null;
-    if (pageEl.querySelector('.atlas-detail')) return null;
+/* ---------- 页内详情：共享的四边扩散覆盖层（book/overlay.js） ---------- */
+function openDetail(pageEl, { dishId, origin }) {
+  return openDishOverlay(pageEl, {
+    dishId,
+    origin,
+    backLabel: '返回图鉴',
+    accent: '#b0794a',
+    onChange: () => syncLive(),
+  });
+}
 
-    // 一次量完：起点矩形 = 被点图片相对本页纸张的位置
-    const face = pageEl.getBoundingClientRect();
-    const src = (origin && origin.getBoundingClientRect()) || face;
-    const top = Math.max(0, Math.round(src.top - face.top));
-    const left = Math.max(0, Math.round(src.left - face.left));
-    const right = Math.max(0, Math.round(face.right - src.right));
-    const bottom = Math.max(0, Math.round(face.bottom - src.bottom));
-
-    const dish = DISH_BY_ID[dishId];
-    const overlay = h('div', { class: 'atlas-detail', 'data-dish': dishId });
-    overlay.style.setProperty('--ex-t', `${top}px`);
-    overlay.style.setProperty('--ex-r', `${right}px`);
-    overlay.style.setProperty('--ex-b', `${bottom}px`);
-    overlay.style.setProperty('--ex-l', `${left}px`);
-
-    const photo = h(
-      'div',
-      { class: 'atlas-detail__photo', 'aria-hidden': 'true' },
-      guardImage(h('img', { src: dish.image, alt: '' }), dish.name, '')
-    );
-
-    const scroll = h('div', { class: 'atlas-detail__scroll' });
-    const doc = h(
-      'div',
-      { class: 'atlas-detail__doc' },
-      h(
-        'div',
-        { class: 'atlas-detail__bar' },
-        h(
-          'button',
-          { class: 'atlas-back atlas-back--in', type: 'button', 'data-act': 'close-detail' },
-          h('span', { class: 'atlas-back__mark', 'aria-hidden': 'true' }),
-          '返回图鉴'
-        ),
-        h('span', { class: 'atlas-detail__crumb', text: `${CUISINE_BY_ID[dish.cuisine]?.name || ''} · ${dish.name}` })
-      ),
-      scroll
-    );
-
-    overlay.append(photo, doc);
-    pageEl.append(overlay);
-    pageEl.dataset.expanded = '1';
-    openDetails += 1;
-    pageEl.closest('.bk-stage')?.classList.add('is-atlas-expanded');
-    syncLive();
-
-    // 先按「被点图片的位置」量一次，下一帧再放开四条边：起点与被点的图片完全重合
-    void overlay.offsetWidth;
-    requestAnimationFrame(() => overlay.classList.add('is-open'));
-
-    let instance = null;
-    loadDetailView()
-      .then((mod) => mod.mount(scroll, [dishId]))
-      .then((inst) => {
-        instance = inst || null;
-      })
-      .catch((err) => {
-        console.warn('[atlas] 详情挂载失败', err);
-      });
-
-    let closed = false;
-    /** opts.instant：立即收起（切分类 / 离开图鉴时用，不做反向动画） */
-    const close = (onDone, opts) => {
-      if (closed) return;
-      closed = true;
-      closers.delete(close);
-      overlay.classList.add('is-closing');
-      overlay.classList.remove('is-open');
-      pageEl.dataset.expanded = '0';
-      syncLive();
-      const finish = () => {
-        try {
-          instance?.destroy?.();
-        } catch {
-          /* 忽略 */
-        }
-        overlay.remove();
-        openDetails = Math.max(0, openDetails - 1);
-        if (!document.querySelector('.atlas-detail')) {
-          document.querySelectorAll('.bk-stage.is-atlas-expanded').forEach((s) => s.classList.remove('is-atlas-expanded'));
-        }
-        if (typeof onDone === 'function') onDone();
-      };
-      if (opts && opts.instant) {
-        finish();
-        return;
-      }
-      window.setTimeout(finish, REDUCED() ? 60 : EXPAND_MS + 40);
-    };
-
-    closers.add(close);
-
-    overlay.addEventListener('click', (e) => {
-      if (e.target.closest('[data-act="close-detail"]')) {
-        e.preventDefault();
-        close();
-        return;
-      }
-      // 详情里的「相关菜品」：不跳走，在这同一页里换一道菜重新扩散；
-      // 但「做菜视频 / 生成菜谱」这类指向其它模块的链接要照常跳转。
-      const anchor = e.target.closest('a[href]');
-      if (anchor && !(anchor.getAttribute('href') || '').startsWith('/dishes')) return;
-      const dishEl = e.target.closest('[data-dish]');
-      const nextId = dishEl?.dataset.dish;
-      if (nextId && nextId !== dishId && DISH_BY_ID[nextId]) {
-        e.preventDefault();
-        e.stopPropagation();
-        const from = dishEl.querySelector('img') || dishEl;
-        // 等旧的那层收干净再开新的，避免同一页叠加两层详情
-        close(() => openDetail(pageEl, { dishId: nextId, origin: from }));
-      }
-    });
-
-    return close;
-  }
-
-  function closeAllDetails() {
-    for (const close of [...closers]) close(undefined, { instant: true });
-  }
+function closeAllDetails() {
+  closeAllOverlays({ instant: true });
+}
 
   /* ---------- 分类视图切换（不翻页、不重建卡片） ---------- */
   function paintCategory() {
@@ -603,28 +482,14 @@ export function createAtlas({ onChange } = {}) {
     return el;
   }
 
-  /* ---------- 键盘隔离：详情打开时 Esc / 方向键只作用于这一页 ---------- */
+  /* ---------- 分类视图里 Esc 只退回图鉴（详情的键盘隔离在 overlay.js 里） ---------- */
   document.addEventListener(
     'keydown',
     (e) => {
-      if (!openDetails) {
-        // 分类视图里 Esc 只退回图鉴，不要合上书
-        if (e.key === 'Escape' && state.view === 'category') {
-          e.preventDefault();
-          e.stopPropagation();
-          showBoard();
-        }
-        return;
-      }
-      if (e.key === 'Escape') {
-        const btn = document.querySelector('.atlas-detail [data-act="close-detail"]');
-        if (!btn) return;
-        e.preventDefault();
-        e.stopPropagation();
-        btn.click();
-        return;
-      }
-      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') e.stopPropagation();
+      if (e.key !== 'Escape' || state.view !== 'category' || overlayCount()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      showBoard();
     },
     true
   );
@@ -648,7 +513,7 @@ export function createAtlas({ onChange } = {}) {
       closeAllDetails();
     },
     get expanded() {
-      return openDetails > 0;
+      return overlayCount() > 0;
     },
     /* 供验收 / 诊断 */
     get state() {
