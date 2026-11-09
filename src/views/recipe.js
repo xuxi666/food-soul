@@ -7,6 +7,14 @@ import { TASTES, CUISINE_BY_ID } from '../data/cuisines.js';
 
 const HEAT_LABEL = { low: '小火', medium: '中火', high: '大火' };
 
+/** 模型偶尔把 tips 填成「AI 建议」这类占位词：这种不显示，免得每步都挂一句废话 */
+function usableTip(t) {
+  const v = String(t || '').trim();
+  if (!v) return '';
+  if (/^(ai\s*建议|ai\s*提示|ai\s*recommendation|建议|提示|无|暂无|-|—|－)$/i.test(v)) return '';
+  return v;
+}
+
 function fmtAmount(n) {
   if (!Number.isFinite(n)) return '';
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
@@ -84,33 +92,67 @@ function searchHint(payload) {
   return '';
 }
 
-function sourceItem(s) {
+/* ---------------- 资料来源（默认折叠：3 条主要来源 + 展开全部） ---------------- */
+/** 检索接口给的日期五花八门（"周日，01 11月 2026 14:12:00" / "2026年11月1日" / ISO），统一成 YYYY-MM-DD */
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+function prettyDate(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return '';
+  const iso = t.match(/(20\d{2})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return iso[1] + '-' + pad2(iso[2]) + '-' + pad2(iso[3]);
+  const year = t.match(/(20\d{2})/);
+  const month = t.match(/(\d{1,2})\s*月/);
+  const day = t.match(/(\d{1,2})\s*日/) || (month ? t.slice(0, month.index).match(/(\d{1,2})\s*$/) : null);
+  if (year && month && day) return year[1] + '-' + pad2(month[1]) + '-' + pad2(day[1]);
+  return t;
+}
+
+/** 一条来源的副信息：真实站点（域名）+ 发布日期（有才显示） */
+function sourceMetaLine(s) {
+  const site = s.host || s.site || '';
+  return [site, prettyDate(s.publishDate)].filter(Boolean).join(' · ');
+}
+
+/** 收起态：一条来源只占一行，只留标题 + 站点/日期 */
+function compactSourceRow(s, i) {
+  const href = s.url || '';
+  const title = s.title || s.host || href || '未命名来源';
+  const meta = sourceMetaLine(s);
+  return h(
+    'li',
+    { class: 'rc-src' },
+    h('span', { class: 'rc-src__no', text: String(i + 1) }),
+    href
+      ? h('a', { class: 'rc-src__title', href, target: '_blank', rel: 'noopener noreferrer', title, text: title })
+      : h('span', { class: 'rc-src__title', title, text: title }),
+    meta ? h('span', { class: 'rc-src__meta', text: meta }) : null
+  );
+}
+
+/** 展开态：完整来源记录。原始 URL 不再单独铺一行，标题本身就是可点击的原始链接 */
+function sourceDetail(s) {
   const ok = Boolean(s.verified);
+  const href = s.url || '';
+  const title = s.title || s.host || href || '未命名来源';
   return h(
     'article',
-    { class: `source-item${ok ? '' : ' source-item--warn'}` },
+    { class: 'source-item' },
     h('div', { class: 'source-item__head' },
-      h('a', {
-        class: 'source-item__title',
-        href: s.url,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        text: s.title || s.url,
-      }),
-      h('span', { class: `source-status ${ok ? 'source-status--ok' : 'source-status--warn'}`, text: s.status || (ok ? '已检索' : '未直接支持') })
+      href
+        ? h('a', { class: 'source-item__title', href, target: '_blank', rel: 'noopener noreferrer', text: title })
+        : h('span', { class: 'source-item__title', text: title }),
+      h('span', {
+        class: `source-status ${ok ? 'source-status--ok' : 'source-status--warn'}`,
+        text: s.status || (ok ? '已检索' : '未直接支持'),
+      })
     ),
-    h('p', { class: 'source-item__meta', text: [s.site, s.publishDate].filter(Boolean).join(' · ') }),
-    h('a', {
-      class: 'source-item__url',
-      href: s.url,
-      target: '_blank',
-      rel: 'noopener noreferrer',
-      text: s.url,
-    }),
-    h('p', { class: 'source-item__snippet', text: s.snippet || '（该来源没有可展示的摘要）' }),
+    h('p', { class: 'source-item__meta', text: sourceMetaLine(s) }),
+    s.snippet ? h('p', { class: 'source-item__snippet', text: s.snippet }) : null,
     s.supports?.length
       ? h('div', { class: 'source-item__chips' },
-          h('span', { class: 'source-item__chips-label', text: '支持：' }),
+          h('span', { class: 'source-item__chips-label', text: '关键词匹配：' }),
           ...s.supports.map((x) => h('span', { class: 'source-chip', text: x }))
         )
       : null
@@ -120,42 +162,52 @@ function sourceItem(s) {
 function sourcesBlock(meta) {
   const sources = Array.isArray(meta.sources) ? meta.sources : [];
   const verification = meta.verification || {};
-  const note = verification.note || '菜谱由 AI 综合公开资料整理，未逐条核验。';
 
   if (!sources.length) {
-    if (meta.dataSource === 'library') {
-      return h('section', { class: 'recipe-sources' },
-        h('div', { class: 'recipe-sources__head' },
-          h('h3', { text: '资料来源' }),
-          h('span', { class: 'source-status source-status--ok', text: '美食图鉴（站内）' })
-        ),
-        h('p', { class: 'recipe-sources__note', text: verification.note || '本条菜谱使用站内图鉴的菜品档案。' })
-      );
-    }
-    return null;
+    if (meta.dataSource !== 'library') return null;
+    return h('section', { class: 'recipe-sources' },
+      h('div', { class: 'recipe-sources__head' },
+        h('h3', { text: '资料来源' }, h('span', { class: 'rc-sources__stat', text: '美食图鉴（站内档案）' }))
+      ),
+      h('p', { class: 'rc-sources__note', text: verification.note || '本条菜谱使用站内图鉴的菜品档案。' })
+    );
   }
 
   const stats = meta.sourceStats || {};
-  const shown = sources.length;
-  const total = stats.total ?? meta.totalCount ?? shown;
+  const total = stats.total ?? meta.totalCount ?? sources.length;
   const relevant = stats.relevant ?? meta.relevantCount ?? sources.filter((s) => s.verified).length;
-  const summary = total > shown
-    ? `真实检索 ${total} 条 · 展示 ${shown} 条 · 直接相关 ${relevant} 条`
-    : `真实检索 ${shown} 条 · 直接相关 ${relevant} 条`;
+  const primary = sources.slice(0, 3);
 
-  return h(
-    'section',
-    { class: 'recipe-sources' },
-    h('div', { class: 'recipe-sources__head' },
-      h('h3', { text: '资料来源' }),
-      h('span', {
-        class: `source-status ${relevant ? 'source-status--ok' : 'source-status--warn'}`,
-        text: summary,
-      })
-    ),
-    h('p', { class: 'recipe-sources__note', text: note }),
-    h('div', { class: 'source-list' }, ...sources.map(sourceItem))
+  const full = h('div', { class: 'rc-sources__full', hidden: true },
+    h('p', { class: 'rc-sources__note', text: `以下 ${sources.length} 条为本次真实检索到的公开资料，点击标题可打开原始网页。` }),
+    h('div', { class: 'source-list' }, ...sources.map(sourceDetail))
   );
+
+  const label = h('span', { class: 'rc-sources__toggle-label', text: `已展示 ${primary.length} 条主要来源` });
+  const cta = h('span', { class: 'rc-sources__toggle-cta', text: `展开全部 ${sources.length} 条` });
+  const toggle = h('button', { class: 'rc-sources__toggle', type: 'button', 'aria-expanded': 'false' }, label, cta);
+
+  const section = h('section', { class: 'recipe-sources' },
+    h('div', { class: 'recipe-sources__head' },
+      h('h3', { text: '资料来源' },
+        h('span', { class: 'rc-sources__stat', text: `真实检索 ${total} 条${relevant ? ` · 直接相关 ${relevant} 条` : ''}` })
+      ),
+      toggle
+    ),
+    h('ul', { class: 'rc-sources__list' }, ...primary.map(compactSourceRow)),
+    full
+  );
+
+  toggle.addEventListener('click', () => {
+    const open = full.hidden;
+    full.hidden = !open;
+    section.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    label.textContent = open ? `全部 ${sources.length} 条来源` : `已展示 ${primary.length} 条主要来源`;
+    cta.textContent = open ? '收起' : `展开全部 ${sources.length} 条`;
+  });
+
+  return section;
 }
 
 /* 结果卡片左上角的缩略图：图鉴菜品用站内图，未收录菜品用检索到的真实图，都没有则显示菜名占位 */
@@ -459,7 +511,7 @@ export default {
               )
             ),
             h('p', { class: 'step__desc', text: s.description }),
-            s.tips ? h('p', { class: 'step__tips', text: `要点：${s.tips}` }) : null
+            usableTip(s.tips) ? h('p', { class: 'step__tips', text: `要点：${s.tips}` }) : null
           )
         );
         li.addEventListener('click', (e) => {
@@ -471,26 +523,69 @@ export default {
 
       const sourceText = {
         ai: isAi
-          ? '由已接入的模型综合公开资料整理，已通过 Schema 校验；来源见上方。'
+          ? '由已接入的模型综合公开资料整理，已通过 Schema 校验；来源见下方。'
           : '由已接入的模型按美食图鉴档案生成，已通过 Schema 校验。',
       }[meta.source] || '';
 
       const verify = meta.verification || {};
+      const level = verify.level || (isAi ? 'ai-synthesized' : isKnowledge ? 'model-knowledge' : 'library');
+      const noteLabel = level === 'ai-synthesized' ? 'AI 综合整理' : level === 'model-knowledge' ? '模型知识生成' : '美食图鉴';
+      const noteShort =
+        level === 'ai-synthesized'
+          ? '根据公开资料综合整理，未经逐条人工核验，请以实际烹饪情况为准。'
+          : level === 'model-knowledge'
+            ? '本次未完成联网核实，菜谱依据模型已有知识整理，地方做法可能有差异。'
+            : '依据站内图鉴菜品档案整理，未经逐条人工核验，请以实际烹饪情况为准。';
+      const noteLong = [
+        verify.note,
+        sourceText,
+        Array.isArray(meta.sources) && meta.sources.length
+          ? `本次共检索到 ${meta.sources.length} 条公开资料，可在下方「资料来源」里逐条展开核对。`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      const noteDetail = h('p', { class: 'rc-note__detail', hidden: true, text: noteLong });
+      const noteMore = h('button', { class: 'rc-note__more', type: 'button', 'aria-expanded': 'false', text: '查看说明' });
+      const noteBar = h('div', { class: `rc-note rc-note--${level === 'library' ? 'lib' : level === 'model-knowledge' ? 'warn' : 'ai'}` },
+        h('div', { class: 'rc-note__row' },
+          h('span', { class: 'rc-note__icon', 'aria-hidden': 'true', text: '✳' }),
+          h('b', { class: 'rc-note__label', text: noteLabel }),
+          h('p', { class: 'rc-note__text', text: noteShort }),
+          noteMore
+        ),
+        noteDetail
+      );
+      noteMore.addEventListener('click', () => {
+        const open = noteDetail.hidden;
+        noteDetail.hidden = !open;
+        noteBar.classList.toggle('is-open', open);
+        noteMore.textContent = open ? '收起说明' : '查看说明';
+        noteMore.setAttribute('aria-expanded', String(open));
+      });
+
+      const metaPill = (label, value) =>
+        h('span', { class: 'recipe-meta__item' }, h('em', { text: label }), h('b', { text: value }));
+
       const card = h(
         'article',
         { class: 'recipe-card' },
-        h('div', { class: 'recipe-head' },
+        h('header', { class: 'recipe-head' },
           thumbFor(dish, recipe.dish_name, meta.image),
           h('div', { class: 'recipe-head__main' },
             h('div', { class: 'recipe-head__title' },
               h('h2', { text: recipe.dish_name }),
-              h('span', { class: `recipe-source-badge recipe-source-badge--${isKnowledge ? 'knowledge' : isAi ? 'ai' : 'library'}` }, isKnowledge ? '模型知识' : isAi ? 'AI 检索' : '美食图鉴')
+              h('span', {
+                class: `recipe-source-badge recipe-source-badge--${isKnowledge ? 'knowledge' : isAi ? 'ai' : 'library'}`,
+                text: isKnowledge ? '模型知识' : isAi ? 'AI 检索' : '美食图鉴',
+              })
             ),
             h('div', { class: 'recipe-meta' },
-              h('span', { text: `准备 ${recipe.prep_time_minutes} 分钟` }),
-              h('span', { text: `烹饪 ${recipe.cook_time_minutes} 分钟` }),
-              h('span', { text: `难度 ${DIFFICULTY_LABEL[recipe.difficulty] || recipe.difficulty}` }),
-              ...recipe.taste_profile.map((t) => h('span', { text: t }))
+              metaPill('准备', `${recipe.prep_time_minutes} 分钟`),
+              metaPill('烹饪', `${recipe.cook_time_minutes} 分钟`),
+              metaPill('难度', String(DIFFICULTY_LABEL[recipe.difficulty] || recipe.difficulty)),
+              ...recipe.taste_profile.map((t) => h('span', { class: 'recipe-tag', text: t }))
             )
           ),
           h('div', { class: 'recipe-head__actions' },
@@ -506,62 +601,55 @@ export default {
             dish ? h('a', { class: 'btn btn--sm btn--gold', href: `/chat/${dish.id}`, 'data-link': '' }, '继续问它') : null
           )
         ),
-        epicurePanel({ recipeAnalysis: meta.epicureAnalysis }),
-        verify.level === 'model-knowledge'
-          ? h('div', { class: 'verify-banner verify-banner--warn' },
-              h('b', { text: verify.label || '基于模型已有知识生成 · 未联网核实' }),
-              h('p', { text: verify.note || '本次未完成联网检索，菜谱未与公开资料核对，地方做法可能有差异。' })
-            )
-          : verify.level === 'ai-synthesized'
-            ? h('div', { class: 'verify-banner verify-banner--warn' },
-                h('b', { text: verify.label || 'AI 综合整理 · 未逐条核验' }),
-                h('p', { text: verify.note || '菜谱由 AI 综合公开资料整理，请对照下方来源核实。' })
-              )
-            : verify.level === 'library'
-              ? h('div', { class: 'verify-banner verify-banner--ok' },
-                  h('b', { text: verify.label || '美食图鉴（站内数据）' }),
-                  h('p', { text: verify.note || '菜品档案来自站内图鉴。' })
-                )
-              : null,
+        noteBar,
         h('div', { class: 'recipe-cols' },
-          h('div', {},
-            h('div', { class: 'recipe-block' },
-              h('h3', { text: '食材与调味' }),
-              h('div', { class: 'servings' },
-                h('button', { type: 'button', 'aria-label': '减少人数', onclick: () => change(-1) }, '−'),
-                servingsLabel,
-                h('button', { type: 'button', 'aria-label': '增加人数', onclick: () => change(1) }, '+')
+          h('div', { class: 'recipe-col recipe-col--ing' },
+            h('section', { class: 'recipe-block' },
+              h('div', { class: 'recipe-block__head' },
+                h('h3', { text: '食材与调味' }),
+                h('div', { class: 'servings' },
+                  h('button', { type: 'button', 'aria-label': '减少人数', onclick: () => change(-1) }, '−'),
+                  servingsLabel,
+                  h('button', { type: 'button', 'aria-label': '增加人数', onclick: () => change(1) }, '+')
+                )
               ),
               ingList
             ),
-            recipe.substitutions.length
-              ? h('div', { class: 'recipe-block' },
-                  h('h3', { text: '替代方案' }),
-                  h('ul', { class: 'list-note' }, ...recipe.substitutions.map((s) => h('li', { text: s })))
-                )
-              : null
+            h('section', { class: 'recipe-block recipe-block--sub' },
+              h('h4', { class: 'recipe-sub__title', text: '替代方案' }),
+              recipe.substitutions.length
+                ? h('ul', { class: 'rc-list' }, ...recipe.substitutions.map((x) => h('li', { text: x })))
+                : h('p', { class: 'rc-empty', text: '暂无替代方案' })
+            )
           ),
-          h('div', {},
-            h('div', { class: 'recipe-block' },
-              h('h3', { text: '制作步骤' }),
+          h('div', { class: 'recipe-col recipe-col--steps' },
+            h('section', { class: 'recipe-block' },
+              h('div', { class: 'recipe-block__head' },
+                h('h3', { text: '制作步骤' }),
+                h('span', { class: 'rc-count', text: `${recipe.steps.length} 步` })
+              ),
               steps
-            ),
-            recipe.common_mistakes.length
-              ? h('div', { class: 'recipe-block' },
-                  h('h3', { text: '常见失败与补救' }),
-                  h('ul', { class: 'list-note' }, ...recipe.common_mistakes.map((s) => h('li', { text: s })))
-                )
-              : null,
-            recipe.safety_notes.length
-              ? h('div', { class: 'recipe-block' },
-                  h('h3', { text: '安全提示' }),
-                  h('ul', { class: 'list-note' }, ...recipe.safety_notes.map((s) => h('li', { text: s })))
-                )
-              : null
+            )
           )
         ),
-        sourcesBlock(meta),
-        h('p', { class: 'source-note', text: sourceText })
+        recipe.common_mistakes.length || recipe.safety_notes.length
+          ? h('div', { class: 'recipe-duo' },
+              recipe.common_mistakes.length
+                ? h('section', { class: 'recipe-block recipe-block--fail' },
+                    h('h3', { text: '常见失败与补救' }),
+                    h('ul', { class: 'rc-list' }, ...recipe.common_mistakes.map((x) => h('li', { text: x })))
+                  )
+                : null,
+              recipe.safety_notes.length
+                ? h('section', { class: 'recipe-block recipe-block--safe' },
+                    h('h3', { text: '安全提示' }),
+                    h('ul', { class: 'rc-list' }, ...recipe.safety_notes.map((x) => h('li', { text: x })))
+                  )
+                : null
+            )
+          : null,
+        epicurePanel({ recipeAnalysis: meta.epicureAnalysis }),
+        sourcesBlock(meta)
       );
 
       function change(delta) {
@@ -576,6 +664,16 @@ export default {
       paintIngredients();
       clear(result);
       result.append(card);
+
+      /* 手机只有一张纸：菜谱排在表单下面，生成完直接滚到结果，省得用户自己找 */
+      if (document.querySelector('.bk-stage.is-single')) {
+        requestAnimationFrame(() => {
+          const box = result.closest('.bk-pageface');
+          if (!box) return;
+          const top = result.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+          box.scrollTo({ top: Math.max(0, top - 8), behavior: 'smooth' });
+        });
+      }
     }
 
     form.addEventListener('submit', async (e) => {

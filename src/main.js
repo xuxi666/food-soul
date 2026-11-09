@@ -1,6 +1,7 @@
 import './styles/base.css';
 import './styles/home.css';
 import './styles/app.css';
+import './styles/recipe.css';
 import './styles/community.css';
 import './styles/account.css';
 import './styles/admin.css';

@@ -30,6 +30,11 @@ function wrapFace(bare, nodes, extraClass = '') {
 /** 章节内容 → 左右两页的节点清单 */
 const SPLITTERS = {
   recipe(root) {
+    // 手机只有一张纸：表单与菜谱结果上下排，向下滚动即可看结果。
+    // 注意不能像 admin 那样直接返回 [root]——wrapFace 会把节点搬进纸面，
+    // 而 buildChapter 结尾会 holder.remove()，那样整页内容会被一起摘掉。
+    const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
+    if (single) return { left: [...root.children], right: [] };
     const left = [root.querySelector('.page-head'), root.querySelector('.tool-form')];
     const right = [root.querySelector('.recipe-result')];
     return { left, right };
@@ -205,7 +210,8 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
       holder.append(h('p', { class: 'bk-error', text: '内容加载失败，请刷新重试' }));
     }
     const split = (SPLITTERS[id] || ((root) => ({ left: [root], right: [] })))(holder);
-    const faceClass = id === 'kitchen' ? 'bk-pageface--kitchen' : '';
+    const faceClass =
+      id === 'kitchen' ? 'bk-pageface--kitchen' : id === 'recipe' ? 'bk-pageface--recipe' : '';
     const entry = {
       left: wrapFace(false, split.left, faceClass),
       right: wrapFace(false, split.right, faceClass),
