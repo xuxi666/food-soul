@@ -1,5 +1,6 @@
 /* ============================================================
- * 菜品详情：单页纵向美食专题
+ * 菜品详情：编辑式紧凑双栏
+ *   顶部标题 → 中部（左图 + 右侧 2×2 入口）→ 信息条 → 资料区 → 评论
  * 与书页共用的记号：暖米白 / 浅茶金细线 / 朱红强调 / 宋体标题
  * ============================================================ */
 
@@ -16,7 +17,7 @@
 
 .dm {
   position: relative;
-  padding: 4px 20px 34px;
+  padding: 2px 20px 30px;
   color: var(--dm-ink);
   font-size: 12.5px;
   line-height: 1.75;
@@ -32,17 +33,18 @@
   line-height: 1.75;
 }
 
-/* ---------- 标题区 ---------- */
+/* ---------- 一、顶部标题区 ---------- */
 .dm-head {
-  padding: 2px 0 0;
+  padding: 1px 0 0;
 }
 
 .dm-head__kicker {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
   font-size: 9.5px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   color: #a9793f;
   text-transform: uppercase;
 }
@@ -53,88 +55,373 @@
 }
 
 .dm-title {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   font-family: var(--dm-serif);
-  font-size: 31px;
+  font-size: 27px;
   font-weight: 600;
-  line-height: 1.12;
-  letter-spacing: 0.04em;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
   color: #33200f;
 }
 
 .dm-title__en {
-  margin-left: 10px;
+  margin-left: 9px;
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 300;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #a08258;
   vertical-align: middle;
 }
 
 .dm-line {
-  margin: 8px 0 0;
-  font-size: 12.5px;
-  line-height: 1.8;
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
   color: var(--dm-ink-2);
 }
 
-/* ---------- 主视觉 ---------- */
+/* 分类标签：小、薄、只用细金边，不抢标题 */
+.dm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.dm-tag {
+  padding: 1px 8px 2px;
+  border: 1px solid var(--dm-gold-soft);
+  border-radius: 999px;
+  background: rgba(255, 251, 242, 0.62);
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  color: #7d5a34;
+}
+
+/* ---------- 二、中部：左图 + 右侧四个入口 ---------- */
+.dm-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 13px;
+}
+
+/* 主图：约半页宽、左对齐、按原比例（不裁切）、细边柔影 */
 .dm-hero {
   position: relative;
-  margin: 14px 0 0;
-  overflow: hidden;
-  border-radius: 2px;
-  background: #efe3cd;
+  margin: 0;
+  min-width: 0;
 }
 
 .dm-hero img {
+  display: block;
   width: 100%;
-  aspect-ratio: 2.45 / 1;
-  object-fit: cover;
-}
-
-.dm-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1px solid rgba(120, 82, 42, 0.22);
-  border-radius: 2px;
-  pointer-events: none;
+  height: auto;
+  border: 1px solid rgba(120, 82, 42, 0.18);
+  border-radius: 3px;
+  background: #efe3cd;
+  box-shadow: 0 2px 10px rgba(118, 82, 52, 0.1);
 }
 
 .dm-hero__cap {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  margin: 6px 0 0;
+  font-size: 9.5px;
+  line-height: 1.6;
+  color: #9c815c;
+  letter-spacing: 0.02em;
+}
+
+/* 四个入口：胶囊按钮（同色系渐变底 + 三层同色涟漪 + 文字上滑），纵向依次排列
+   颜色全部由 .dm-act 上的 CSS 变量驱动，四枚按钮共用同一套结构与动效，只换色板 */
+.dm-acts {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 34px 14px 10px;
-  background: linear-gradient(to top, rgba(42, 26, 12, 0.72), rgba(42, 26, 12, 0.18) 62%, transparent);
-  color: #fff6e4;
+  gap: 9px;
+  justify-content: center;
+  min-width: 0;
 }
 
-.dm-hero__cap b {
-  font-family: var(--dm-serif);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+.dm-act {
+  /* 默认色板 = 古铜金（第四个按钮），其余三枚由 .dm-act--xxx 覆盖 */
+  --act-main: #a78248;
+  --act-hi: #b4904f;
+  --act-deep: #896638;
+  --act-edge: #c1a16c;
+  --act-ripple: #cbb083;
+  --act-ink: #fff8ed;
+  --act-shadow: 122, 86, 48;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  margin: 0;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--act-ink);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  /* 边框用稍亮的同色系描边，阴影是柔和暖棕，不用黑色 */
+  box-shadow:
+    0 0 0 1px var(--act-edge),
+    0 1px 2px rgba(var(--act-shadow), 0.16),
+    0 2px 8px rgba(var(--act-shadow), 0.1);
+  transition: box-shadow 260ms ease;
 }
 
-.dm-hero__cap span {
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  opacity: 0.88;
+/* 朱砂红：AI 对话入口 */
+.dm-act--chat {
+  --act-main: #a85443;
+  --act-hi: #b96454;
+  --act-deep: #8f3e33;
+  --act-edge: #c77b68;
+  --act-ripple: #d09079;
+  --act-shadow: 122, 56, 44;
 }
 
-/* ---------- 基础信息 ---------- */
+/* 茶褐色：结构化菜谱 */
+.dm-act--recipe {
+  --act-main: #896844;
+  --act-hi: #97754f;
+  --act-deep: #725333;
+  --act-edge: #a98a66;
+  --act-ripple: #b79a75;
+  --act-shadow: 104, 76, 44;
+}
+
+/* 竹青色：做菜视频 */
+.dm-act--video {
+  --act-main: #71836b;
+  --act-hi: #7e9177;
+  --act-deep: #5d7057;
+  --act-edge: #90a087;
+  --act-ripple: #a3b199;
+  --act-shadow: 76, 88, 68;
+}
+
+/* 古铜金：同类菜入口 */
+.dm-act--more {
+  --act-main: #a78248;
+  --act-hi: #b4904f;
+  --act-deep: #896638;
+  --act-edge: #c1a16c;
+  --act-ripple: #cbb083;
+  --act-shadow: 122, 86, 48;
+}
+
+/* 悬停：同色系提亮，阴影略增强；不加位移，尺寸完全不变 */
+.dm-act:hover {
+  box-shadow:
+    0 0 0 1px var(--act-edge),
+    0 2px 4px rgba(var(--act-shadow), 0.2),
+    0 5px 14px rgba(var(--act-shadow), 0.16);
+}
+
+/* 点击：同色系加深，不动尺寸、不缩放 */
+.dm-act:active {
+  box-shadow:
+    0 0 0 1px var(--act-edge),
+    0 0 0 2px rgba(var(--act-shadow), 0.08),
+    0 1px 2px rgba(var(--act-shadow), 0.14);
+}
+
+/* 键盘焦点：浅金细轮廓，outline 不占布局 */
+.dm-act:focus-visible {
+  outline: 1px solid rgba(193, 161, 108, 0.9);
+  outline-offset: 2px;
+}
+
+/* 禁用：低饱和浅灰棕 */
+.dm-act:disabled,
+.dm-act[aria-disabled='true'] {
+  --act-main: #c8c0b3;
+  --act-hi: #c8c0b3;
+  --act-deep: #c1b8aa;
+  --act-edge: #d7d0c4;
+  --act-ripple: #d7d0c4;
+  --act-ink: #8d8477;
+  --act-shadow: 120, 112, 100;
+  cursor: not-allowed;
+}
+
+/* 底色层：同色系竖向渐变（不是高饱和撞色） */
+.dm-act__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  background-color: var(--act-main);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 248, 237, 0.14) 0%,
+    rgba(255, 248, 237, 0.03) 34%,
+    rgba(0, 0, 0, 0.05) 72%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  transition: background-color 320ms ease;
+}
+
+.dm-act:hover .dm-act__bg {
+  background-color: var(--act-hi);
+}
+
+.dm-act:active .dm-act__bg {
+  background-color: var(--act-deep);
+}
+
+/* 三层圆片：全部取自同一色相，只是深浅不同，扩散时是一层柔和光泽 */
+.dm-act__layers {
+  position: absolute;
+  left: 50%;
+  top: -60%;
+  width: max(200%, 10rem);
+  aspect-ratio: 1 / 1;
+  transform: translateX(-50%);
+}
+
+.dm-act__layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 999px;
+  background-color: var(--act-ripple);
+  transform: scale(0);
+  transition:
+    transform 1.3s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.3s linear;
+}
+
+.dm-act__layer--1 {
+  opacity: 0.42;
+}
+
+.dm-act__layer--2 {
+  opacity: 0.24;
+}
+
+.dm-act__layer--3 {
+  opacity: 0.12;
+}
+
+.dm-act:hover .dm-act__layer--1 {
+  transform: scale(1);
+}
+
+.dm-act:hover .dm-act__layer--2 {
+  transform: scale(1);
+  transition-delay: 0.1s;
+}
+
+.dm-act:hover .dm-act__layer--3 {
+  transform: scale(1);
+  transition-delay: 0.2s;
+}
+
+.dm-act__ico {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--act-ink);
+  opacity: 0.9;
+}
+
+/* 文字：旧文案向上滑出，新文案从下方滑入 */
+.dm-act__label {
+  position: relative;
+  display: block;
+  height: 1.3em;
+  overflow: hidden;
+}
+
+.dm-act__txt {
+  display: block;
+  height: 1.3em;
+  line-height: 1.3;
+  white-space: nowrap;
+  transition:
+    transform 1.4s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.3s linear;
+}
+
+.dm-act__txt--hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+.dm-act:hover .dm-act__txt {
+  opacity: 0;
+  transform: translateY(-100%);
+}
+
+.dm-act:hover .dm-act__txt--hover {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    transform 1.4s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 1.4s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* 禁用：涟漪与文字滑动都不参与，避免「点了没反应却还在动」 */
+.dm-act:disabled .dm-act__layer,
+.dm-act[aria-disabled='true'] .dm-act__layer,
+.dm-act:disabled:hover .dm-act__layer,
+.dm-act[aria-disabled='true']:hover .dm-act__layer {
+  transform: scale(0);
+  transition: none;
+}
+
+.dm-act:disabled:hover .dm-act__txt,
+.dm-act[aria-disabled='true']:hover .dm-act__txt {
+  opacity: 1;
+  transform: none;
+}
+
+.dm-act:disabled:hover .dm-act__txt--hover,
+.dm-act[aria-disabled='true']:hover .dm-act__txt--hover {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-act,
+  .dm-act__bg,
+  .dm-act__layer,
+  .dm-act__txt {
+    transition-duration: 1ms !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* ---------- 三、基础信息条 ---------- */
 .dm-facts {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  margin: 12px 0 0;
+  margin: 13px 0 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--dm-gold);
@@ -144,8 +431,8 @@
 .dm-facts li {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 7px 10px 6px;
+  gap: 0;
+  padding: 5px 9px 5px;
   border-left: 1px solid var(--dm-gold-soft);
 }
 
@@ -162,20 +449,20 @@
 }
 
 .dm-facts span {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--dm-ink);
 }
 
-/* ---------- 分区通用 ---------- */
+/* ---------- 四、资料区：紧凑信息块 ---------- */
 .dm-sec {
-  margin: 22px 0 0;
+  margin: 13px 0 0;
 }
 
 .dm-kick {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .dm-kick i {
@@ -199,27 +486,19 @@
 }
 
 .dm-lead {
-  font-size: 13px;
-  line-height: 1.95;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.85;
   color: #462f1a;
   text-align: justify;
 }
 
 .dm-body {
-  font-size: 12.5px;
-  line-height: 1.95;
-  color: var(--dm-ink-2);
-  text-align: justify;
-}
-
-.dm-quote {
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  border-left: 2px solid var(--accent, #c08552);
-  background: linear-gradient(to right, rgba(216, 178, 106, 0.16), rgba(216, 178, 106, 0));
+  margin: 0;
   font-size: 12px;
   line-height: 1.85;
-  color: #5d4227;
+  color: var(--dm-ink-2);
+  text-align: justify;
 }
 
 .dm-note {
@@ -229,29 +508,30 @@
   color: #9c815c;
 }
 
-/* ---------- 风味档案 ---------- */
+/* 风味特点 */
 .dm-flavor {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .dm-flavor em {
-  padding: 3px 11px;
+  padding: 2px 9px;
   border: 1px solid var(--dm-gold);
   border-radius: 999px;
   background: rgba(255, 251, 242, 0.7);
   font-style: normal;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
   color: #6d4a2a;
 }
 
-/* ---------- 食材清单 ---------- */
+/* 主要食材 */
 .dm-ing {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 20px;
+  gap: 0 18px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -260,9 +540,9 @@
 .dm-ing li {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px dotted rgba(176, 138, 90, 0.34);
+  gap: 7px;
+  padding: 4px 0;
+  border-bottom: 1px dotted rgba(176, 138, 90, 0.3);
 }
 
 .dm-ing i {
@@ -274,91 +554,47 @@
 }
 
 .dm-ing span {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--dm-ink);
 }
 
-/* ---------- 烹饪步骤 ---------- */
-.dm-steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dm-steps li {
-  display: grid;
-  grid-template-columns: 26px 1fr;
-  gap: 10px;
-  align-items: start;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--dm-gold-soft);
-}
-
-.dm-steps li:last-child {
-  border-bottom: 0;
-}
-
-.dm-step__no {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--accent, #b57b4a);
-  border-radius: 50%;
-  font-family: var(--dm-serif);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--accent, #a2603a);
-}
-
-.dm-step__name {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  color: #3c2716;
-  line-height: 1.6;
-  padding-top: 1px;
-}
-
-/* ---------- 技法与要点 ---------- */
-.dm-craft {
+/* 代表性技法：一行一段，编号前标 */
+.dm-tech {
   display: flex;
   flex-wrap: wrap;
-  gap: 0;
-  margin: 0;
+  gap: 2px 16px;
+  margin: 6px 0 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--dm-gold-soft);
 }
 
-.dm-craft li {
-  display: flex;
+.dm-tech li {
+  display: inline-flex;
   align-items: baseline;
-  gap: 6px;
-  padding: 6px 14px 6px 0;
+  gap: 5px;
 }
 
-.dm-craft b {
+.dm-tech i {
+  font-style: normal;
   font-size: 8.5px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  color: #a9885c;
+  letter-spacing: 0.06em;
+  color: #b28c5c;
 }
 
-.dm-craft span {
-  font-size: 12px;
+.dm-tech span {
+  font-size: 11.5px;
   color: var(--dm-ink-2);
 }
 
 .dm-sub {
-  margin: 12px 0 2px;
+  margin: 10px 0 1px;
   font-size: 9.5px;
   font-weight: 400;
   letter-spacing: 0.18em;
   color: #a9793f;
 }
 
+/* 操作要点 */
 .dm-notes {
   margin: 0;
   padding: 0;
@@ -369,9 +605,9 @@
 .dm-notes li {
   position: relative;
   counter-increment: dmnote;
-  padding: 5px 0 5px 20px;
-  font-size: 12px;
-  line-height: 1.85;
+  padding: 3px 0 3px 18px;
+  font-size: 11.5px;
+  line-height: 1.8;
   color: #4a3320;
   text-align: justify;
 }
@@ -380,135 +616,12 @@
   content: counter(dmnote) '.';
   position: absolute;
   left: 0;
-  top: 5px;
-  font-size: 9.5px;
+  top: 3px;
+  font-size: 9px;
   color: #b28c5c;
 }
 
-/* ---------- 相关菜品 ---------- */
-.dm-related {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.dm-rel {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-
-.dm-rel__media {
-  display: block;
-  overflow: hidden;
-  border-radius: 2px;
-  background: #efe3cd;
-}
-
-.dm-rel__media img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  transition: transform 420ms ease;
-}
-
-.dm-rel:hover .dm-rel__media img {
-  transform: scale(1.04);
-}
-
-.dm-rel__name {
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
-  color: var(--dm-ink);
-}
-
-.dm-rel__sig {
-  font-size: 9px;
-  color: #9c815c;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-/* ---------- 站内入口 ---------- */
-.dm-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.dm-link {
-  padding: 5px 12px;
-  border: 1px solid var(--dm-gold);
-  border-radius: 2px;
-  background: rgba(255, 251, 242, 0.6);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: #6d4a2a;
-  cursor: pointer;
-}
-
-.dm-link:hover {
-  border-color: rgba(184, 146, 92, 0.7);
-  background: rgba(255, 250, 238, 0.95);
-}
-
-/* ---------- AI 人格 ---------- */
-.dm-ai {
-  padding: 12px 14px 13px;
-  border: 1px solid var(--dm-gold);
-  border-radius: 2px;
-  background: linear-gradient(180deg, rgba(255, 251, 243, 0.85), rgba(250, 240, 222, 0.5));
-}
-
-.dm-ai__who {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.dm-ai__name {
-  font-family: var(--dm-serif);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #33200f;
-}
-
-.dm-ai__arch {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: #a9793f;
-}
-
-.dm-ai__lang {
-  margin: 6px 0 0;
-  font-size: 11.5px;
-  line-height: 1.8;
-  color: var(--dm-ink-2);
-}
-
-.dm-ai__rhythm {
-  margin: 2px 0 0;
-  font-size: 10.5px;
-  line-height: 1.8;
-  color: #8a6d4c;
-}
-
-.dm-ai__acts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 11px;
-}
-
-/* ---------- 评论 ---------- */
+/* ---------- 五、评论 ---------- */
 .dm-comments .comment-form,
 .dm-comments .comment-item {
   border-color: var(--dm-gold-soft) !important;
@@ -522,21 +635,36 @@
 /* ---------- 窄页（手机单页 / 平板竖屏） ---------- */
 @media (max-width: 900px) {
   .dm {
-    padding: 2px 14px 28px;
+    padding: 0 4px 24px;
   }
 
   .dm-title {
-    font-size: 25px;
+    font-size: 23px;
   }
 
   .dm-title__en {
     display: block;
-    margin: 3px 0 0;
-    font-size: 10px;
+    margin: 2px 0 0;
+    font-size: 9.5px;
+  }
+
+  /* 单栏：主图在上（仍是视觉重心），四个入口在下方两列 */
+  .dm-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
   }
 
   .dm-hero img {
-    aspect-ratio: 1.9 / 1;
+    width: 100%;
+  }
+
+  .dm-acts {
+    gap: 8px;
+  }
+
+  .dm-act {
+    height: 44px;
+    font-size: 12px;
   }
 
   .dm-facts {
@@ -548,11 +676,11 @@
     padding-left: 2px;
   }
 
-  .dm-ing {
-    grid-template-columns: 1fr;
+  .dm-facts li:nth-child(n + 3) {
+    border-top: 1px solid var(--dm-gold-soft);
   }
 
-  .dm-related {
-    grid-template-columns: 1fr 1fr;
+  .dm-ing {
+    grid-template-columns: 1fr;
   }
 }

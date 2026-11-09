@@ -34,7 +34,8 @@ export default {
     const accent = theme.accent || cuisine?.accent || TASTE_BY_ID[(dish.tastes || [])[0]]?.color || '#d8b26a';
 
     const { el, comments } = buildDishDoc(dish, { accent, linkRelated: true });
-    // 书的切页逻辑按这两个类名找「主视觉」和「第 n 段」，这里补上标记
+    // 内页版：菜名/菜系/味型由详情自己的标题区统一呈现，页头只留返回入口，
+    // 避免同一个菜名在一页里出现两次；切页按 .dm-top / .cat-block 拆两张纸
     el.querySelector('.dm-hero')?.classList.add('detail-hero');
     el.querySelectorAll('.dm-sec').forEach((s) => s.classList.add('cat-block'));
 
@@ -49,17 +50,7 @@ export default {
           'div',
           { class: 'page-head' },
           h('a', { class: 'page-head__back', href: '/dishes', 'data-link': '' }, '← 返回图鉴'),
-          h(
-            'div',
-            {},
-            h('h1', { class: 'page-head__title', text: dish.name }),
-            h('p', {
-              class: 'page-head__sub',
-              text: dish.nameEn ? `${dish.nameEn} · ${cuisine?.name || ''}` : cuisine?.name || '',
-            })
-          ),
-          h('div', { class: 'page-head__spacer' }),
-          h('a', { class: 'btn btn--sm', href: `/cuisines/${dish.cuisine}`, 'data-link': '' }, `更多${cuisine?.name || ''}菜`)
+          h('div', { class: 'page-head__spacer' })
         ),
         el
       )

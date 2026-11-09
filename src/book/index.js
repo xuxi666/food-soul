@@ -345,8 +345,24 @@ export function initBook({ root }) {
   function syncChrome() {
     const list = book.spreads();
     const chapterId = chapterOfPosition();
+    const prevKey = currentKey;
     shell.content.dataset.chapter = chapterId;
     currentKey = inner ? innerKind || 'dishDetail' : chapterId;
+
+    // 视频章：进出时把「入口关键词」交代给实例——
+    // 从菜品详情页来会带 ?q=菜名（自动检索一次），普通进入是空关键词（回到初始态）
+    if (prevKey !== currentKey) {
+      if (prevKey === 'videos') book.chapterLeave?.('videos');
+      if (currentKey === 'videos') {
+        let q = '';
+        try {
+          q = (new URLSearchParams(location.search).get('q') || '').trim();
+        } catch {
+          q = '';
+        }
+        book.chapterEnter?.('videos', q);
+      }
+    }
 
     shell.setActive(chapterId);
     // 目录页里高亮的是同一份章节 id：读到哪一章，目录里那一行就是当前章
@@ -468,6 +484,9 @@ export function initBook({ root }) {
 
   async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
+    // 是不是从「菜品详情」出发的：内页 / 图鉴里展开的详情浮层都算。
+    // 必须在收起浮层之前判断，收起之后就看不出来了。
+    const fromDetail = !!inner || shell.el.classList.contains('is-atlas-expanded');
     // 换章节 / 进内页：页内详情属于上一页，先原样收起
     if (info.key !== 'dishes') closeAllOverlays({ instant: true });
     // 菜系 / 口味带分类 id：地址说哪个就换哪个（书签、深链接、前进后退都走这里）
@@ -497,22 +516,35 @@ export function initBook({ root }) {
       return;
     }
 
-    void book.disposeInner(inner);
-    inner = null;
-    innerKind = null;
-
     const target = book.spreadOfPath(path);
     const single = lastBox?.mode === 'single';
     const value = single ? target * 2 + 2 : target;
 
     // 尺寸模式变了（横竖屏）：重新摆一次纸，不做动画
     const modeChanged = single !== position.single;
-    position = { single, value };
+    const fromValue = position.value;
 
-    if (flip && !modeChanged && Math.abs(target - (single ? 0 : 0)) >= 0) {
-      await render();
-      return;
+    // 从菜品详情（内页 / 图鉴浮层）跳到后面的章节：真翻一页，
+    // 翻起来的那张纸背面就已经是目标章，落地即到，不再有一次硬切。
+    if (!modeChanged && !single && fromDetail && target > fromValue) {
+      busy = true;
+      try {
+        const turned = await flipFromDetailTo(target, fromValue);
+        if (turned) {
+          position = { single, value };
+          await render();
+          return;
+        }
+      } finally {
+        busy = false;
+      }
     }
+
+    // 没走翻页（横竖屏切换 / 目标在前 / 纸正忙）：照旧原地换内容
+    void book.disposeInner(inner);
+    inner = null;
+    innerKind = null;
+    position = { single, value };
     await render();
   }
 
@@ -625,6 +657,46 @@ export function initBook({ root }) {
       single: position.single,
       keepAngles: true,
     });
+  }
+
+  /**
+   * 从菜品详情（内页 / 图鉴浮层）翻到某一章：只翻一页。
+   *
+   * 书是「四张纸」的物理模型：翻动的那张纸背面、以及它下面那张的正面，
+   * 就是翻页途中唯一会露出来的内容。所以先把这两面换成目标章左右两页，
+   * 当前跨页原样不动，再真翻一页；sheets.turn 收尾会按目标跨页把四张纸重贴一遍，
+   * 落地正好是目标章，不需要再加一次「瞬移」。
+   *
+   * @param {number} targetSpread 目标跨页下标（双页模式）
+   * @param {number} fromValue    此刻屏幕停在哪一跨页
+   * @returns {Promise<boolean>}  是否真的翻了（false 时调用方走原来的硬切）
+   */
+  async function flipFromDetailTo(targetSpread, fromValue) {
+    if (position.single || targetSpread <= fromValue) return false;
+    const left = await book.pageByNumber(targetSpread * 2 + 2);
+    const right = await book.pageByNumber(targetSpread * 2 + 3);
+    if (!left || !right) return false;
+    // 当前跨页的两页（含）保持原样：内页还显示着，不能提前被换掉
+    const keepUpTo = fromValue * 2 + 3;
+    // 翻页时只会露出这两面：翻动纸的背面（左）+ 它下面那张的正面（右）。
+    // 其余页位一律给空白纸——同一种纸面节点只能挂在一个页位上，
+    // 重复给同一张会把先贴好的那张挤走，翻到一半就露出白纸。
+    const turnLeft = fromValue * 2 + 4;
+    const turnRight = turnLeft + 1;
+    const landing = (n) => (n === turnLeft ? left : n === turnRight ? right : blankPage());
+    await sheets.settle({
+      resolve: async (n) => (n <= keepUpTo ? resolvePage(n) : landing(n)),
+      spread: fromValue,
+      single: false,
+      keepAngles: true,
+    });
+    // 内页等纸翻起来之后再拆：B 的正面正显示着它，提前拆会翻出一张白纸
+    const gone = inner;
+    inner = null;
+    innerKind = null;
+    const ok = await sheets.turn('next', { resolve: resolvePage, spread: targetSpread - 1, single: false });
+    if (gone) void book.disposeInner(gone);
+    return ok;
   }
 
   /**

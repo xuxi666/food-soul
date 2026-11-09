@@ -11,6 +11,7 @@
  * 换页时只是把同一个节点搬到另一张纸上，模块状态（筛选、输入、滚动位置）不会丢。
  */
 import { h } from '../lib/dom.js';
+import { enableWheelScroll, enableTouchScroll } from '../lib/wheel-scroll.js';
 import { CHAPTERS, EXTRA, chapterById, chapterOf } from './chapters.js';
 import { createAtlas } from './atlas.js';
 import { mountCategory } from './category.js';
@@ -45,11 +46,16 @@ const SPLITTERS = {
     return { left, right };
   },
   dishDetail(root) {
-    // 左页：页头 + 主视觉 + 介绍 · 来历；右页：风味 / 食材 / 步骤 / 要点 / 相关 / AI / 评论
-    const hero = root.querySelector('.detail-hero');
+    // 左页：页头 + 标题区 + 「左图 / 右四入口」+ 信息条 + 介绍 · 风味；右页：其余段落与评论
     const blocks = [...root.querySelectorAll('.cat-block')];
-    const left = [root.querySelector('.page-head'), hero, ...blocks.slice(0, 4)];
-    const right = blocks.slice(4);
+    const left = [
+      root.querySelector('.page-head'),
+      root.querySelector('.dm-head'),
+      root.querySelector('.dm-top'),
+      root.querySelector('.dm-facts'),
+      ...blocks.slice(0, 2),
+    ];
+    const right = blocks.slice(2);
     return { left, right };
   },
   admin(root) {
@@ -178,6 +184,11 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
       const right = inst.el.querySelector('.vid__page--right');
       const entry = { left: wrapFace(true, [left]), right: wrapFace(true, [right]), instance: inst };
       pages.set(id, entry);
+      // 桌面：左页自己滚（内层 height:100% + overflow:auto）；
+      // 手机：左页整页交给纸面滚。两种都要把滚轮 / 触摸换算成 scrollTop，
+      // 否则 3D 纸里的原生滚动不生效（内层滚到头就自动让回去，不会双重滚动）
+      enableWheelScroll(entry.left);
+      enableTouchScroll(entry.left);
       return entry;
     }
 
@@ -203,6 +214,13 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     };
     pages.set(id, entry);
     holder.remove();
+    // 菜品详情内页：两张纸各自滚动，同样需要把滚轮换算成 scrollTop
+    if (id === 'dishDetail') {
+      enableWheelScroll(entry.left);
+      enableWheelScroll(entry.right);
+      enableTouchScroll(entry.left);
+      enableTouchScroll(entry.right);
+    }
     // 图谱这类按容器尺寸绘制的组件，换爹之后要重新量一次
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     return entry;
@@ -340,6 +358,19 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     /** 目录页高亮当前章节（与书签同一份章节 id） */
     setChapterActive(chapterId) {
       pages.get('catalog')?.instance?.setActive?.(chapterId);
+    },
+    /**
+     * 视频章的入口关键词（只有菜品详情页跳转才会带）。
+     * 「普通进入」= 空关键词：实例内部会把页面收回初始态，不重复请求。
+     */
+    chapterEnter(chapterId, param) {
+      if (chapterId !== 'videos') return;
+      pages.get('videos')?.instance?.syncQuery?.(param || '');
+    },
+    /** 离开视频章：清掉这一轮的关键词与结果，下次回来是干净的白纸 */
+    chapterLeave(chapterId) {
+      if (chapterId !== 'videos') return;
+      pages.get('videos')?.instance?.resetSearch?.();
     },
   };
 }

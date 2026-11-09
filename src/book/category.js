@@ -31,6 +31,7 @@ import {
   DISCOVER_BATCH,
 } from '../data/dishFeed.js';
 import { guardImage, dishPlaceholder } from '../lib/placeholder.js';
+import { enableWheelScroll } from '../lib/wheel-scroll.js';
 
 /** 仅开发环境：把「加载更多」的每一步都打到控制台，便于排查（生产构建里整段被摇掉） */
 const logCat = (...args) => {
@@ -70,31 +71,9 @@ function topTokens(list, pick, limit) {
 const minutes = (d) => (d.prep || 0) + (d.cook || 0);
 
 /**
- * 页面里的滚轮滚动。
- * 书页是 3D 变身过的纸（rotateY + backface-visibility），浏览器自带的
- * 「点在哪就滚哪」在这种子树里并不可靠（实测滚轮不生效、PageDown 却可以），
- * 所以在两张纸上显式把 deltaY 换算成 scrollTop：
- *   · 只有这一页真的还能滚时才接管，滚到底就把事件让回去；
- *   · ctrl + 滚轮是缩放，不动它；
- *   · 只滚自己的容器，不会带动另一页，也不会带动整本书。
+ * 页面里的滚轮滚动。书页是 3D 变身过的纸，浏览器自带的「点在哪就滚哪」
+ * 在这种子树里并不可靠 —— 具体原因与取舍见 lib/wheel-scroll.js。
  */
-function enableWheelScroll(container) {
-  container.addEventListener(
-    'wheel',
-    (e) => {
-      if (e.ctrlKey || e.metaKey) return;
-      const max = container.scrollHeight - container.clientHeight;
-      if (max <= 0) return;
-      const before = container.scrollTop;
-      const next = Math.max(0, Math.min(max, before + e.deltaY));
-      if (next === before) return;
-      container.scrollTop = next;
-      e.preventDefault();
-    },
-    { passive: false }
-  );
-}
-
 /* ---------------- 章节 ---------------- */
 
 export function mountCategory(el, kind, id) {

@@ -1,15 +1,21 @@
 /**
- * 菜品详情：单页纵向美食专题
+ * 菜品详情：编辑式紧凑双栏（单页美食专题）
  * ------------------------------------------------------------
  * 一份内容，两个宿主：
  *   1. 书页内的「四边扩散详情」（book/overlay.js）
  *   2. 深链接 /dishes/:id 的章节内页（views/dish-detail.js）
  *
+ * 版式自 2026-11 起改为：
+ *   顶部  菜名 + 英文 + 真实分类标签
+ *   中部  左：菜品主图（约半页宽）  右：四个操作入口 2×2
+ *   下部  基础信息条 + 介绍 / 风味 / 食材 / 特色 / 掌故（紧凑信息块）
+ *   末尾  食客怎么说
+ * 原来的「相关内容」栏已按需求删除；推荐能力仍在图鉴与菜系页各自保留。
+ *
  * 所有文字、标签、图片都来自 src/data/dishes.js（以及 /api/dishes/:id 的兜底），
- * 没有分步操作文本的菜品不做编造：步骤一律取自真实的 techniques 字段，
- * 操作要点取自 knowledge 字段。
+ * 没有的字段就不渲染，不编造：步骤取自 techniques，操作要点取自 knowledge。
  */
-import { h } from '../lib/dom.js';
+import { h, html } from '../lib/dom.js';
 import { DISHES, DIFFICULTY_LABEL } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
@@ -36,29 +42,24 @@ export async function appRoute(href, el, accent = '#d8b26a') {
   });
 }
 
-/** 风味特征标签：真实来源 = signature 里用顿号分出来的词 + 味型名 */
-function flavorTokens(dish) {
-  const out = [];
-  const push = (v) => {
-    const s = String(v || '').trim();
-    if (s && s.length <= 6 && !out.includes(s)) out.push(s);
-  };
-  String(dish.signature || '')
-    .split(/[、·,，/|]+/)
-    .forEach(push);
-  (dish.tastes || []).forEach((t) => push(TASTE_BY_ID[t]?.name));
-  return out.slice(0, 8);
-}
+/* ---------- 按钮图标：细线，描边跟随文字色，不引外部资源 ---------- */
+const ICON_SVG = {
+  chat: '<svg class="dm-act__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5.2H4v10.6h3.1V19l4.2-3.2H20z"/><path d="M8.4 10.5h.02M12 10.5h.02M15.6 10.5h.02"/></svg>',
+  recipe:
+    '<svg class="dm-act__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.6h9.4L19 7.4V20.4H6z"/><path d="M15.2 3.8v3.6h3.6"/><path d="M9 11.6h7M9 14.6h7M9 17.2h4.4"/></svg>',
+  video:
+    '<svg class="dm-act__ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.6"/><path d="M10.2 9.4l4.6 2.6-4.6 2.6z"/></svg>',
+  more: '<svg class="dm-act__ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.6" height="6.6" rx="1"/><rect x="13.4" y="4" width="6.6" height="6.6" rx="1"/><rect x="4" y="13.4" width="6.6" height="6.6" rx="1"/><rect x="13.4" y="13.4" width="6.6" height="6.6" rx="1"/></svg>',
+};
+// html() 已经把 <svg> 根节点给出来了，这里直接克隆整棵 SVG（再取 firstElementChild 会只剩下 <path>）
+const icon = (key) => html`${ICON_SVG[key] || ''}`?.cloneNode(true) || null;
 
-function relatedOf(dish) {
-  const sameCuisine = DISHES.filter((d) => d.cuisine === dish.cuisine && d.id !== dish.id);
-  const sameTaste = DISHES.filter((d) => d.cuisine !== dish.cuisine && (d.tastes || [])[0] === (dish.tastes || [])[0]);
-  const out = [];
-  for (const d of [...sameCuisine.slice(0, 3), ...sameTaste.slice(0, 3)]) {
-    if (out.length >= 4) break;
-    if (!out.some((x) => x.id === d.id)) out.push(d);
-  }
-  return out;
+/** 一句话特色拆成短词（「油厚、椒香、鱼片嫩」→ 三个标签） */
+function signatureTokens(dish) {
+  return String(dish.signature || '')
+    .split(/[、·,，/|]+/)
+    .map((s) => s.trim())
+    .filter((s) => s && s.length <= 6);
 }
 
 const kick = (no, text) => h('p', { class: 'dm-kick' }, h('i', { text: no }), h('span', { text }));
@@ -74,12 +75,14 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
   const minutes = (dish.prep || 0) + (dish.cook || 0);
   const techniques = dish.techniques || [];
   const notes = dish.knowledge || [];
-  const related = relatedOf(dish);
   const comments = h('div', { class: 'dm-comments' });
+  // 标题区标签 = 真实味型（分类标签）；资料区「风味特点」= signature 拆出来的口感词，两者不重复
+  const tags = tastes.map((t) => t.name).slice(0, 3);
+  const flavorWords = signatureTokens(dish).length ? signatureTokens(dish) : tastes.map((t) => t.name);
 
   const root = h('article', { class: `dm${compact ? ' dm--compact' : ''}`, style: `--accent:${accent}` });
 
-  /* ---------- B. 标题区 ---------- */
+  /* ---------- 一、顶部标题区 ---------- */
   root.append(
     h(
       'header',
@@ -97,33 +100,116 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
         dish.name,
         dish.nameEn ? h('span', { class: 'dm-title__en', text: dish.nameEn }) : null
       ),
-      dish.oneLiner ? h('p', { class: 'dm-line', text: dish.oneLiner }) : null
+      dish.oneLiner ? h('p', { class: 'dm-line', text: dish.oneLiner }) : null,
+      tags.length
+        ? h('div', { class: 'dm-tags' }, ...tags.map((t) => h('em', { class: 'dm-tag', text: t })))
+        : null
     )
   );
 
-  /* ---------- C. 主视觉 + 基础信息 ---------- */
+  /* ---------- 二、中部：左图 + 右侧四个入口 ---------- */
+  const moreHref = cuisine ? `/cuisines/${dish.cuisine}` : '/dishes';
+  const moreLabel = cuisine ? `更多${cuisine.name}` : '更多同类菜';
+  const videosHref = `/videos?q=${encodeURIComponent(dish.name)}`;
+
+  const media = h(
+    'figure',
+    { class: 'dm-hero' },
+    guardImage(
+      h('img', { src: dish.image || '', alt: dish.alt || dish.name, decoding: 'async' }),
+      dish.name,
+      '菜品图片'
+    ),
+    dish.alt ? h('figcaption', { class: 'dm-hero__cap', text: dish.alt }) : null
+  );
+
+  // 胶囊按钮：暖金底 + 三层涟漪 + 文字上滑换行（参考 Hover 按钮样式，色系沿用画册）
+  const pill = (tag, attrs, key, label) =>
+    h(
+      tag,
+      { class: `dm-act dm-act--${key}`, ...attrs },
+      h(
+        'span',
+        { class: 'dm-act__bg', 'aria-hidden': 'true' },
+        h(
+          'span',
+          { class: 'dm-act__layers' },
+          h('span', { class: 'dm-act__layer dm-act__layer--1' }),
+          h('span', { class: 'dm-act__layer dm-act__layer--2' }),
+          h('span', { class: 'dm-act__layer dm-act__layer--3' })
+        )
+      ),
+      icon(key),
+      h(
+        'span',
+        { class: 'dm-act__label' },
+        h('span', { class: 'dm-act__txt', text: label }),
+        h('span', { class: 'dm-act__txt dm-act__txt--hover', 'aria-hidden': 'true', text: label })
+      )
+    );
+
+  const acts = h(
+    'div',
+    { class: 'dm-acts' },
+    pill(
+      'button',
+      {
+        type: 'button',
+        title: `和 AI 食灵聊「${dish.name}」的风味、来历与做法`,
+        onclick: (e) => void appRoute(`/chat/${dish.id}`, e.currentTarget, accent),
+      },
+      'chat',
+      `与「${dish.name}」聊聊`
+    ),
+    pill(
+      'button',
+      {
+        type: 'button',
+        title: '进结构化食谱，菜名已代填',
+        onclick: (e) =>
+          void appRoute(
+            `/recipe?dish=${encodeURIComponent(dish.id)}&name=${encodeURIComponent(dish.name)}`,
+            e.currentTarget,
+            accent
+          ),
+      },
+      'recipe',
+      '生成菜谱'
+    ),
+    pill(
+      'a',
+      {
+        href: videosHref,
+        'data-link': '',
+        'data-act': 'videos',
+        title: `在站内检索「${dish.name}」的做菜视频`,
+      },
+      'video',
+      '做菜视频'
+    ),
+    pill(
+      'a',
+      {
+        href: moreHref,
+        'data-link': '',
+        'data-act': 'more-cuisine',
+        title: cuisine ? `看其他${cuisine.name}菜` : '回到美食图鉴',
+      },
+      'more',
+      moreLabel
+    )
+  );
+
+  root.append(h('section', { class: 'dm-top' }, media, acts));
+
+  /* ---------- 三、基础信息条 ---------- */
   const facts = [
     ['难度', DIFFICULTY_LABEL[dish.difficulty] || '—'],
-    ['时间', minutes ? `${minutes} 分钟` : '—'],
+    ['用时', minutes ? `${minutes} 分钟` : '—'],
     ['份量', dish.servings ? `${dish.servings} 人份` : '—'],
-    ['参考', dish.price > 0 ? `${dish.price} 元/人` : '—'],
+    ['参考', dish.price ? `¥${dish.price}` : '—'],
   ];
   root.append(
-    h(
-      'figure',
-      { class: 'dm-hero' },
-      guardImage(
-        h('img', { src: dish.image, alt: dish.alt || dish.name, loading: 'eager', decoding: 'async' }),
-        dish.name,
-        '图片暂不可用'
-      ),
-      h(
-        'figcaption',
-        { class: 'dm-hero__cap' },
-        h('b', { text: dish.name }),
-        dish.signature ? h('span', { text: dish.signature }) : null
-      )
-    ),
     h(
       'ul',
       { class: 'dm-facts' },
@@ -131,206 +217,61 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
     )
   );
 
-  /* ---------- D. 菜品介绍 ---------- */
-  root.append(
-    sec(
-      'intro',
-      kick('01', '这道菜'),
-      dish.intro ? h('p', { class: 'dm-lead', text: dish.intro }) : null,
-      dish.texture ? h('blockquote', { class: 'dm-quote', text: dish.texture }) : null
-    )
-  );
-
-  /* ---------- E. 历史与典故 ---------- */
-  if (dish.history || notes.length) {
-    root.append(
-      sec(
-        'history',
-        kick('02', '来历与掌故'),
-        dish.history ? h('p', { class: 'dm-body', text: dish.history }) : null
-      )
-    );
+  /* ---------- 四、资料区：紧凑信息块 ---------- */
+  if (dish.intro) {
+    root.append(sec('intro', kick('01', '这道菜'), h('p', { class: 'dm-lead', text: dish.intro })));
   }
 
-  /* ---------- F. 风味档案 ---------- */
-  const tokens = flavorTokens(dish);
+  const tokens = flavorWords;
   if (tokens.length) {
     root.append(
-      sec(
-        'flavor',
-        kick('03', '风味档案'),
-        h('div', { class: 'dm-flavor' }, ...tokens.map((t) => h('em', { text: t })))
-      )
+      sec('flavor', kick('02', '风味特点'), h('div', { class: 'dm-flavor' }, ...tokens.map((t) => h('em', { text: t }))))
     );
   }
 
-  /* ---------- G. 食材清单 ---------- */
-  if ((dish.ingredients || []).length) {
+  const ings = dish.ingredients || [];
+  if (ings.length) {
     root.append(
       sec(
         'ingredients',
-        kick('04', '食材清单'),
+        kick('03', '主要食材'),
         h(
           'ul',
           { class: 'dm-ing' },
-          ...dish.ingredients.map((name, i) =>
+          ...ings.map((name, i) =>
             h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: name }))
-          )
-        ),
-        h('p', {
-          class: 'dm-note',
-          text: dish.servings ? `用量按 ${dish.servings} 人份准备，可自行增减` : '用量可按人数自行增减',
-        })
-      )
-    );
-  }
-
-  /* ---------- H. 烹饪步骤（真实 techniques 顺序） ---------- */
-  if (techniques.length) {
-    root.append(
-      sec(
-        'steps',
-        kick('05', '烹饪步骤'),
-        h(
-          'ol',
-          { class: 'dm-steps' },
-          ...techniques.map((t, i) =>
-            h(
-              'li',
-              {},
-              h('b', { class: 'dm-step__no', text: String(i + 1) }),
-              h('div', { class: 'dm-step__body' }, h('h4', { class: 'dm-step__name', text: t }))
-            )
-          )
-        ),
-        h('p', { class: 'dm-note', text: '按技法先后排列；关键火候与易失手的地方见下方要点' })
-      )
-    );
-  }
-
-  /* ---------- I. 技法与要点 ---------- */
-  if (notes.length || techniques.length) {
-    root.append(
-      sec(
-        'craft',
-        kick('06', '技法与要点'),
-        h(
-          'ul',
-          { class: 'dm-craft' },
-          h('li', {}, h('b', { text: '备料' }), h('span', { text: `${dish.prep || 0} 分钟` })),
-          h('li', {}, h('b', { text: '烹饪' }), h('span', { text: `${dish.cook || 0} 分钟` })),
-          h('li', {}, h('b', { text: '难度' }), h('span', { text: DIFFICULTY_LABEL[dish.difficulty] || '—' }))
-        ),
-        ...(notes.length
-          ? [
-              h('h4', { class: 'dm-sub', text: '关键要点' }),
-              h('ol', { class: 'dm-notes' }, ...notes.map((n, i) => h('li', { text: n, 'data-no': String(i + 1) }))),
-            ]
-          : [])
-      )
-    );
-  }
-
-  /* ---------- J. 相关内容 ---------- */
-  root.append(
-    sec(
-      'related',
-      kick('07', '相关内容'),
-      related.length
-        ? h(
-            'div',
-            { class: 'dm-related' },
-            ...related.map((d) =>
-              h(
-                linkRelated ? 'a' : 'button',
-                linkRelated
-                  ? { class: 'dm-rel', href: `/dishes/${d.id}`, 'data-link': '' }
-                  : { class: 'dm-rel', type: 'button', 'data-act': 'dish', 'data-dish': d.id, 'aria-label': `查看${d.name}` },
-                h(
-                  'span',
-                  { class: 'dm-rel__media' },
-                  guardImage(
-                    h('img', { src: d.image, alt: d.alt || d.name, loading: 'lazy', decoding: 'async' }),
-                    d.name,
-                    ''
-                  )
-                ),
-                h('span', { class: 'dm-rel__name', text: d.name }),
-                h('span', { class: 'dm-rel__sig', text: d.signature || '' })
-              )
-            )
-          )
-        : null,
-      h(
-        'div',
-        { class: 'dm-links' },
-        h('a', { class: 'dm-link', href: `/videos?q=${encodeURIComponent(dish.name)}`, 'data-link': '' }, '做菜视频'),
-        dish.cuisine
-          ? h('a', { class: 'dm-link', href: `/cuisines/${dish.cuisine}`, 'data-link': '' }, `更多${cuisine?.name || ''}菜`)
-          : tastes[0]
-            ? h('a', { class: 'dm-link', href: `/tastes/${tastes[0].id}`, 'data-link': '' }, `更多${tastes[0].name}菜`)
-            : null
-      )
-    )
-  );
-
-  /* ---------- K. AI 人格入口 ---------- */
-  if (persona) {
-    root.append(
-      sec(
-        'ai',
-        kick('08', '和这道菜聊聊'),
-        h(
-          'div',
-          { class: 'dm-ai' },
-          h(
-            'div',
-            { class: 'dm-ai__who' },
-            h('b', { class: 'dm-ai__name', text: persona.name }),
-            h('span', { class: 'dm-ai__arch', text: persona.archetype })
-          ),
-          h('p', { class: 'dm-ai__lang', text: persona.language }),
-          h('p', { class: 'dm-ai__rhythm', text: `${persona.rhythm}｜常用比喻：${(persona.metaphors || []).slice(0, 2).join('；')}` }),
-          h(
-            'div',
-            { class: 'dm-ai__acts' },
-            h(
-              'button',
-              {
-                class: 'btn btn--sm btn--solid',
-                type: 'button',
-                onclick: (e) => void appRoute(`/chat/${dish.id}`, e.currentTarget, accent),
-              },
-              `与「${dish.name}」聊聊`
-            ),
-            h(
-              'button',
-              {
-                class: 'btn btn--sm',
-                type: 'button',
-                onclick: (e) =>
-                  void appRoute(
-                    `/recipe?dish=${encodeURIComponent(dish.id)}&name=${encodeURIComponent(dish.name)}`,
-                    e.currentTarget,
-                    accent
-                  ),
-              },
-              '生成菜谱'
-            )
           )
         )
       )
     );
   }
 
-  /* ---------- 评论 ---------- */
-  root.append(
-    sec(
-      'talk',
-      kick('09', '食客怎么说'),
-      comments
-    )
-  );
+  if (dish.texture || techniques.length || notes.length) {
+    root.append(
+      sec(
+        'craft',
+        kick('04', '菜品特色'),
+        // 口感用真实 texture 字段；signature 已经拆成上面的风味标签，这里不重复
+        dish.texture ? h('p', { class: 'dm-body', text: dish.texture }) : null,
+        techniques.length
+          ? h(
+              'ul',
+              { class: 'dm-tech' },
+              ...techniques.map((t, i) => h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: t })))
+            )
+          : null,
+        notes.length ? h('p', { class: 'dm-sub', text: '操作要点' }) : null,
+        notes.length ? h('ul', { class: 'dm-notes' }, ...notes.map((t) => h('li', { text: t }))) : null
+      )
+    );
+  }
+
+  if (dish.history) {
+    root.append(sec('history', kick('05', '掌故'), h('p', { class: 'dm-body', text: dish.history })));
+  }
+
+  /* ---------- 五、食客怎么说 ---------- */
+  root.append(sec('talk', kick('06', '食客怎么说'), comments));
 
   return { el: root, comments };
 }

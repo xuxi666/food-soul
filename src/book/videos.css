@@ -1,116 +1,437 @@
-/* 视频章节：左页找视频（搜索 + 按菜系挑）/ 右页看结果（列表 + 平台入口） */
+/* 视频章节
+   左页 = 搜索工作区（吸顶搜索条 + 结果列表 + 独立滚动）
+   右页 = 中华美食书法封面（固定展示）
+   纸面、金线、棕字沿用画册既有令牌，不自造一套配色 */
 
 .vid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 58px;
+  display: block;
   height: 100%;
-  padding: 26px 30px 44px;
-  min-height: 0;
 }
+
+/* ------------------------------ 左右页骨架 ------------------------------ */
 
 .vid__page {
+  min-height: 0;
+}
+
+.vid__page--left {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  gap: 8px;
-}
-
-.vid__page--left,
-.vid__page--right {
+  height: 100%;
+  padding: 2px 2px 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(196, 168, 120, 0.45) transparent;
+  scrollbar-color: rgba(196, 168, 120, 0.42) transparent;
 }
 
-.vid__page--left::-webkit-scrollbar,
-.vid__page--right::-webkit-scrollbar {
+.vid__page--left::-webkit-scrollbar {
   width: 4px;
 }
 
-.vid__page--left::-webkit-scrollbar-thumb,
-.vid__page--right::-webkit-scrollbar-thumb {
-  background: rgba(196, 168, 120, 0.4);
+.vid__page--left::-webkit-scrollbar-thumb {
+  background: rgba(196, 168, 120, 0.38);
   border-radius: 2px;
 }
 
-.vid__head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(200, 166, 108, 0.35);
+/* ------------------------------ 左页顶部 ------------------------------ */
+
+.vid__top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: 0 0 auto;
+  margin: 0 -2px;
+  padding: 6px 2px 9px;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-mid) 74%, rgba(253, 248, 238, 0) 100%);
+  transition: box-shadow 220ms var(--ease, ease);
 }
 
-.vid__head b {
-  font-size: 15px;
+.vid__top.is-stuck {
+  box-shadow: 0 8px 14px -10px rgba(120, 84, 52, 0.45);
+}
+
+.vid__eyebrow {
+  margin: 0 0 5px;
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #a9845f;
+}
+
+.vid__titlerow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.vid__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 19px;
   font-weight: 500;
-  letter-spacing: 0.12em;
-  color: var(--color-text);
-  white-space: nowrap;
+  letter-spacing: 0.1em;
+  color: #4c3324;
+}
+
+.vid__title em {
+  font-size: 9.5px;
+  font-style: normal;
+  letter-spacing: 0.28em;
+  color: #b5946a;
+}
+
+.vid__title-line {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(200, 166, 108, 0.5), rgba(200, 166, 108, 0));
+}
+
+/* 搜索：输入框 + 按钮 */
+.vid__form {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.vid__field {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px 0 30px;
+  border-radius: 6px;
+  border: 1px solid rgba(198, 163, 106, 0.55);
+  background: rgba(255, 253, 246, 0.92);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.vid__field:focus-within {
+  border-color: rgba(168, 84, 67, 0.62);
+  box-shadow: 0 0 0 3px rgba(168, 84, 67, 0.08);
+}
+
+.vid__field-ico {
+  position: absolute;
+  left: 10px;
+  width: 13px;
+  height: 13px;
+  color: #b08a5f;
+  pointer-events: none;
 }
 
 .vid__search {
-  flex: 1;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(200, 166, 108, 0.5);
-  background: rgba(255, 253, 246, 0.9);
-  font-size: 11.5px;
-  color: var(--color-text);
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  color: #4c3324;
+  outline: none;
+  appearance: none;
 }
 
-.vid__search:focus {
-  outline: none;
-  border-color: #c2452d;
+.vid__search::placeholder {
+  color: #b6a290;
+  font-size: 11.5px;
+}
+
+.vid__search::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.vid__go {
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(168, 84, 67, 0.42);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #b25c49 0%, #a85443 100%);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: #fff8ed;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(122, 56, 44, 0.18), 0 3px 9px rgba(122, 56, 44, 0.12);
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+}
+
+.vid__go:hover {
+  background: linear-gradient(180deg, #bb6653 0%, #b25c49 100%);
+  box-shadow: 0 2px 4px rgba(122, 56, 44, 0.22), 0 6px 16px rgba(122, 56, 44, 0.16);
+}
+
+.vid__go:active {
+  background: #8f3e33;
+  transform: translateY(1px);
+}
+
+.vid__go:focus-visible {
+  outline: 1px solid rgba(193, 161, 108, 0.9);
+  outline-offset: 2px;
 }
 
 .vid__status {
-  margin: 0;
+  margin: 7px 0 0;
+  min-height: 14px;
   font-size: 10.5px;
-  line-height: 1.6;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+
+.vid__status[data-phase='hint'] {
+  color: #a85443;
+}
+
+.vid__status[data-phase='error'] {
+  color: #a8432f;
+}
+
+/* ------------------------------ 左页内容区 ------------------------------ */
+
+.vid__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 4px;
+}
+
+/* 空状态：一碗热气，配一句提示，占满剩余页面 */
+.vid__idle {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 420px;
+  padding: 18px 10px 44px;
+  text-align: center;
+}
+
+/* 背后的淡墨圆：让空页面有气韵，不是一块白板 */
+.vid__idle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(420px, 86%);
+  aspect-ratio: 1;
+  translate: -50% -52%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(198, 168, 118, 0.16) 0%, rgba(198, 168, 118, 0.05) 58%, transparent 72%);
+  pointer-events: none;
+}
+
+.vid__idle-art {
+  position: relative;
+  width: min(360px, 68%);
+  color: #8c7358;
+  opacity: 0.92;
+}
+
+/* 画与题之间一道浅金细线，中间嵌一枚菱形，页面因此有了上下的层次 */
+.vid__idle-rule {
+  position: relative;
+  display: block;
+  width: 132px;
+  height: 1px;
+  margin: 12px 0 4px;
+  background: linear-gradient(90deg, transparent, rgba(196, 160, 104, 0.62), transparent);
+}
+
+.vid__idle-rule::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  translate: -50% -50%;
+  rotate: 45deg;
+  background: rgba(196, 160, 104, 0.6);
+}
+
+.vid__ink {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.vid__idle-main {
+  position: relative;
+  margin: 4px 0 0;
+  font-family: 'STXingkai', '华文行楷', 'FZShuTi', '方正舒体', 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 21px;
+  letter-spacing: 0.16em;
+  color: #6b4a32;
+}
+
+.vid__idle-sub {
+  position: relative;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+}
+
+.vid__idle-seal {
+  position: relative;
+  margin-top: 14px;
+  padding: 4px 7px;
+  border: 1px solid rgba(168, 67, 47, 0.5);
+  border-radius: 2px;
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: rgba(168, 67, 47, 0.82);
+  writing-mode: vertical-rl;
+  line-height: 1;
+}
+
+/* 加载中：骨架条，不用假数据占位 */
+.vid__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 4px 0 20px;
+}
+
+.vid__skel {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 12px;
+  padding: 7px;
+  border: 1px solid rgba(200, 166, 108, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, 0.6);
+}
+
+.vid__skel-cover {
+  height: 74px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(214, 196, 168, 0.3), rgba(224, 208, 182, 0.5), rgba(214, 196, 168, 0.3));
+  background-size: 200% 100%;
+  animation: vid-shimmer 1.4s linear infinite;
+}
+
+.vid__skel-lines {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vid__skel-lines i {
+  display: block;
+  height: 9px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(214, 196, 168, 0.28), rgba(224, 208, 182, 0.46), rgba(214, 196, 168, 0.28));
+  background-size: 200% 100%;
+  animation: vid-shimmer 1.4s linear infinite;
+}
+
+.vid__skel-lines i:last-child {
+  width: 46%;
+}
+
+@keyframes vid-shimmer {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+
+/* 结果：紧凑横排卡片 */
+.vid__results {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 20px;
+}
+
+.vid__results-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 8px;
+  border-bottom: 1px dashed rgba(200, 166, 108, 0.4);
+}
+
+.vid__results-title {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: #6b4a32;
+}
+
+.vid__results-count {
+  font-size: 10px;
+  letter-spacing: 0.1em;
   color: var(--color-text-muted);
 }
 
 .vid__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
+  padding-top: 10px;
 }
 
 .vid__item {
   display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 10px;
-  padding: 6px;
+  grid-template-columns: 132px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px;
   border-radius: 8px;
-  border: 1px solid rgba(200, 166, 108, 0.35);
-  background: rgba(255, 253, 248, 0.9);
+  border: 1px solid rgba(200, 166, 108, 0.32);
+  background: rgba(255, 253, 248, 0.86);
   text-decoration: none;
   color: inherit;
-  transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .vid__item:hover {
   transform: translateY(-1px);
-  border-color: rgba(194, 69, 45, 0.45);
-  box-shadow: 0 6px 16px rgba(120, 82, 56, 0.12);
+  border-color: rgba(168, 84, 67, 0.42);
+  background: rgba(255, 252, 244, 0.98);
+  box-shadow: 0 6px 16px rgba(120, 82, 56, 0.13);
+}
+
+.vid__item:focus-visible {
+  outline: 1px solid rgba(193, 161, 108, 0.9);
+  outline-offset: 2px;
 }
 
 .vid__cover {
   position: relative;
-  aspect-ratio: 16 / 10;
-  border-radius: 6px;
+  display: block;
+  aspect-ratio: 16 / 9;
+  border-radius: 5px;
   overflow: hidden;
-  background: var(--color-surface-soft);
+  background: linear-gradient(135deg, #efe4d2, #e2d3bb);
 }
 
 .vid__cover img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+  transition: transform 320ms ease;
+}
+
+.vid__item:hover .vid__cover img {
+  transform: scale(1.04);
 }
 
 .vid__cover-ph {
@@ -119,115 +440,189 @@
   justify-content: center;
   height: 100%;
   font-size: 10px;
-  color: var(--color-text-muted);
+  letter-spacing: 0.16em;
+  color: #a08a72;
 }
 
 .vid__dur {
   position: absolute;
   right: 4px;
   bottom: 4px;
-  padding: 0 4px;
+  padding: 1px 4px;
   border-radius: 3px;
-  background: rgba(30, 20, 12, 0.7);
+  background: rgba(30, 20, 12, 0.66);
   color: #fff6ea;
   font-size: 9px;
+  letter-spacing: 0.02em;
+}
+
+.vid__play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff8ed;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(40, 24, 14, 0.32), rgba(40, 24, 14, 0.1));
+  transition: opacity 220ms ease;
+}
+
+.vid__play svg {
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+}
+
+.vid__item:hover .vid__play {
+  opacity: 1;
 }
 
 .vid__meta {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 
-.vid__title {
-  margin: 0;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--color-text);
+.vid__vtitle {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4c3324;
 }
 
-.vid__sub {
-  margin: 0;
+.vid__vsub {
   font-size: 10px;
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.vid__empty {
-  margin: 12px 0;
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--color-text-muted);
+.vid__out {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: #bb9c72;
+  opacity: 0;
+  transition: opacity 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.vid__kicker {
-  margin: 0;
-  font-size: 9.5px;
-  letter-spacing: 0.28em;
-  color: #a9845f;
+.vid__out svg {
+  width: 14px;
+  height: 14px;
 }
 
-.vid__picks {
+.vid__item:hover .vid__out {
+  opacity: 1;
+  color: #a85443;
+  transform: translate(1px, -1px);
+}
+
+.vid__note {
+  margin: 10px 2px 0;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #a08d78;
+}
+
+/* 空结果 / 失败 */
+.vid__blank {
   flex: 1 1 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 1fr;
-  gap: 10px;
-  align-content: stretch;
-  min-height: 0;
-}
-
-/* 每个菜系一张小卡：左页像一页索引，而不是一堆零散按钮 */
-.vid__group {
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 9px 11px 11px;
-  border-radius: 8px;
-  border: 1px solid rgba(200, 166, 108, 0.35);
-  background: rgba(255, 253, 248, 0.86);
-}
-
-.vid__group-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
-  padding-bottom: 5px;
-  border-bottom: 1px dashed rgba(200, 166, 108, 0.4);
+  min-height: 340px;
+  padding: 26px 10px 40px;
+  text-align: center;
 }
 
-.vid__group-count {
-  font-size: 9.5px;
+.vid__blank-title {
+  margin: 0;
+  font-size: 13px;
   letter-spacing: 0.06em;
+  color: #6b4a32;
+}
+
+.vid__blank--error .vid__blank-title {
+  color: #a8432f;
+}
+
+.vid__blank-sub {
+  margin: 0;
+  max-width: 34em;
+  font-size: 10.5px;
+  line-height: 1.7;
   color: var(--color-text-muted);
 }
 
-/* 右页底部：去平台继续找 */
+.vid__blank-acts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.vid__btn {
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 84, 67, 0.45);
+  background: rgba(255, 253, 246, 0.9);
+  font-family: inherit;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  color: #a85443;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.vid__btn:hover {
+  background: #a85443;
+  border-color: #a85443;
+  color: #fff8ed;
+}
+
+/* 平台入口（检索不到时的真实兜底，只在检索之后出现） */
 .vid__entries {
-  margin-top: auto;
-  padding-top: 10px;
-  border-top: 1px solid rgba(200, 166, 108, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(200, 166, 108, 0.3);
+}
+
+.vid__results .vid__entries {
+  align-items: flex-start;
+  margin-top: 16px;
 }
 
 .vid__entries-title {
-  margin: 0 0 6px;
-  font-size: 9.5px;
-  letter-spacing: 0.24em;
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.28em;
   color: #a9845f;
 }
 
 .vid__entries-list {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
+}
+
+.vid__results .vid__entries-list {
+  justify-content: flex-start;
 }
 
 .vid__entry {
@@ -237,57 +632,333 @@
   color: #7a5330;
   font-size: 10.5px;
   text-decoration: none;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
 }
 
 .vid__entry:hover {
-  border-color: #c2452d;
-  color: #c2452d;
+  border-color: #a85443;
+  color: #a85443;
+  background: rgba(255, 250, 242, 0.9);
 }
 
-.vid__group-name {
-  margin: 0 0 4px;
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  color: #6b3a22;
+/* ------------------------------ 右页：书法封面 ------------------------------ */
+
+.vid__page--right {
+  height: 100%;
+  overflow: hidden;
 }
 
-.vid__group-list {
+.vcover {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  padding: 22px 24px 20px;
+  border: 1px solid rgba(196, 160, 104, 0.42);
+  border-radius: 3px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 78% 8%, rgba(214, 178, 122, 0.1) 0%, transparent 62%),
+    radial-gradient(90% 70% at 12% 96%, rgba(180, 146, 96, 0.12) 0%, transparent 66%),
+    linear-gradient(180deg, #fffdf7 0%, #fdf7ea 46%, #faf1e1 100%);
+}
+
+/* 极淡的纸纹：斜向细线，近看有纤维感，远看仍是暖米白 */
+.vcover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(52deg, rgba(160, 128, 90, 0.035) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-38deg, rgba(160, 128, 90, 0.025) 0 1px, transparent 1px 11px);
+  pointer-events: none;
+}
+
+/* 水墨淡影：右上角一团，压住反白 */
+.vcover__wash {
+  position: absolute;
+  top: -14%;
+  right: -18%;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(120, 98, 74, 0.1) 0%, rgba(120, 98, 74, 0.04) 52%, transparent 70%);
+  pointer-events: none;
+}
+
+.vcover__top {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(196, 160, 104, 0.34);
+}
+
+.vcover__mark {
+  margin: 0;
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 11px;
+  letter-spacing: 0.34em;
+  color: #8a6b46;
+}
+
+.vcover__rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(196, 160, 104, 0.44), rgba(196, 160, 104, 0.08));
+}
+
+.vcover__en {
+  margin: 0;
+  font-size: 8px;
+  letter-spacing: 0.3em;
+  color: #b79b73;
+}
+
+.vcover__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  padding: 10px 0;
+}
+
+/* 水墨插画：偏左下，给标题让位 */
+.vcover__art {
+  position: absolute;
+  left: -8%;
+  bottom: -4%;
+  width: 86%;
+  max-height: 104%;
+  color: #6f5a45;
+  opacity: 0.56;
+  pointer-events: none;
+}
+
+/* 左上角一列小字：补住封面左上这块最容易空的地方 */
+.vcover__aside {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 10px;
+  letter-spacing: 0.36em;
+  color: #b09672;
+}
+
+.vcover__aside::before {
+  content: '';
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(180deg, rgba(196, 160, 104, 0.1), rgba(196, 160, 104, 0.62));
+}
+
+.vcover__ink {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 竖排标题：右起为正文，左侧落款与印章 */
+.vcover__poem {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 16px;
+  padding-right: 4px;
+}
+
+.vcover__line {
+  margin: 0;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: 'STXingkai', '华文行楷', 'FZShuTi', '方正舒体', 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: clamp(32px, 4.8vw, 54px);
+  line-height: 1.12;
+  letter-spacing: 0.1em;
+  color: #4a3223;
+  text-shadow: 0 1px 0 rgba(255, 253, 246, 0.8), 0 2px 12px rgba(90, 64, 40, 0.1);
+}
+
+.vcover__sign {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.vcover__by {
+  margin: 0;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: #8a6b46;
+}
+
+/* 朱红小印 */
+.vcover__seal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  padding: 5px 0;
+  border-radius: 2px;
+  background: #a8432f;
+  box-shadow: inset 0 0 0 1px rgba(255, 240, 228, 0.42);
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #fff1e6;
+  writing-mode: vertical-rl;
+  line-height: 1.05;
+  transform: rotate(-1.5deg);
+}
+
+.vcover__foot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 5px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(196, 160, 104, 0.34);
 }
 
-.vid__pick {
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(200, 166, 108, 0.5);
-  background: transparent;
-  color: #7a5330;
-  font-size: 10.5px;
-  cursor: pointer;
-  transition: background 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease);
+.vcover__quote {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: #5d4028;
 }
 
-.vid__pick:hover {
-  border-color: #c2452d;
-  color: #c2452d;
+.vcover__quote em {
+  font-family: inherit;
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #a9845f;
 }
 
-.vid__pick.is-on {
-  background: #c2452d;
-  border-color: #c2452d;
-  color: #fff6ea;
+.vcover__note {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #93806b;
 }
+
+.vcover__stamp {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  padding: 3px 6px;
+  border: 1px solid rgba(196, 160, 104, 0.5);
+  border-radius: 2px;
+  font-family: 'STKaiti', '华文楷体', 'KaiTi', '楷体', serif;
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: #b08a5f;
+}
+
+/* ------------------------------ 窄屏 ------------------------------ */
 
 @media (max-width: 860px) {
-  .vid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-    padding: 18px 18px 32px;
-    overflow-y: auto;
+  /* book.css 给裸纸面上的 .vid__page 定了 height:100%（桌面要它自己滚），
+     手机上要让这一页长出来、整张纸当滚动容器，所以用同权重更靠后的规则覆盖 */
+  .bk-pageface--bare .bk-pageface__inner > .vid__page--left {
+    height: auto;
   }
 
   .vid__page--left {
+    height: auto;
+    /* 手机上整张纸就是一个滚动容器：内层不再自己滚，避免两层抢滚轮 */
     overflow: visible;
+  }
+
+  /* 手机上滚的是整张纸，吸顶仍然跟着纸面走，搜索框不会滑走 */
+  .vid__idle {
+    min-height: 300px;
+    padding-bottom: 28px;
+  }
+
+  .vid__idle-art {
+    width: min(200px, 62%);
+  }
+
+  .vid__idle-main {
+    font-size: 18px;
+  }
+
+  .vid__item {
+    grid-template-columns: 104px minmax(0, 1fr) 14px;
+    gap: 10px;
+  }
+
+  .vid__skel {
+    grid-template-columns: 104px 1fr;
+  }
+
+  .vid__skel-cover {
+    height: 58px;
+  }
+
+  .vcover {
+    padding: 16px 16px 14px;
+  }
+
+  .vcover__line {
+    font-size: 30px;
+  }
+
+  .vcover__art {
+    width: 68%;
+    opacity: 0.5;
+  }
+
+  .vcover__aside {
+    position: static;
+    flex-direction: row;
+    writing-mode: horizontal-tb;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+  }
+
+  .vcover__aside::before {
+    width: 24px;
+    height: 1px;
+  }
+
+  .vcover__quote {
+    font-size: 12.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vid__skel-cover,
+  .vid__skel-lines i {
+    animation: none;
+  }
+
+  .vid__item,
+  .vid__cover img,
+  .vid__play,
+  .vid__out,
+  .vid__go {
+    transition-duration: 1ms !important;
   }
 }

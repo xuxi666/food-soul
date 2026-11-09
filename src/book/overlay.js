@@ -15,6 +15,7 @@ import { api } from '../lib/api.js';
 import { guardImage } from '../lib/placeholder.js';
 import { mountComments } from '../components/comments.js';
 import { buildDishDoc } from './dish-page.js';
+import { enableWheelScroll, enableTouchScroll } from '../lib/wheel-scroll.js';
 
 const EXPAND_MS = 620;
 const closers = new Set();
@@ -82,6 +83,11 @@ export function openDishOverlay(hostEl, opts = {}) {
   hostEl.append(overlay);
   hostEl.dataset.expanded = '1';
   syncStageFlag();
+
+  // 详情页在自己的书页里滚动：书页是 3D 变换过的纸，原生滚轮在这种子树里不生效，
+  // 这里把 deltaY 明确换算成本容器的 scrollTop（到顶/到底就把事件让回去，不穿透到外层）
+  const stopWheel = enableWheelScroll(scroll);
+  const stopTouch = enableTouchScroll(scroll);
 
   // 先按「被点图片的位置」量一次，下一帧再放开四条边：起点与被点的图片完全重合
   void overlay.offsetWidth;
@@ -158,6 +164,8 @@ export function openDishOverlay(hostEl, opts = {}) {
     syncStageFlag();
     onChange?.();
     const finish = () => {
+      stopWheel();
+      stopTouch();
       overlay.remove();
       syncStageFlag();
       if (typeof onDone === 'function') onDone();
