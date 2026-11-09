@@ -26,27 +26,51 @@ function rgba(hex, a) {
   return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
 }
 
-/** 左页主视觉：项目里真实存在的一张菜品摄影（水煮鱼，川菜） */
+/** 左页主视觉：一席中华美食全景（淡墨山水 + 多道菜品同框） */
 const HERO = {
-  src: '/dishes/shui-zhu-yu.jpg',
-  alt: '一大盆水煮鱼，红油汤面上浮着干辣椒与花椒',
-  note: '水煮鱼',
-  meta: '川菜 · 麻辣鲜香',
-  theme: '一席之间，见山河与烟火',
+  src: '/bg/panorama.jpg',
+  alt: '山水长卷前的一席中华美食：炒菜、汤面、蒸鱼、小笼包与炖汤',
 };
 
-/** 品牌介绍（与画册真实功能一一对应） */
-const INTRO =
-  '食有灵是一座融合中华美食文化与人工智能的数字美食画册。在这里，你可以探索八大菜系、发现不同风味、认识食材之间的关系，也可以与AI交流美食和烹饪。';
-
-/** 五项核心特色 */
-const FEATURES = [
-  { name: '中华美食', desc: '探索经典菜肴与地域文化。' },
-  { name: '风味探索', desc: '从味觉特征发现更多美食。' },
-  { name: 'AI 对话', desc: '与不同美食角色进行交流。' },
-  { name: '食材探索', desc: '发现食材之间的风味联系。' },
-  { name: '智能烹饪', desc: '获取菜谱与烹饪建议。' },
+/** 品牌介绍：按参考图断成五行 */
+const INTRO_LINES = [
+  '食有灵是一座融合中华美食文化',
+  '与人工智能的数字美食画册。',
+  '在这里，你可以探索八大菜系、',
+  '发现不同风味、认识食材之间的关系，',
+  '也可以与AI交流美食与烹饪。',
 ];
+
+/** 五项核心特色：图标 + 名称 + 两行说明 */
+const FEATURES = [
+  { icon: 'bowl', name: '中华美食', desc: ['探索经典菜肴', '与地域文化'] },
+  { icon: 'flame', name: '风味探索', desc: ['从不同味觉特征', '发现美食'] },
+  { icon: 'bot', name: 'AI对话', desc: ['与不同美食角色', '趣味交流'] },
+  { icon: 'leaf', name: '食材探索', desc: ['了解食材搭配', '与风味奥秘'] },
+  { icon: 'chef', name: '智能烹饪', desc: ['获取菜谱与', '烹饪建议'] },
+];
+
+/** 五栏线描图标：统一 32 视图、1.3 描边，颜色跟随 currentColor */
+const FEATURE_ICONS = {
+  bowl: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h24c0 6.2-5.4 11-12 11S4 21.2 4 15z"/><path d="M3 15h26"/><path d="M13 26h6"/><path d="M12 29h8"/><path d="M11 10c0-1.6 1.2-2 1.2-3.4M16 9.4c0-1.6 1.2-2 1.2-3.4M21 10c0-1.6 1.2-2 1.2-3.4"/></svg>',
+  flame: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3c1.4 4.6 6.2 6.4 6.2 12.2 0 5-3.1 8.8-7.6 8.8-3.7 0-6.4-2.5-6.4-6.1 0-3.4 2.3-5.6 3.9-7.6.3 1.9 1 3.2 2.2 4.1C14.9 10.4 15.4 6.6 16 3z"/><path d="M16 27.6c1.8 0 3-1.3 3-3.1 0-1.9-1.4-3.1-3-4.6-1.6 1.5-3 2.7-3 4.6 0 1.8 1.2 3.1 3 3.1z"/></svg>',
+  bot: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="10" width="18" height="14" rx="4"/><path d="M16 10V6.4"/><circle cx="16" cy="5" r="1.4"/><circle cx="12.4" cy="16" r="1.5"/><circle cx="19.6" cy="16" r="1.5"/><path d="M13 20.4h6"/><path d="M7 16H4.4M25 16h2.6"/></svg>',
+  leaf: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M26.5 6.5c0 11.6-6.8 19-17 19-.9 0-1.9-.1-2.7-.3 1.5-8.6 8.3-15.4 19.7-18.7z"/><path d="M9 23.6c3-6.4 7.2-10.6 13.2-13.6"/></svg>',
+  chef: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.6c-2.6 0-4.6-2-4.6-4.5S7.4 5.6 10 5.6c.7 0 1.4.2 2 .5C13 4.6 14.4 4 16 4s3 .6 4 2.1c.6-.3 1.3-.5 2-.5 2.6 0 4.6 2 4.6 4.5s-2 4.5-4.6 4.5H10z"/><path d="M10 14.6h12v9.8c0 1.9-1.5 3.4-3.4 3.4h-5.2c-1.9 0-3.4-1.5-3.4-3.4v-9.8z"/><path d="M10 18.4h12" stroke-opacity=".7"/></svg>',
+};
+
+/** 右上淡金祥云 */
+const CLOUD_SVG =
+  '<svg viewBox="0 0 330 150" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M40 96c-14 0-24-9-24-20s10-20 23-20c2-14 14-24 29-24 13 0 24 8 28 19 4-2 9-3 14-3 15 0 27 11 27 24 0 14-12 24-27 24H40z"/><path d="M104 96c2 10 11 17 22 17 9 0 17-5 21-13 3 1 6 2 9 2 12 0 22-8 22-19 0-10-9-18-21-18-2-9-11-16-21-16-11 0-20 8-21 18-7 2-12 8-12 15 0 5 2 10 6 14"/><path d="M206 78c-10 0-18-7-18-16 0-8 7-15 16-15 2-10 11-17 21-17 9 0 17 5 20 13 3-1 6-2 9-2 11 0 20 8 20 18 0 11-9 19-20 19h-48z"/><path d="M250 112c0 8 7 14 15 14 6 0 11-3 14-8 2 1 4 1 6 1 8 0 15-6 15-13s-7-13-15-13c-2-6-8-10-14-10-8 0-14 5-15 13-4 2-6 5-6 9 0 3 1 5 3 7"/><path d="M18 118c22 6 46 8 70 5M132 124c26 5 54 5 80-1M236 132c24 4 48 2 70-5" stroke-opacity=".55"/></svg>';
+
+/** 底部淡金山峦：三层曲线 + 雾带 */
+const RIDGE_SVG =
+  '<svg viewBox="0 0 643 120" preserveAspectRatio="none" fill="none"><defs><linearGradient id="ct-ridge-1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9a877" stop-opacity="0"/><stop offset=".45" stop-color="#c9a877" stop-opacity=".52"/><stop offset="1" stop-color="#c9a877" stop-opacity=".04"/></linearGradient><linearGradient id="ct-ridge-2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8925c" stop-opacity="0"/><stop offset=".5" stop-color="#b8925c" stop-opacity=".60"/><stop offset="1" stop-color="#b8925c" stop-opacity=".05"/></linearGradient></defs><path d="M0 82 C26 78 36 50 72 48 C108 46 120 72 154 70 C188 68 198 40 234 38 C270 36 282 70 316 72 C350 74 360 46 396 44 C432 42 444 72 478 74 C512 76 522 50 558 48 C590 46 616 76 643 80 L643 120 L0 120 Z" fill="url(#ct-ridge-1)"/><path d="M0 98 C32 96 46 70 82 68 C118 66 132 92 166 94 C200 96 212 70 246 68 C280 66 294 94 328 96 C362 98 374 74 408 72 C442 70 456 96 490 98 C524 100 536 78 570 76 C602 74 622 98 643 100 L643 120 L0 120 Z" fill="url(#ct-ridge-2)"/></svg>';
+
+/** 图标元素 */
+function iconEl(key) {
+  return h('span', { class: 'catalog__feat-icon', 'aria-hidden': 'true', html: FEATURE_ICONS[key] || '' });
+}
 
 /**
  * @param {HTMLElement} host 暂存区（测量用）
@@ -72,6 +96,14 @@ export function mountCatalog(host, opts = {}) {
     h(
       'div',
       { class: 'catalog__preface' },
+
+      /* 主视觉：铺满纸面上半部，四边融进纸色 */
+      h('figure', { class: 'catalog__hero' }, hero),
+
+      /* 右上祥云 + 底部山峦 */
+      h('span', { class: 'catalog__cloud', 'aria-hidden': 'true', html: CLOUD_SVG }),
+      h('span', { class: 'catalog__ridge', 'aria-hidden': 'true', html: RIDGE_SVG }),
+
       /* 品牌题头 */
       h(
         'header',
@@ -81,48 +113,52 @@ export function mountCatalog(host, opts = {}) {
           'h1',
           { class: 'catalog__brand' },
           h('span', { class: 'catalog__brand-cn', text: '食有灵' }),
-          h('span', { class: 'catalog__brand-en', text: 'FOOD SOUL' })
-        ),
-        h('p', { class: 'catalog__slogan', text: '「以食为媒，探索中华风味的灵魂。」' })
-      ),
-
-      /* 主视觉：一张真实的菜品摄影，细边框，下方图注 */
-      h(
-        'figure',
-        { class: 'catalog__hero' },
-        h('span', { class: 'catalog__hero-frame', 'aria-hidden': 'true' }),
-        hero,
-        h(
-          'figcaption',
-          { class: 'catalog__hero-note' },
           h(
             'span',
-            { class: 'catalog__hero-title' },
-            h('span', { class: 'catalog__hero-mark', text: '图注' }),
-            h('span', { class: 'catalog__hero-name', text: HERO.note }),
-            h('span', { class: 'catalog__hero-meta', text: HERO.meta })
-          ),
-          h('span', { class: 'catalog__hero-theme', text: HERO.theme })
-        )
+            { class: 'catalog__brand-seal', 'aria-hidden': 'true' },
+            h('span', { text: '食' }),
+            h('span', { text: '灵' })
+          )
+        ),
+        h('p', { class: 'catalog__brand-en', text: 'FOOD SOUL' }),
+        h('p', { class: 'catalog__slogan', text: '「以食为媒，探索中华风味的灵魂。」' }),
+        h('span', { class: 'catalog__rule', 'aria-hidden': 'true' })
       ),
 
-      /* 品牌介绍 */
-      h('p', { class: 'catalog__intro', text: INTRO }),
-
-      /* 五项特色：横向一排，小编号 + 名称 + 一句说明 */
+      /* 竖排主题 + 小印 */
       h(
-        'ul',
-        { class: 'catalog__feats' },
-        ...FEATURES.map((f, i) =>
-          h(
-            'li',
-            { class: 'catalog__feat' },
-            h('span', { class: 'catalog__feat-no', text: CN_NO[i] || String(i + 1) }),
+        'div',
+        { class: 'catalog__verse' },
+        h('p', { class: 'catalog__verse-text', text: '不止于味，\n更在于灵。' }),
+        h('span', { class: 'catalog__verse-seal', 'aria-hidden': 'true', text: '灵' })
+      ),
+
+      /* 品牌介绍：五行，逐行成行 */
+      h(
+        'p',
+        { class: 'catalog__intro' },
+        ...INTRO_LINES.map((line) => h('span', { class: 'catalog__intro-line', text: line }))
+      ),
+
+      /* 五项特色：圆形线描图标 + 名称 + 两行说明 */
+      h(
+        'section',
+        { class: 'catalog__explore' },
+        h('h2', { class: 'catalog__explore-title', text: '在这里，你可以探索' }),
+        h(
+          'ul',
+          { class: 'catalog__feats' },
+          ...FEATURES.map((f) =>
             h(
-              'span',
-              { class: 'catalog__feat-body' },
+              'li',
+              { class: 'catalog__feat' },
+              iconEl(f.icon),
               h('span', { class: 'catalog__feat-name', text: f.name }),
-              h('span', { class: 'catalog__feat-desc', text: f.desc })
+              h(
+                'span',
+                { class: 'catalog__feat-desc' },
+                ...f.desc.map((d) => h('span', { class: 'catalog__feat-line', text: d }))
+              )
             )
           )
         )
@@ -132,7 +168,7 @@ export function mountCatalog(host, opts = {}) {
       h(
         'div',
         { class: 'catalog__welcome' },
-        h('p', { class: 'catalog__welcome-text', text: '翻开这一页，开启一场关于中国美食的探索。' }),
+        h('p', { class: 'catalog__welcome-text', text: '翻开这一页，开启一场关于中华美食的探索。' }),
         h(
           'span',
           { class: 'catalog__seal', 'aria-hidden': 'true' },
