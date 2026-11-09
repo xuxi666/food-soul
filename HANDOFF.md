@@ -2350,3 +2350,4 @@ macOS 上没有行楷会退到楷体-简，观感略平但仍是书法体，不�
 **上线**：2026-11-09 22:13 发布版本 `34abe42`（`npm run ship`）：服务器构建 ✓、pm2 重启 ✓、`/api/health` 200、GitHub 已同步。
 线上复检（真实接口）：`/recipe` 生成馒头 → 卡片 615×727、双栏 228/343、步骤正文 315px、来源折叠 3 条（可展开 8 条）、
 无横向溢出、无控制台报错，`/api/recipe` 只请求 lookup + recipe 各一次；线上引用 `assets/index-NeXRTCZG.js` / `index-PJJYktdq.css`。
+22:17 又发了一版 `753e835`：步骤 tips 里的「AI 建议：」前缀剥掉，不再显示成「要点：AI 建议：…」（线上引用 `assets/index--2s_Lwu1.js`）。
