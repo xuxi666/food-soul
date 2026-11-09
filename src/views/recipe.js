@@ -7,6 +7,12 @@ import { TASTES, CUISINE_BY_ID } from '../data/cuisines.js';
 
 const HEAT_LABEL = { low: '小火', medium: '中火', high: '大火' };
 
+/** 有的模型会在 tips 前面带上「AI 建议：」，这里剥掉前缀只留内容 */
+function tipText(t) {
+  return String(t || '')
+    .replace(/^(ai\s*建议|ai\s*提示|ai\s*recommendation|建议|提示)\s*[：:]\s*/i, '')
+    .trim();
+}
 /** 模型偶尔把 tips 填成「AI 建议」这类占位词：这种不显示，免得每步都挂一句废话 */
 function usableTip(t) {
   const v = String(t || '').trim();
@@ -511,7 +517,7 @@ export default {
               )
             ),
             h('p', { class: 'step__desc', text: s.description }),
-            usableTip(s.tips) ? h('p', { class: 'step__tips', text: `要点：${s.tips}` }) : null
+            usableTip(s.tips) ? h('p', { class: 'step__tips', text: `要点：${tipText(s.tips)}` }) : null
           )
         );
         li.addEventListener('click', (e) => {
