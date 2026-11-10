@@ -173,11 +173,14 @@ function buildCnIndex() {
       byNorm.get(key).push({ cn: item.cn, aliases: [] });
     }
   }
-  // 2) 人工译名表（只补没有的，不覆盖词表）
+  // 2) 人工译名表：词表没有的直接补；词表已有但写法不同的，记成别名
+  //    （例：词表里 garlic 叫「蒜」，译名表叫「大蒜」，两个写法都应能搜到）
   for (const [name, cn] of Object.entries(CN_MAP)) {
     const key = normalizeName(name);
     if (!key || !cn) continue;
-    if (!byNorm.has(key)) byNorm.set(key, [{ cn, aliases: [] }]);
+    const list = byNorm.get(key);
+    if (!list) byNorm.set(key, [{ cn, aliases: [] }]);
+    else if (!list.some((h) => h.cn === cn)) list.push({ cn, aliases: [] });
   }
   return byNorm;
 }

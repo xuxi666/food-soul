@@ -215,8 +215,10 @@ export const api = {
   },
 
   posts: {
-    list: ({ sort = 'latest', page = 1, dishId = '' } = {}) =>
-      jsonFetch(`/api/posts?sort=${sort}&page=${page}${dishId ? `&dishId=${encodeURIComponent(dishId)}` : ''}`),
+    list: ({ sort = 'latest', page = 1, dishId = '', pageSize = 0 } = {}) =>
+      jsonFetch(
+        `/api/posts?sort=${sort}&page=${page}${pageSize ? `&pageSize=${pageSize}` : ''}${dishId ? `&dishId=${encodeURIComponent(dishId)}` : ''}`
+      ),
     add: (payload) =>
       jsonFetch('/api/posts', {
         method: 'POST',

@@ -88,6 +88,7 @@ export default {
     let genError = '';
     let result = null;
     let lastNet = null;
+let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
 
     const advanced = {
       flavorProfile: '咸鲜',
@@ -169,6 +170,17 @@ export default {
 
     refreshBtn.addEventListener('click', () => void loadStarters(true));
     const statusLine = h('p', { class: 'ek-status', text: '选择食材后显示 Epicure 计算的真实关联' });
+    const retryBtn = h(
+      'button',
+      {
+        class: 'ek-retry',
+        type: 'button',
+        hidden: true,
+        title: '重新向 Epicure 请求风味关联',
+        onclick: () => void loadNetwork(),
+      },
+      '重试'
+    );
 
     graph.onPick((n) => {
       if (!n?.epicure) return;
@@ -205,13 +217,42 @@ export default {
     }
 
     /* ---------------- 网络 ---------------- */
+    /** 把后端/上游的错误码翻成人话，界面上别直接甩一串 JSON-RPC 文本 */
+    function reasonText(raw) {
+      const e = String(raw || '').split('\n')[0].trim();
+      if (!e) return '连接失败';
+      if (/neighbors-no-sim/i.test(e)) return 'Epicure 返回的邻居数据缺少相似度字段';
+      if (/neighbors-empty-payload/i.test(e)) return 'Epicure 返回的邻居数据格式异常';
+      if (/1033|53[0-9]/.test(e)) return '上游 Cloudflare 隧道不可达 530/1033';
+      if (/ECONN|timeout/i.test(e)) return '连接超时或被重置';
+      return e.slice(0, 80);
+    }
+
+    function setStatus(text, warn = false) {
+      statusLine.textContent = text;
+      statusLine.classList.toggle('is-warn', warn);
+      retryBtn.hidden = !warn;
+    }
+
+    /** 进页面先问一次 Epicure 在线状态，离线就先把标识点亮 */
+    async function checkService() {
+      try {
+        const res = await fetch('/api/epicure/status');
+        const st = await res.json();
+        setServiceState(Boolean(st.ok), st.error ? `${st.error} · ${st.url || ''}` : '');
+      } catch {
+        /* 状态接口本身失败就算了，network 失败时还会再亮一次 */
+      }
+    }
+
     async function loadNetwork() {
       if (!selected.length) {
         graph.empty();
-        statusLine.textContent = '选择食材后显示 Epicure 计算的真实关联';
+        setStatus('选择食材后显示 Epicure 计算的真实关联');
         return;
       }
-      statusLine.textContent = '正在向 Epicure 请求风味关联…';
+      const seq = ++netSeq;
+      setStatus('正在向 Epicure 请求风味关联…');
       graphLoading.hidden = false;
       const startedAt = Date.now();
       try {
@@ -221,23 +262,33 @@ export default {
           body: JSON.stringify({ ids: selected.map((s) => s.id), topK: 8, depth: 2, expand: 2 }),
         });
         const data = await res.json();
+        if (seq !== netSeq) return; // 旧请求：用户已经换成别的食材了
         if (!res.ok || data.ok === false) {
-          statusLine.textContent = `未能获取关联：${data.error || res.status}`;
+          setStatus(`未能获取关联：${data.error || res.status}`, true);
           return;
         }
         lastNet = data;
         graph.setData(data);
-        if (!data.stats.edges && data.noData?.length) {
-          statusLine.textContent = `「${data.noData.join('、')}」在 Epicure 里暂时查不到风味关联（可能命名不一致或该食材无数据），未做任何推测。`;
+        setServiceState(!data.degraded, data.serviceError || '');
+        if (data.degraded) {
+          // Epicure 服务本身不可达：这不是「食材没数据」，不能把锅甩给食材
+          setStatus(`Epicure 关联服务暂时不可用：${reasonText(data.serviceError)}。只显示中心节点，未做任何推测，可稍后重试。`, true);
+        } else if (!data.stats.edges && data.noData?.length) {
+          setStatus(`「${data.noData.join('、')}」在 Epicure 里暂时查不到风味关联（可能命名不一致或该食材无数据），未做任何推测。`);
         } else {
-          statusLine.textContent = `Epicure 实时计算 · ${data.stats.nodes} 个节点 / ${data.stats.edges} 条关联 · ${
-            (Date.now() - startedAt) / 1000
-          }s${data.unresolved?.length ? ` · 未识别：${data.unresolved.join('、')}` : ''}`;
+          const partial = data.failedCenters?.length ? ` · 查询失败：${data.failedCenters.join('、')}` : '';
+          setStatus(
+            `Epicure 实时计算 · ${data.stats.nodes} 个节点 / ${data.stats.edges} 条关联 · ${
+              (Date.now() - startedAt) / 1000
+            }s${data.unresolved?.length ? ` · 未识别：${data.unresolved.join('、')}` : ''}${partial}`,
+            Boolean(partial)
+          );
         }
       } catch (err) {
-        statusLine.textContent = `请求失败：${String(err.message || err).slice(0, 60)}`;
+        if (seq !== netSeq) return;
+        setStatus(`请求失败：${String(err.message || err).slice(0, 60)}`, true);
       } finally {
-        graphLoading.hidden = true;
+        if (seq === netSeq) graphLoading.hidden = true;
       }
     }
 
@@ -350,6 +401,16 @@ export default {
       );
 
     const graphMeta = h('span', { class: 'ek-graph-meta', text: '已选 0 / 8' });
+    // Epicure 服务不可达时在标题栏挂一个明确标识，别让用户以为是食材没数据
+    const svcBadge = h('span', { class: 'ek-svc', hidden: true, title: '' }, 'Epicure 离线');
+
+    function setServiceState(ok, detail = '') {
+      svcBadge.hidden = Boolean(ok);
+      if (!ok) {
+        svcBadge.title = detail || 'Epicure 关联服务不可达';
+        svcBadge.textContent = 'Epicure 离线';
+      }
+    }
 
     const graphCard = h(
       'section',
@@ -359,6 +420,7 @@ export default {
         { class: 'ek-card__head' },
         h('b', { text: '食材风味图谱' }),
         graphMeta,
+        svcBadge,
         h(
           'div',
           { class: 'ek-toggles' },
@@ -392,7 +454,7 @@ export default {
           h('button', { class: 'ek-tool ek-tool--round', type: 'button', title: '重置', onclick: () => graph.reset() }, '⟲')
         )
       ),
-      h('div', { class: 'ek-graphfoot' }, cuisineCtx, statusLine)
+      h('div', { class: 'ek-graphfoot' }, cuisineCtx, statusLine, retryBtn)
     );
 
     /* ---------------- 食材库（服务端搜索 + 分页） ---------------- */
@@ -1357,6 +1419,7 @@ export default {
     paintEmpty();
     void loadStarters(true);
     void loadCatalog({ reset: true });
+    void checkService();
 
     const onResize = () => graph.resize();
     window.addEventListener('resize', onResize);

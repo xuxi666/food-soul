@@ -144,8 +144,16 @@ export function chinaAffinity(entry) {
 /** 单个食材的真实近邻（用于关系网络） */
 export async function neighborsOf(entry, topK = 8) {
   const r = await callTool('neighbors', { ingredient: entry.epicure, top_k: topK }, { timeout: 12000 });
-  if (!r.ok || !r.data?.neighbors) return { ok: false, error: r.error, items: [] };
+  if (!r.ok) {
+    // 工具调用失败（服务不可达 / 超时 / 参数被拒）：错误必须带出去，
+    // 不能当成「这个食材没有风味关联」，否则前端会误报成食材命名问题。
+    return { ok: false, error: String(r.error || 'neighbors-failed').slice(0, 160), items: [], ms: r.ms, cached: Boolean(r.cached) };
+  }
+  if (!Array.isArray(r.data?.neighbors)) {
+    return { ok: false, error: 'neighbors-empty-payload', items: [], ms: r.ms, cached: Boolean(r.cached) };
+  }
   const lex = loadLexicon();
+  let dropped = 0;
   const items = r.data.neighbors
     .map((n) => {
       const known = lex.byEpicure.get(n.name);
@@ -167,8 +175,16 @@ export async function neighborsOf(entry, topK = 8) {
         translated: shown.translated,
       };
     })
-    .filter((n) => Number.isFinite(n.sim));
-  return { ok: true, items, ms: r.ms, cached: Boolean(r.cached) };
+    .filter((n) => {
+      const ok = Number.isFinite(n.sim);
+      if (!ok) dropped += 1; // 没有相似度就没法画边权，先记下来
+      return ok;
+    });
+  // 返回了邻居却一个相似度都没有：是数据结构不匹配，不是「这个食材没关联」
+  if (!items.length && dropped > 0) {
+    return { ok: false, error: 'neighbors-no-sim', items: [], ms: r.ms, cached: Boolean(r.cached), dropped };
+  }
+  return { ok: true, items, ms: r.ms, cached: Boolean(r.cached), dropped };
 }
 
 /**
@@ -224,10 +240,15 @@ export async function buildNetwork(inputIds, opts = {}) {
 
   // 一级：每个中心食材的真实近邻
   const level1 = new Map(); // centerEpicure -> neighbors[]
+  const failures = []; // 中心食材查询失败（服务不可达 / 超时），与「没有数据」严格区分
   await Promise.all(
     centers.map(async (c) => {
       const r = await neighborsOf(c, perNode);
       level1.set(c.epicure, r.items);
+      if (!r.ok) {
+        failures.push({ cn: c.cn, epicure: c.epicure, error: r.error || 'neighbors-failed' });
+        return;
+      }
       for (const n of r.items) {
         pushNode(n, 1);
         edges.push({ from: c.epicure, to: n.epicure, weight: n.sim, kind: 'similar' });
@@ -236,6 +257,7 @@ export async function buildNetwork(inputIds, opts = {}) {
   );
 
   // 二级：从相似度最高的一级节点继续扩展
+  let expandFailures = 0;
   if (depth >= 2 && expandFrom > 0) {
     const seeds = [...level1.values()]
       .flat()
@@ -244,6 +266,10 @@ export async function buildNetwork(inputIds, opts = {}) {
     await Promise.all(
       seeds.map(async (s) => {
         const r = await neighborsOf({ epicure: s.epicure }, Math.max(3, Math.floor(perNode / 2)));
+        if (!r.ok) {
+          expandFailures += 1;
+          return;
+        }
         for (const n of r.items) {
           if (nodes.has(n.epicure) && nodes.get(n.epicure).level <= 2) {
             // 已有节点：只补边，避免重复节点
@@ -262,7 +288,11 @@ export async function buildNetwork(inputIds, opts = {}) {
     return { ...n, chinaFriendly: aff.ok, chinaReason: aff.reason };
   });
 
-  const noData = centers.filter((c) => !edges.some((e) => e.from === c.epicure)).map((c) => c.cn);
+  const failedEpicure = new Set(failures.map((f) => f.epicure));
+  // 只有「查询成功、确实没有可画的关系」才算无数据；查询失败的中心进 failedCenters
+  const noData = centers.filter((c) => !failedEpicure.has(c.epicure) && !edges.some((e) => e.from === c.epicure)).map((c) => c.cn);
+  const failedCenters = failures.map((f) => f.cn);
+  const degraded = failures.length > 0 && failures.length === centers.length;
 
   return {
     ok: true,
@@ -271,10 +301,16 @@ export async function buildNetwork(inputIds, opts = {}) {
     edges,
     unresolved,
     noData,
+    failedCenters,
+    failures,
+    degraded,
+    serviceError: failures[0]?.error || '',
     stats: {
       nodes: nodeList.length,
       edges: edges.length,
       unknown: nodeList.filter((n) => !n.known).length,
+      failed: failures.length,
+      expandFailures,
       lexicon: { verified: lex.verified, total: lex.total },
     },
   };
@@ -483,7 +519,7 @@ export async function analyze(input = {}) {
 
   const run = async (tool, args) => {
     const r = await runTool(tool, args);
-    used.push({ tool, ok: r.ok, ms: r.ms });
+    used.push({ tool, ok: r.ok, ms: r.ms, error: r.ok ? undefined : String(r.error || '').split('\n')[0].slice(0, 160) });
     if (!r.ok && r.unresolved) unresolved.push(r.unresolved);
     return r;
   };
@@ -552,10 +588,14 @@ export async function analyze(input = {}) {
   }
 
   const anyOk = used.some((u) => u.ok);
-  if (!anyOk) notes.push('Epicure 未返回有效结果，本次不做风味结论。');
+  const firstError = used.find((u) => !u.ok && u.error)?.error || '';
+  if (!anyOk) {
+    notes.push(firstError ? `Epicure 未返回有效结果（${firstError}），本次不做风味结论。` : 'Epicure 未返回有效结果，本次不做风味结论。');
+  }
 
   return {
     ok: anyOk,
+    error: anyOk ? undefined : firstError || 'epicure-unavailable',
     mode,
     subjects: results.subjects || [],
     results,

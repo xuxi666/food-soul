@@ -2351,3 +2351,196 @@ macOS 上没有行楷会退到楷体-简，观感略平但仍是书法体，不�
 线上复检（真实接口）：`/recipe` 生成馒头 → 卡片 615×727、双栏 228/343、步骤正文 315px、来源折叠 3 条（可展开 8 条）、
 无横向溢出、无控制台报错，`/api/recipe` 只请求 lookup + recipe 各一次；线上引用 `assets/index-NeXRTCZG.js` / `index-PJJYktdq.css`。
 22:17 又发了一版 `753e835`：步骤 tips 里的「AI 建议：」前缀剥掉，不再显示成「要点：AI 建议：…」（线上引用 `assets/index--2s_Lwu1.js`）。
+
+### 33.14 第 42 轮：Epicure 风味图谱「只有中心节点」排查
+
+**现象**：厨房选「花椒」后图谱只有一个中心圆圈，状态栏原话是
+「花椒」在 Epicure 里暂时查不到风味关联（可能命名不一致或该食材无数据），未做任何推测。
+
+**排查链路（逐层实测，不是只看代码）**
+
+| 层 | 检查 | 结果 |
+| --- | --- | --- |
+| 名称映射 | `resolveIngredient('花椒')` / 目录 `szechuan peppercorn` | → `sichuan_peppercorn`（与 `data/epicure-mcp-status.json` 记录的 MCP 名一致） |
+| 前端请求 | `POST /api/epicure/network {ids:["szechuan peppercorn"]}` | 后端收下，`centers` 正确，`nodes` 只有中心 |
+| 后端工具调用 | `callTool('neighbors',{ingredient:'sichuan_peppercorn'})` | **失败：`530 … error code: 1033`** |
+| MCP 端点 | `curl -4 -X POST https://epicure-mcp.kaikaku.ai/mcp` | `http=530`，body `error code: 1033`（Cloudflare 隧道断） |
+| 全部工具 | `node scripts/verify-epicure.mjs` | 13 个工具 **13 个全部 530**，映射类断言仍通过 |
+| 线上服务器 | `GET http://47.93.33.108/api/epicure/status` | 同样 `530`（两个网络都挂，排除本机问题） |
+| 官方目录接口 | `https://epicure.kaikaku.ai/api/ingredients` | 也 530（整站隧道断，不是只有 MCP 路径） |
+| 渲染层 | 注入一份与 `buildNetwork` 同结构的响应 | 9 节点 / 8 条连线 / 中文标签全画出来，拖动、画布平移、缩放、重置、＋加食材都正常 |
+
+**结论**：Epicure 上游（Cloudflare 隧道 1033）整站不可达，`neighbors` 从未返回数据；
+渲染层没有问题。真正该修的是**我们把它误报成「这个食材没有风味关联」**——
+查询失败和信息缺失在 `buildNetwork` 里被合并成同一个 `noData`，用户只能看到一句甩锅食材的提示。
+
+**修复**
+
+- `server/epicure-service.mjs`
+  - `neighborsOf`：工具失败 → `{ok:false,error}` 原样带出；返回体没有 `neighbors` 数组 → `neighbors-empty-payload`；
+    有邻居但全缺 `sim` → `neighbors-no-sim`（数据结构不匹配，不再当成「无数据」）。
+  - `buildNetwork`：新增 `failures` / `failedCenters` / `degraded` / `serviceError` / `stats.failed` / `stats.expandFailures`；
+    `noData` 只统计「查询成功且确实没有边」的中心食材。
+  - `analyze`：`used[]` 带上每个工具的错误文本，全失败时把真实原因写进 `error` 和 `notes`（此前只返回 `ok:false`，错误为空）。
+- `server/epicure-catalog.mjs`：同步时把人工译名表里与词表不同的写法并入 `cn_aliases`
+  （例：词表 garlic=「蒜」、译名表「大蒜」，现在两种写法都搜得到）。
+- `scripts/sync-cn-aliases.mjs`（新增）：离线给已有目录补这批别名，本次补了 25 行。
+- `src/views/kitchen.js`
+  - 失败 / 部分失败 / 真无数据三种状态分开提示；错误码转人话（530/1033 → 「上游 Cloudflare 隧道不可达」）。
+  - 状态栏右侧出现「重试」按钮；标题栏挂「Epicure 离线」标识（title 里是原始错误与端点）。
+  - `netSeq` 请求序号：快速换食材时晚到的旧响应不再覆盖新结果。
+- `src/styles/kitchen.css`：`.ek-status.is-warn` 允许换行（原来单行省略号会把原因截掉）、`.ek-retry`、`.ek-svc`。
+
+**验收（本地 5191，真接口）**
+
+| 食材 | 目录 ID | 解析出的 Epicure 标识 | 节点 / 边 | 状态 |
+| --- | --- | --- | --- | --- |
+| 花椒 | szechuan peppercorn | sichuan_peppercorn | 1 / 0 | 服务不可用 |
+| 土豆 | potato | potato | 1 / 0 | 服务不可用 |
+| 番茄 | tomato | tomato | 1 / 0 | 服务不可用 |
+| 洋葱 | onion | onion | 1 / 0 | 服务不可用 |
+| 香菇 | shiitake mushroom | shiitake_mushroom | 1 / 0 | 服务不可用 |
+| 大蒜 | garlic（别名搜索已修） | garlic | 1 / 0 | 服务不可用 |
+| 猪肉 | pork | pork | 1 / 0 | 服务不可用 |
+| 辣椒 | chili | chili_pepper | 1 / 0 | 服务不可用 |
+
+8 个食材全部解析出正确标识（查询参数没问题），关联数为 0 的原因统一是上游 530，界面现在如实这么说。
+
+**待复测**：MCP 恢复后必须再跑一遍这 8 个食材，确认真实 `neighbors` 返回的字段（`name/sim/rank`）
+能被 `neighborsOf` 正常消费、图谱出现真实连线；若返回体字段变了，会提示 `neighbors-no-sim` 而不是「没数据」。
+
+
+---
+
+## 34. 第 37 轮：社区帖子卡片统一化 + 无限滚动（2026-11-10）
+
+### 34.1 问题
+
+社区列表原来是「一列 flex + 每条自己长多高」，卡片高度完全由内容决定：
+实测同一屏 6 条卡片的高度是 PC `[428, 428, 254, 428, 376, 350]`、手机 `[512, 522, 338, 538, 481, 428]`。
+长文、大图、评论多的帖子会把同行卡片顶得参差不齐；底部「加载更多（还有 N 条）」需要手动点，一页只取 6 条。
+另外手机单页模式下「社区」被拆成两张纸（左=发布区、右=帖子列表），两张纸叠在同一位面，
+触摸只会落到上层那张（实测 `elementFromPoint` 命中 `composer-lock`，列表那张纸 `touchmove` 计数为 0），
+列表既翻不到也滚不动。
+
+### 34.2 改法
+
+| 改动 | 位置 | 说明 |
+| --- | --- | --- |
+| 等高网格列表 | `src/styles/community.css` | `.post-list` 由 `flex column` 改为 `grid: repeat(auto-fill, minmax(168px,1fr))` + `grid-auto-rows: var(--post-h)`；PC 3 列 185×250、手机 1 列 210×228，全部卡片同宽同高 |
+| 卡片只做摘要 | 同上 | 卡片内固定：头（头像/昵称/时间/类型）→ 可选标题 → 正文 `-webkit-line-clamp`（有图 3 行、无图 5 行）→ 媒体块固定 84px（手机 74px，`object-fit: cover`）→ 操作条 `margin-top:auto` 贴底；`.post` 自身 `overflow:hidden` |
+| 完整内容进详情层 | `src/views/community.js` | 点卡片开 `.post-detail` 模态：完整正文、全部图片（可点灯箱）、菜谱折叠块、关联菜品入口、点赞/让菜回应/举报/删除、评论区与发表框；`Esc` 关闭（捕获阶段截住，避免连带触发书自身的「合上画册」） |
+| 旧「加载更多」删除 | `src/views/community.js` | 连同 `.feed-more` 一起移除，没有隐藏按钮、没有兜底文案 |
+| 自动加载 | 同上 | `IntersectionObserver` + 底部 `.feed-sentinel`，`root` 取 `feed.closest('.bk-pageface')`（真正的滚动容器，不是 window）；章节先挂暂存区再搬进纸面，所以 `requestAnimationFrame` 轮询直到拿到 root；`destroy()` 里 `disconnect` |
+| 分页与去重 | 同上 | `page/pageSize=12/hasMore/total` 全部以接口返回为准；`seen` Set 按 id 去重；`loading` 锁避免并发重复请求同一页；切排序用 `reqSeq` 作废在途请求并整表重置 |
+| 底部状态 | 同上 + CSS | 加载中「正在发现更多精彩内容……」（带转圈）、到底「已经看到全部内容」、失败「加载失败：xxx + 重试」，重试仍请求失败的那一页 |
+| 发帖不再整表重拉 | 同上 | `api.posts.add` 返回的 post 直接 `unshift` 到列表首位（`insertPost`），不滚回顶部、不重新请求 |
+| 手机单页模式 | `src/book/pages.js` `SPLITTERS.community` | 单页模式返回 `{ left: [...root.children], right: [] }`，发布区与列表并进同一张纸上下排（原来会落到翻不到的右页） |
+| 滚轮/触摸换算 | `src/book/pages.js` | 与 `dishDetail` 同一条路：`enableWheelScroll`/`enableTouchScroll` 应用到社区两张纸（3D 纸面里原生滚动不生效，不换算则滚轮完全没用） |
+| 分页参数 | `src/lib/api.js` | `posts.list` 支持传 `pageSize`（服务端上限 12） |
+
+### 34.3 验收（本地 5191，真实接口 + 真 Chrome）
+
+| 项 | 结果 |
+| --- | --- |
+| 卡片尺寸 | PC 12/44 条全部 185×250、3 列、gap 12px；手机 16 条全部 210×228、1 列；`anyOverflow=false`、`hOverflow=0` |
+| 媒体块 | 有图卡片统一 84px（手机 74px）；1 张与 3 张图、623×667 / 2032×1964 / 744×1029 三种原图比例都等高 |
+| 自动加载 | 12 → 24 → 36 → 43（造 27 条真实测试帖阶段）连续批次；正式数据 12 → 16 → 「已经看到全部内容」；请求页码 1,2,3,4 各一次 |
+| 到底后再滚 | 新增请求 0 次 |
+| 去重 | 每批渲染后 DOM id 唯一数 == 卡片数（12/24/36/43/44/16 均相等） |
+| 失败与重试 | 拦第 2 页返回 500：列表保 12 条、显示「加载失败：模拟网络异常」+ 重试；点重试只重发 `page=2`（命中序列 1,2,2,3,4），成功后 24 条、滚动位置不动（338 保持） |
+| 加载中 | 延迟第 3 页 1.6s，抓到「正在发现更多精彩内容……」+ 转圈 |
+| 旧按钮 | `.community-main` 内 `加载更多` 文本 0 处、按钮 0 个 |
+| 详情层 | 长文帖 326 字全文不截断、三图帖 3 张图全在、评论框/举报在位；`Esc` 只关详情层（`/community` 不变） |
+| 手机可达性 | 触摸拖动 scrollTop 0 → 276 → 3312，列表页可见可滚；旧结构下同一位面 `touchmove` 计数 0 |
+| 缩放 | `zoom: 0.8` 后仍 3 列、全部 148×200、无横向溢出 |
+| 回归 | 9 条路由（/ /catalog /dishes /cuisines /tastes /recipe /kitchen /community /videos）无 console 错误、纸面无横向溢出；`ArrowRight/Left` 翻页正常、书签 8 章在位、滚轮只滚列表不翻页（页码保持 0/8） |
+
+### 34.4 已知遗留
+
+- 翻页离开社区再回来，纸面 `scrollTop` 归零（列表 16 条与去重都还在）。全书没有滚动位置恢复机制，`book/index.js` 里也没有 `scrollTop` 复位代码，是既有行为，本轮未动。
+- 帖子数据模型里没有视频字段（视频是独立章节 `/videos`），也没有「收藏」功能；所以「视频帖」「收藏数」两项无法在卡片上体现，不是本轮删掉的。
+- 手机单页模式现在把发布区排在列表上方，第一屏是表单，列表要往下滚一屏；如果更想先看帖子，可以把 `.community-grid` 的 `flex-direction` 改成 `column-reverse`（一行 CSS，未做，等确认）。
+- 社区搜索：现有接口只支持 `sort`/`dishId`，页面本来也没有搜索框，本轮未新增（避免超出「保留原有筛选」的范围）。
+
+
+---
+
+## 35. 第 38 轮：社区卡片二次放大 + 容器查询响应式（2026-11-10）
+
+### 35.1 问题
+
+上一轮用的是 `grid-template-columns: repeat(auto-fill, minmax(168px, 1fr))`，列数完全由「塞得下几个」决定：
+1920 视口下右页可用宽 874px，正好塞进 4 列，卡片只有 194×250，图片区 70~100px，头像 26px，
+看起来又扁又挤——这正是「4 列导致卡片过窄」的来源。而 1440 下是 3 列 185×250，1366 是 3 列 173×250。
+
+另外 `--post-h` 是写死的像素（250/238/228），换了列数、缩放窗口都不会跟着变。
+
+### 35.2 改法（只动卡片与网格，模块结构没动）
+
+| 改动 | 位置 | 说明 |
+| --- | --- | --- |
+| 容器查询取代「自动填充」 | `src/styles/community.css` | `.community-main { container-type: inline-size; container-name: feed }`，列数只认这一列的真实可用宽度：容器 <320px 单列、≥320px 两列、≥540px 三列；平板及以下（≤1023px）再压回两列 |
+| 卡片高度用容器单位推 | 同上 | `--post-media-h: min(calc(((100cqw - 28px) / 3 - 30px) * 0.75), 139px)`（两列/单列各有对应式），`--post-h: calc(var(--post-media-h) + 201px)`；缩放到 80%、拉伸窗口、画册展开收合都会重算，不再写死 |
+| 图片 4:3 + 封顶 | 同上 | 图片区高度 = 卡片内容宽 × 3/4（≈4:3），超宽时封顶 139px，避免大屏卡片被图片顶到 340px 以上；`object-fit: cover` 不变形 |
+| 内部元素整体放大 | 同上 | 头像 26→38、昵称 12.5→14.5、标题 13→15、正文 12.5→13.5（有图 2 行、无图 4 行预览）、操作条 11.5→12.5、内边距 11/12/10→14/15/13、圆角 14→16、卡片间距 12→14 |
+| 头部高度锁死 | 同上 | `.post__who { height: 38px; overflow: hidden }` + 昵称/时间单行省略：昵称再长也不会把某张卡片顶高 |
+| 类型徽标挪到标题行 | `src/views/community.js` | 卡片头部去掉 `.post__kind`，标题行固定一行：`post.recipe?.title || post.kind || '食客分享'`；每张卡片结构完全一致，图片区高度才能跨卡片对齐 |
+
+自动加载逻辑（IntersectionObserver + 哨兵 + 请求锁 + 按 id 去重 + 失败重试 + 到底提示）一行没改，只换样式。
+
+### 35.3 验收：10 个视口实测（真实 Chrome，改前用上一轮 CSS 同宽度复现）
+
+| 视口 | 书页可用宽 | 改前 | 改后 | 图片区高 |
+| --- | --- | --- | --- | --- |
+| 1920 | 874 | 4 列 194×250 | **3 列 261×340** | 70~100 → 139 |
+| 1440 | 643 | 3 列 185×250 | 3 列 184×316 | 70 → 115 |
+| 1366 | 608 | 3 列 173×250 | 3 列 172×308 | 70 → 107 |
+| 1024 | 444 | 2 列 184×250 | 2 列 183×316 | 70 → 115 |
+| 900 | 384 | 1 列 320×238 | 2 列 153×293 | 70 → 92 |
+| 768 | 670（单页） | 3 列 183×238 | 2 列 280×340 | 74 → 139 |
+| 600 | 508（单页） | 2 列 200×238 | 2 列 199×328 | 74 → 127 |
+| 480 | 392（单页） | 1 列 296×228 | 1 列 296×340 | 74 → 139 |
+| 390 | 306（单页） | 1 列 210×228 | 1 列 210×336 | 74 → 135 |
+| 375 | 291（单页） | 1 列 195×228 | 1 列 195×325 | 74 → 124 |
+
+每个宽度都验过：卡片等宽（同宽度下只有一个宽度值）、等高（只有一个高度值）、卡内无溢出（`scrollHeight == clientHeight`）、
+无横向滚动（`scrollWidth - innerWidth = 0`）、无 console 报错、图片不拉伸（`object-fit: cover`）。
+
+### 35.4 自动加载回归（10 个宽度逐个跑）
+
+- 批次：10 个宽度全部 12 → 24 → 36 → 43，连续三批自动追加，不需要点任何按钮。
+- 首屏不抢跑：章节刚挂载时只请求第 1 页；哨兵（`.feed-sentinel`）只在真的滚到底、或首屏不足一屏时才会触发下一批（早前 `startObserver()` 末尾有一句 `if (!loading && hasMore) fetchPage(page + 1)`，会在打开页面时就把第 2 页拉下来，本轮已删）。
+- 页码：`1,2,3,4` 各请求一次，无重复请求；到底后再滚，新增请求 0 次。
+- 去重：每批「DOM id 唯一数 == 卡片数」。
+- 状态：加载中「正在发现更多精彩内容……」（延迟 1.6s 抓到转圈）、到底「已经看到全部内容」。
+- 失败重试：拦住第 3 页返回 500 → 保 24 条 + 「加载失败：模拟网络异常 重试」，点重试只重发第 3 页，成功后 36 条，滚动位置 1894 不动。
+- `加载更多` 文本：`.community-main` 内 0 处。
+- 顺序：1920 / 1440 / 768 三种列数下 12 条 id 顺序完全一致。
+
+### 35.5 画册与缩放
+
+- 滚轮：列表 scrollTop 0 → 1233，页码仍停在 `/community`（没被翻页抢走）。
+- 翻页：`ArrowRight` 到 `/videos`，`ArrowLeft` 回 `/community`，回来仍是 12 条。
+- 书签：8 个书签标记在位，点书签能跳章节。
+- 缩放：`zoom: 0.8` 后仍是 3 列、卡片 147×253、无横向溢出（容器单位跟着缩放走）。
+- 详情层：`role=dialog`，326 字长文不截断，`Esc` 只关弹层（仍停在 `/community`）。
+
+### 35.6 已知取舍
+
+- 只有卡片「内容宽 ≥185px」时图片才是精确 4:3；1920 的 261px、768 的 280px、480 的 296px 这些超宽卡片，
+  为了守住 300~340px 的卡片高度，图片区封顶 139px，比例变成 1.5~1.9 的横幅式构图（图片本身仍是 cover 裁切，没有变形）。
+- 900px 视口下是按需求表给的两列，但书页本身只有 384px 可用宽，卡片 153px 偏窄——这是「书页双开 + 屏幕只有 900」的结构限制，不是网格问题。
+- 中文昵称在 172px 宽的卡片里会省略号截断（头部高度已锁死，不会再顶高卡片）。
+
+### 35.7 本轮事故与修复（记录，避免重犯）
+
+- 收尾时用 `Get-Content -Raw` / `Set-Content -Encoding utf8` 直接改 `src/views/community.js`、`src/styles/community.css`，
+  这台机器上的 PowerShell 默认按 ANSI 解码 UTF-8，两个文件的中文全部变成乱码（还多了 BOM）。
+- 修复方式（都是确定性重建，没有猜）：
+  - CSS：`.tmp/community/community.round37.css`（本轮开始前的备份）+ 本轮最终样式块，重新覆盖卡片区块与响应式区块。
+  - JS：`.tmp/community/community.before.js` → `splice.mjs`（拼 `tail.js`）→ `fix-esc.mjs` → 本轮两处改动（标题行 + 类型 class）。
+  - 重建后用 `.tmp/community/diff-recover.mjs`（把非 ASCII 折成 `#` 逐行对比）确认除了上面那句「首屏补页」外与坏版本结构一致。
+- 教训：改这两个文件一律走 Node 脚本（`fs.readFileSync/writeFileSync`，显式 `utf8`），不要用 PowerShell 的 Get/Set-Content 碰中文源码。
+- 另外 `src/views/community.js` 改动后 Vite 的 watcher 有一次没热更新（浏览器拿到的还是旧模块），
+  排查时用 `fetch('http://127.0.0.1:5191/src/views/community.js')` 对比线上内容最快；必要重启 dev server。

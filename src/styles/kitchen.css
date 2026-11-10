@@ -1936,6 +1936,36 @@
   min-width: 110px;
 }
 
+/* Epicure 服务离线：标题栏小标识（不喧宾夺主，但有据可查） */
+.ek-svc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #b4553f 32%, transparent);
+  background: color-mix(in srgb, #b4553f 8%, transparent);
+  color: #9a4f35;
+  font-size: 10.5px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  cursor: help;
+}
+
+.ek-svc::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b4553f;
+  opacity: 0.85;
+}
+
+.ek-svc[hidden] {
+  display: none;
+}
+
 .ek-graphfoot .ek-status {
   flex: 1 1 auto;
   min-width: 0;
@@ -1943,6 +1973,37 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 出错时允许换行，否则「服务暂时不可用」被省略号截断，用户看不到原因 */
+.ek-graphfoot .ek-status.is-warn {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.5;
+  color: #9a5a3a;
+}
+
+.ek-retry {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, #b4553f 35%, transparent);
+  background: color-mix(in srgb, #b4553f 8%, transparent);
+  color: #8f4a31;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.ek-retry:hover {
+  background: color-mix(in srgb, #b4553f 14%, transparent);
+  border-color: color-mix(in srgb, #b4553f 55%, transparent);
+}
+
+.ek-retry[hidden] {
+  display: none;
 }
 
 /* ---- 食材库：搜索 / 全部·常用 / 分类同一行 ---- */

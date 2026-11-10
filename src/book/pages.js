@@ -46,6 +46,11 @@ const SPLITTERS = {
     return { left, right };
   },
   community(root) {
+    // 手机只有一张纸：发布区与帖子列表必须并进同一张纸上下排。
+    // 否则「社区」这一章在单页模式下会拆成两张纸，而画册没有翻页按钮，
+    // 右页（帖子列表）永远翻不到——列表再好看也没人看得见。
+    const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
+    if (single) return { left: [...root.children], right: [] };
     const left = [root.querySelector('.community-side')];
     const right = [root.querySelector('.community-main')];
     return { left, right };
@@ -220,8 +225,9 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     };
     pages.set(id, entry);
     holder.remove();
-    // 菜品详情内页：两张纸各自滚动，同样需要把滚轮换算成 scrollTop
-    if (id === 'dishDetail') {
+    // 菜品详情内页 / 社区：两张纸各自滚动，同样需要把滚轮换算成 scrollTop
+    // （社区要靠滚动触发无限加载，原生滚轮在 3D 纸面上不生效）
+    if (id === 'dishDetail' || id === 'community') {
       enableWheelScroll(entry.left);
       enableWheelScroll(entry.right);
       enableTouchScroll(entry.left);

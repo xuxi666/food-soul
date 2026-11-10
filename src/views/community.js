@@ -21,10 +21,6 @@ export default {
     let currentUser = null;
     let sort = 'latest';
     let kind = KINDS[0];
-    let page = 1;
-    let items = [];
-    let total = 0;
-    let loading = false;
 
     /* ---------------- 顶部 ---------------- */
     const head = h(
@@ -211,7 +207,7 @@ export default {
       try {
         const dishId = dishSelect.value;
         const dish = DISH_BY_ID[dishId];
-        await api.posts.add({
+        const res = await api.posts.add({
           content,
           images: imageDataList,
           kind,
@@ -222,8 +218,7 @@ export default {
         textarea.value = '';
         imageDataList = [];
         renderPreviews();
-        page = 1;
-        await load();
+        if (res?.post) insertPost(res.post);
         toast('已发布');
       } catch (err) {
         toast(err.message || '发布失败', 'err');
@@ -245,8 +240,7 @@ export default {
           onclick: (e) => {
             sort = s.id;
             tabs.querySelectorAll('.feed-tabs__btn').forEach((b) => b.classList.toggle('is-on', b === e.currentTarget));
-            page = 1;
-            load();
+            resetFeed();
           },
         }, s.label)
       );
@@ -272,16 +266,30 @@ export default {
     function closeLightbox() {
       if (lightbox) lightbox.remove();
       lightbox = null;
-      document.body.style.overflow = '';
+      // 详情层还开着就继续锁住背景，避免滚到书页后面
+      document.body.style.overflow = document.querySelector('.post-detail') ? 'hidden' : '';
     }
     const onEsc = (e) => {
       if (e.key === 'Escape') closeLightbox();
     };
     document.addEventListener('keydown', onEsc);
 
-    /* ---------------- 列表 ---------------- */
-    const feed = h('div', { class: 'post-list' });
-    const moreWrap = h('div', { class: 'feed-more' });
+/* ---------------- 列表状态（分页 / 去重 / 无限滚动） ---------------- */
+    const PAGE_SIZE = 12; // 服务端上限 12；一屏 3 列刚好铺满两行
+    let items = []; // 已加载的帖子（服务端顺序）
+    let seen = new Set(); // 已渲染过的帖子 id，用来去重
+    let page = 0; // 已经成功加载到第几页
+    let total = 0; // 后端返回的总数（以服务端为准）
+    let hasMore = true; // 后端返回的 hasMore（以服务端为准）
+    let loading = false; // 正在请求：避免并发拉同一页
+    let loadError = null; // 上一次请求失败，等待用户重试
+    let reqSeq = 0; // 请求序号：切排序时作废旧请求
+    let io = null; // IntersectionObserver
+    let ioRoot = null; // 真正的滚动容器（社区所在纸面）
+
+    const feed = h('div', { class: 'post-list', role: 'feed' });
+    const feedState = h('div', { class: 'feed-state', hidden: true, 'aria-live': 'polite' });
+    const sentinel = h('div', { class: 'feed-sentinel', 'aria-hidden': 'true' });
     /* 左页的数据角：数字都从已加载的真实帖子里统计，不编造 */
     const statsBox = h('div', { class: 'community-stats' });
 
@@ -306,7 +314,7 @@ export default {
           'div',
           { class: 'community-stats__grid' },
           h('div', { class: 'community-stats__cell' }, h('b', { text: String(total) }), h('span', { text: '帖子总数' })),
-          h('div', { class: 'community-stats__cell' }, h('b', { text: String(items.length) }), h('span', { text: '本页已读' })),
+          h('div', { class: 'community-stats__cell' }, h('b', { text: String(items.length) }), h('span', { text: '已加载' })),
           h('div', { class: 'community-stats__cell' }, h('b', { text: String(today) }), h('span', { text: '今日新帖' }))
         ),
         topKinds.length
@@ -328,7 +336,27 @@ export default {
       );
     }
 
-    function commentNode(post, c) {
+    /* ---------------- 详情弹层：完整正文、全部图片、评论 ---------------- */
+    let detail = null; // { el, post, likeBtn, commentCount, commentsBox, commentsList }
+
+    function onDetailKey(e) {
+      if (!detail || e.key !== 'Escape') return;
+      // 捕获阶段截住：书自己也在 document 上监听 Esc（合上画册），不拦会一起触发
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      closeDetail();
+    }
+
+    function closeDetail() {
+      if (!detail) return;
+      detail.el.remove();
+      detail = null;
+      document.removeEventListener('keydown', onDetailKey, true);
+      document.body.style.overflow = '';
+    }
+
+    function commentNode(c) {
       return h(
         'div',
         { class: 'post-comment' },
@@ -338,23 +366,6 @@ export default {
           h('span', { text: fmtTime(c.createdAt) })
         ),
         h('p', { class: 'post-comment__text', text: c.content })
-      );
-    }
-
-    function imagesBlock(post) {
-      const urls = (post.images?.length ? post.images : post.image ? [post.image] : []).slice(0, MAX_IMAGES);
-      if (!urls.length) return null;
-      return h(
-        'div',
-        { class: `post__images post__images--${Math.min(urls.length, 3)}` },
-        ...urls.map((src, i) =>
-          h('button', {
-            class: 'post__img',
-            type: 'button',
-            'aria-label': `查看图片 ${i + 1}`,
-            onclick: () => openLightbox(src, '帖子图片'),
-          }, h('img', { src, alt: `帖子图片 ${i + 1}`, loading: 'lazy' }))
-        )
       );
     }
 
@@ -396,30 +407,145 @@ export default {
       );
     }
 
-    function postCard(post) {
+    function dishBlock(post) {
       const dish = DISH_BY_ID[post.dishId];
+      if (!dish) return null;
+      return h('div', { class: 'post__dish' },
+        h('a', { class: 'post__dish-main', href: `/dishes/${dish.id}`, 'data-link': '' },
+          h('img', { src: dish.image, alt: '', loading: 'lazy' }),
+          h('span', {}, h('b', { text: dish.name }), h('em', { text: `${CUISINE_BY_ID[dish.cuisine]?.name} · ${TASTE_BY_ID[dish.tastes[0]]?.name}` }))
+        ),
+        h('a', { class: 'post__dish-chat', href: `/chat/${dish.id}`, 'data-link': '' }, '聊一聊')
+      );
+    }
+
+    function mediaUrls(post) {
+      return (post.images?.length ? post.images : post.image ? [post.image] : []).slice(0, MAX_IMAGES);
+    }
+
+    /* ---------------- 列表卡片（统一尺寸，只放摘要） ---------------- */
+    const cardIndex = new Map(); // id -> { post, el, likeBtn, commentBtn }
+
+    async function toggleLike(post) {
+      try {
+        const res = await api.posts.like(post.id);
+        post.likes = res.likes;
+        post.likedBy = res.liked ? [...(post.likedBy || []), me.id] : (post.likedBy || []).filter((x) => x !== me.id);
+        refreshMeta(post);
+      } catch {
+        toast('操作失败', 'err');
+      }
+    }
+
+    /** 点赞数 / 评论数变化后，同步卡片与（若开着的）详情层 */
+    function refreshMeta(post) {
+      const entry = cardIndex.get(post.id);
       const liked = (post.likedBy || []).includes(me.id);
-      const likeBtn = h(
-        'button',
-        {
-          class: `post-act${liked ? ' is-on' : ''}`,
-          type: 'button',
-          onclick: async () => {
-            try {
-              const res = await api.posts.like(post.id);
-              post.likes = res.likes;
-              post.likedBy = res.liked ? [...(post.likedBy || []), me.id] : (post.likedBy || []).filter((x) => x !== me.id);
-              likeBtn.textContent = `赞 ${res.likes}`;
-              likeBtn.classList.toggle('is-on', res.liked);
-            } catch {
-              toast('操作失败', 'err');
-            }
-          },
+      if (entry) {
+        entry.likeBtn.textContent = `赞 ${post.likes}`;
+        entry.likeBtn.classList.toggle('is-on', liked);
+        entry.commentBtn.textContent = `评论 ${(post.comments || []).length}`;
+        entry.el.classList.toggle('is-liked', liked);
+      }
+      if (detail && detail.post.id === post.id) {
+        detail.likeBtn.textContent = `赞 ${post.likes}`;
+        detail.likeBtn.classList.toggle('is-on', liked);
+        detail.commentCount.textContent = `${(post.comments || []).length} 条评论`;
+      }
+    }
+
+    function postCard(post) {
+      const liked = (post.likedBy || []).includes(me.id);
+      const imgs = mediaUrls(post);
+      const commentCount = (post.comments || []).length;
+
+      const likeBtn = h('button', {
+        class: `post-act${liked ? ' is-on' : ''}`,
+        type: 'button',
+        'aria-label': '点赞',
+        onclick: (e) => {
+          e.stopPropagation();
+          void toggleLike(post);
         },
-        `赞 ${post.likes}`
+      }, `赞 ${post.likes}`);
+
+      const commentBtn = h('button', {
+        class: 'post-act',
+        type: 'button',
+        onclick: (e) => {
+          e.stopPropagation();
+          openDetail(post);
+        },
+      }, `评论 ${commentCount}`);
+
+      const card = h('article', {
+        class: 'post',
+        'data-id': post.id,
+        tabindex: '0',
+        'aria-label': `${post.author?.name || '匿名'} 的帖子，点击查看详情`,
+        onclick: () => openDetail(post),
+        onkeydown: (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openDetail(post);
+          }
+        },
+      },
+        h('header', { class: 'post__head' },
+          h('span', { class: 'post__avatar', text: String(post.author?.name || '匿').slice(0, 1) }),
+          h('div', { class: 'post__who' },
+            h('b', { text: post.author?.name || '匿名' }),
+            h('span', { text: fmtTime(post.createdAt) })
+          )
+        ),
+        // 标题行固定占位：菜谱标题优先，其次用帖子分类，保证每张卡片的图片区一样高
+        h('h3', {
+          class: post.recipe?.title ? 'post__title' : 'post__title post__title--kind',
+          text: post.recipe?.title || post.kind || '食客分享',
+        }),
+        h('p', { class: 'post__text', text: post.content }),
+        imgs.length
+          ? h('div', { class: `post__media post__media--${imgs.length}` },
+              ...imgs.map((src, i) => h('img', { src, alt: `帖子图片 ${i + 1}`, loading: 'lazy' }))
+            )
+          : null,
+        h('footer', { class: 'post__foot' },
+          likeBtn,
+          commentBtn,
+          post.dishId && DISH_BY_ID[post.dishId] ? h('span', { class: 'post__tag', text: DISH_BY_ID[post.dishId].name }) : null,
+          post.recipe ? h('span', { class: 'post__tag', text: '菜谱' }) : null,
+          post.isSeed ? h('span', { class: 'post__tag', text: '示例' }) : null
+        )
       );
 
-      const commentBox = h('div', { class: 'post-comments' });
+      cardIndex.set(post.id, { post, el: card, likeBtn, commentBtn });
+      return card;
+    }
+
+    /* ---------------- 详情层 ---------------- */
+    function openDetail(post) {
+      closeDetail();
+      const liked = (post.likedBy || []).includes(me.id);
+      const comments = post.comments || [];
+
+      const likeBtn = h('button', {
+        class: `post-act${liked ? ' is-on' : ''}`,
+        type: 'button',
+        onclick: () => void toggleLike(post),
+      }, `赞 ${post.likes}`);
+
+      const commentCount = h('span', { class: 'post-detail__count', text: `${comments.length} 条评论` });
+      const commentsList = h('div', { class: 'post-detail__comments' });
+      const paintComments = () => {
+        clear(commentsList);
+        if (!comments.length) {
+          commentsList.append(h('p', { class: 'post-detail__empty', text: '还没有评论，说两句吧。' }));
+          return;
+        }
+        comments.forEach((c) => commentsList.append(commentNode(c)));
+      };
+      paintComments();
+
       const commentInput = h('input', { type: 'text', placeholder: '写下你的做法或疑问…', maxlength: '400', 'aria-label': '评论内容' });
       const commentForm = h('form', { class: 'post-comment-form' },
         commentInput,
@@ -435,41 +561,26 @@ export default {
         const v = commentInput.value.trim();
         if (!v) return;
         try {
-          await api.posts.comment(post.id, { content: v });
+          const res = await api.posts.comment(post.id, { content: v });
+          if (res.comment) post.comments = [...(post.comments || []), res.comment];
           commentInput.value = '';
-          await load();
+          paintComments();
+          refreshMeta(post);
           toast('已评论');
         } catch (err) {
           toast(err.message || '评论失败', 'err');
         }
       });
 
-      const comments = post.comments || [];
-      comments.forEach((c) => commentBox.append(commentNode(post, c)));
-      commentBox.append(commentForm);
-
-      /* ---------------- 举报表单 ---------------- */
+      /* 举报 */
       const REPORT_REASONS = ['垃圾广告', '辱骂或骚扰', '不实或违规内容', '其他'];
-      const reportReason = h(
-        'select',
-        { class: 'field__select', 'aria-label': '举报原因' },
-        ...REPORT_REASONS.map((r) => h('option', { value: r, text: r }))
-      );
-      const reportNote = h('input', {
-        type: 'text',
-        class: 'field__input',
-        maxlength: '200',
-        placeholder: '补充说明（可选）',
-        'aria-label': '补充说明',
-      });
+      const reportReason = h('select', { class: 'field__select', 'aria-label': '举报原因' },
+        ...REPORT_REASONS.map((r) => h('option', { value: r, text: r })));
+      const reportNote = h('input', { type: 'text', class: 'field__input', maxlength: '200', placeholder: '补充说明（可选）', 'aria-label': '补充说明' });
       const reportSubmit = h('button', { class: 'btn btn--sm btn--danger', type: 'submit' }, '提交举报');
       const reportForm = h('form', { class: 'post-report__form' }, reportReason, reportNote, reportSubmit);
-      const reportBox = h(
-        'div',
-        { class: 'post-report', hidden: true },
-        h('p', { class: 'post-report__title', text: '举报这条内容' }),
-        reportForm
-      );
+      const reportBox = h('div', { class: 'post-report', hidden: true },
+        h('p', { class: 'post-report__title', text: '举报这条内容' }), reportForm);
 
       reportForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -481,10 +592,7 @@ export default {
         reportSubmit.disabled = true;
         reportSubmit.textContent = '提交中…';
         try {
-          const res = await api.posts.report(post.id, {
-            reason: reportReason.value,
-            note: reportNote.value.trim(),
-          });
+          const res = await api.posts.report(post.id, { reason: reportReason.value, note: reportNote.value.trim() });
           toast(res.message || '已提交举报');
           reportBox.hidden = true;
           reportNote.value = '';
@@ -496,18 +604,9 @@ export default {
         }
       });
 
-      const actions = h(
-        'div',
-        { class: 'post-actions' },
+      const dish = DISH_BY_ID[post.dishId];
+      const actions = h('div', { class: 'post-actions' },
         likeBtn,
-        h('button', {
-          class: 'post-act',
-          type: 'button',
-          onclick: () => {
-            const open = commentBox.classList.toggle('is-open');
-            if (open) commentInput.focus();
-          },
-        }, `评论 ${comments.length}`),
         dish
           ? h('button', {
               class: 'post-act',
@@ -518,8 +617,10 @@ export default {
                 btn.disabled = true;
                 btn.textContent = '思考中…';
                 try {
-                  await api.posts.aiReply(post.id, { dishId: dish.id, content: post.content });
-                  await load();
+                  const res = await api.posts.aiReply(post.id, { dishId: dish.id, content: post.content });
+                  if (res.comment) post.comments = [...(post.comments || []), res.comment];
+                  paintComments();
+                  refreshMeta(post);
                   toast('这道菜回帖了');
                 } catch (err) {
                   toast(err.message || 'AI 回复失败', 'err');
@@ -540,10 +641,9 @@ export default {
               return;
             }
             reportBox.hidden = !reportBox.hidden;
-            if (!reportBox.hidden) reportBox.querySelector('select')?.focus();
           },
         }, '举报'),
-        currentUser && post.author.id === currentUser.id
+        currentUser && post.author?.id === currentUser.id
           ? h('button', {
               class: 'post-act post-act--danger',
               type: 'button',
@@ -551,7 +651,8 @@ export default {
                 if (!confirm('删除后无法恢复，确认？')) return;
                 try {
                   await api.posts.remove(post.id);
-                  await load();
+                  closeDetail();
+                  removePost(post.id);
                   toast('已删除');
                 } catch (err) {
                   toast(err.message || '删除失败', 'err');
@@ -561,73 +662,198 @@ export default {
           : null
       );
 
-      return h(
-        'article',
-        { class: 'post' },
+      const imgs = mediaUrls(post);
+      const panel = h('div', { class: 'post-detail__panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': '帖子详情' },
+        h('button', { class: 'post-detail__x', type: 'button', 'aria-label': '关闭', onclick: () => closeDetail() }, '×'),
         h('header', { class: 'post__head' },
-          h('span', { class: 'post__avatar', text: post.author.name.slice(0, 1) }),
+          h('span', { class: 'post__avatar', text: String(post.author?.name || '匿').slice(0, 1) }),
           h('div', { class: 'post__who' },
-            h('b', { text: post.author.name }),
+            h('b', { text: post.author?.name || '匿名' }),
             h('span', { text: fmtTime(post.createdAt) })
           ),
-          post.kind ? h('span', { class: 'post__kind', text: post.kind }) : null,
-          post.isSeed ? h('span', { class: 'post__badge', text: '示例内容' }) : null
+          post.kind ? h('span', { class: 'post__kind', text: post.kind }) : null
         ),
-        h('p', { class: 'post__text', text: post.content }),
-        imagesBlock(post),
-        recipeBlock(post),
-        dish
-          ? h('div', { class: 'post__dish' },
-              h('a', { class: 'post__dish-main', href: `/dishes/${dish.id}`, 'data-link': '' },
-                h('img', { src: dish.image, alt: '', loading: 'lazy' }),
-                h('span', {}, h('b', { text: dish.name }), h('em', { text: `${CUISINE_BY_ID[dish.cuisine]?.name} · ${TASTE_BY_ID[dish.tastes[0]]?.name}` }))
-              ),
-              h('a', { class: 'post__dish-chat', href: `/chat/${dish.id}`, 'data-link': '' }, '聊一聊')
+        post.recipe?.title ? h('h2', { class: 'post-detail__title', text: post.recipe.title }) : null,
+        h('p', { class: 'post-detail__text', text: post.content }),
+        imgs.length
+          ? h('div', { class: `post__images post__images--${Math.min(imgs.length, 3)}` },
+              ...imgs.map((src, i) =>
+                h('button', {
+                  class: 'post__img',
+                  type: 'button',
+                  'aria-label': `查看图片 ${i + 1}`,
+                  onclick: () => openLightbox(src, '帖子图片'),
+                }, h('img', { src, alt: `帖子图片 ${i + 1}`, loading: 'lazy' }))
+              )
             )
           : null,
+        recipeBlock(post),
+        dishBlock(post),
         actions,
         reportBox,
-        commentBox
+        h('div', { class: 'post-detail__sep' }, commentCount),
+        commentsList,
+        commentForm
       );
+
+      const overlay = h('div', {
+        class: 'post-detail',
+        onclick: (e) => {
+          if (e.target === overlay) closeDetail();
+        },
+      }, panel);
+
+      document.body.appendChild(overlay);
+      document.body.style.overflow = 'hidden';
+      document.addEventListener('keydown', onDetailKey, true);
+      detail = { el: overlay, post, likeBtn, commentCount, commentsList };
+      panel.scrollTop = 0;
     }
 
-    function render() {
+    /* ---------------- 渲染 / 加载 ---------------- */
+    function renderEmpty(text) {
       clear(feed);
-      if (!items.length) {
-        feed.append(h('div', { class: 'empty-state', text: '还没有帖子，来发第一条。' }));
+      cardIndex.clear();
+      feed.append(h('div', { class: 'empty-state', text }));
+    }
+
+    function appendCards(list, reset = false) {
+      if (reset) {
+        clear(feed);
+        cardIndex.clear();
       }
-      items.forEach((p) => feed.append(postCard(p)));
+      if (!list.length) return;
+      const empty = feed.querySelector('.empty-state');
+      if (empty) empty.remove();
+      const frag = document.createDocumentFragment();
+      list.forEach((p) => frag.append(postCard(p)));
+      feed.append(frag);
+    }
+
+    function removePost(id) {
+      items = items.filter((p) => p.id !== id);
+      seen.delete(id);
+      total = Math.max(0, total - 1);
+      const entry = cardIndex.get(id);
+      if (entry) {
+        entry.el.remove();
+        cardIndex.delete(id);
+      }
+      if (!items.length) renderEmpty('还没有帖子，来发第一条。');
       paintStats();
-      clear(moreWrap);
-      if (items.length < total) {
-        moreWrap.append(
+    }
+
+    function setFeedState(kind, text = '') {
+      clear(feedState);
+      feedState.hidden = kind === 'idle';
+      feedState.dataset.kind = kind;
+      if (kind === 'idle') return;
+      if (kind === 'loading') {
+        feedState.append(h('span', { class: 'feed-spinner', 'aria-hidden': 'true' }), h('span', { text }));
+      } else if (kind === 'end') {
+        feedState.append(h('span', { class: 'feed-end', text }));
+      } else if (kind === 'error') {
+        feedState.append(
+          h('span', { class: 'feed-error', text }),
           h('button', {
-            class: 'btn btn--sm',
+            class: 'feed-retry',
             type: 'button',
-            onclick: async () => {
-              page += 1;
-              await load({ append: true });
+            onclick: () => {
+              loadError = null;
+              void fetchPage(page + 1);
             },
-          }, `加载更多（还有 ${total - items.length} 条）`)
+          }, '重试')
         );
       }
     }
 
-    async function load({ append = false } = {}) {
+    /** 拉下一页；target 是页码（重试时仍是同一页，不会跳号） */
+    async function fetchPage(target) {
       if (loading) return;
+      if (target > 1 && (!hasMore || loadError)) return;
+      const seq = ++reqSeq;
       loading = true;
+      loadError = null;
+      setFeedState(target === 1 ? 'idle' : 'loading', '正在发现更多精彩内容……');
       try {
-        const res = await api.posts.list({ sort, page });
-        total = res.total;
-        items = append ? [...items, ...res.items] : res.items;
-        render();
+        const res = await api.posts.list({ sort, page: target, pageSize: PAGE_SIZE });
+        if (seq !== reqSeq) return; // 排序已切换：这次结果作废
+        const list = Array.isArray(res.items) ? res.items : [];
+        const fresh = list.filter((p) => p && p.id && !seen.has(p.id));
+        fresh.forEach((p) => seen.add(p.id));
+        const isFirst = target === 1;
+        items = isFirst ? fresh : [...items, ...fresh];
+        total = Number.isFinite(res.total) ? res.total : items.length;
+        hasMore = typeof res.hasMore === 'boolean' ? res.hasMore : items.length < total;
+        page = target;
+        appendCards(fresh, isFirst);
+        if (!items.length) renderEmpty('还没有帖子，来发第一条。');
+        paintStats();
+        setFeedState(hasMore ? 'idle' : 'end', '已经看到全部内容');
       } catch (err) {
-        clear(feed);
-        feed.append(h('div', { class: 'empty-state', text: `社区加载失败：${err.message}` }));
+        if (seq !== reqSeq) return;
+        loadError = err;
+        const text = `加载失败：${String(err?.message || err).slice(0, 40)}`;
+        if (target === 1 && !items.length) renderEmpty('社区加载失败，请稍后重试。');
+        setFeedState('error', text);
       } finally {
-        loading = false;
+        if (seq === reqSeq) loading = false;
       }
     }
+
+    /** 重置整个列表（换排序、发布、重进页面） */
+    function resetFeed() {
+      items = [];
+      seen = new Set();
+      page = 0;
+      total = 0;
+      hasMore = true;
+      loadError = null;
+      reqSeq += 1; // 作废在途请求
+      loading = false;
+      clear(feed);
+      cardIndex.clear();
+      setFeedState('idle');
+      if (ioRoot) ioRoot.scrollTop = 0;
+      void fetchPage(1);
+    }
+
+    /* ---------------- 自动加载：只认社区自己的滚动容器 ---------------- */
+    function resolveScrollRoot() {
+      return feed.closest('.bk-pageface') || null;
+    }
+
+    function startObserver() {
+      if (io) return;
+      const root = resolveScrollRoot();
+      if (!root) {
+        // 章节先挂在暂存区、随后才被搬进纸面：等它真的落到纸面上再观察
+        requestAnimationFrame(() => {
+          if (!destroyed) startObserver();
+        });
+        return;
+      }
+      ioRoot = root;
+      io = new IntersectionObserver(
+        (entries) => {
+          if (destroyed) return;
+          if (!entries.some((e) => e.isIntersecting)) return;
+          if (loading || !hasMore || loadError) return;
+          void fetchPage(page + 1);
+        },
+        { root, rootMargin: '260px 0px 0px 0px', threshold: 0 }
+      );
+      io.observe(sentinel);
+      // 首屏由 fetchPage(1) 负责；哨兵只在真的滚到底（或首屏没铺满）时才触发下一批
+    }
+
+    function stopObserver() {
+      if (io) io.disconnect();
+      io = null;
+      ioRoot = null;
+    }
+
+    let destroyed = false;
 
     const page_ = h(
       'div',
@@ -653,16 +879,33 @@ export default {
               )
             )
           ),
-          h('div', { class: 'community-main' }, tabs, feed, moreWrap)
+          h('div', { class: 'community-main' }, tabs, feed, feedState, sentinel)
         )
       )
     );
 
     root.append(page_);
-    await load();
+
+    // 发布成功后把新帖直接插到列表最前面，不重新拉取、不打断阅读位置
+    function insertPost(post) {
+      if (!post?.id || seen.has(post.id)) return;
+      seen.add(post.id);
+      items.unshift(post);
+      total += 1;
+      const empty = feed.querySelector('.empty-state');
+      if (empty) empty.remove();
+      feed.prepend(postCard(post));
+      paintStats();
+    }
+
+    await fetchPage(1);
+    startObserver();
 
     return {
       destroy() {
+        destroyed = true;
+        stopObserver();
+        closeDetail();
         closeLightbox();
         document.removeEventListener('keydown', onEsc);
       },
