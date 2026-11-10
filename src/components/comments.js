@@ -81,18 +81,20 @@ export function mountComments(root, dishId) {
   });
 
   function commentNode(c, { isReply = false } = {}) {
-    const isMine = c.author.id === me.id;
+    // 游客访问时 me 为 null：这里原来直接读 me.id，会让整条渲染链抛错、评论列表整块空白
+    const myId = me?.id || null;
+    const isMine = Boolean(myId && c.author?.id === myId);
     const likeBtn = h(
       'button',
       {
-        class: `like${c.likedBy?.includes(me.id) ? ' is-on' : ''}`,
+        class: `like${myId && c.likedBy?.includes(myId) ? ' is-on' : ''}`,
         type: 'button',
         onclick: async () => {
           if (requireLogin()) return;
           try {
             const res = await api.comments.like(c.id);
             c.likes = res.likes;
-            c.likedBy = res.liked ? [...(c.likedBy || []), me.id] : (c.likedBy || []).filter((x) => x !== me.id);
+            c.likedBy = res.liked ? [...(c.likedBy || []), myId] : (c.likedBy || []).filter((x) => x !== myId);
             likeBtn.textContent = `赞 ${c.likes}`;
             likeBtn.classList.toggle('is-on', res.liked);
           } catch {

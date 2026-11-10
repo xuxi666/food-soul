@@ -1,12 +1,15 @@
 import { h, toast } from '../lib/dom.js';
 import { api, chatStream } from '../lib/api.js';
-import { DISH_BY_ID } from '../data/dishes.js';
+import { DISH_BY_ID, DIFFICULTY_LABEL } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
+import { CUISINE_CULTURE } from '../data/cuisineCulture.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
 import { categoryMeta, personaForCategory, dishesForCategory } from '../data/categories.js';
-import { applyTheme } from '../data/visualThemes.js';import { mountComments } from '../components/comments.js';
+import { applyTheme } from '../data/visualThemes.js';
+import { mountComments } from '../components/comments.js';
 import { guardImage } from '../lib/placeholder.js';
 import { copyText } from '../lib/clipboard.js';
+import { enableWheelScroll, enableTouchScroll } from '../lib/wheel-scroll.js';
 import notFound from './notfound.js';
 
 const QUICK_DISH = ['你是什么味道？', '你的口感是什么？', '教我在家做你。', '你和哪些菜最搭？', '给我推荐相似口味的美食。'];
@@ -82,146 +85,304 @@ export default {
     const backHref = isCategory ? (category.kind === 'taste' ? `/tastes/${category.id}` : `/cuisines/${category.id}`) : '/';
     const backLabel = isCategory ? '← 返回分类' : '← 返回';
 
-    /* ---------------- 顶部 ---------------- */
-    const head = h(
-      'div',
-      { class: 'page-head' },
-      h('a', { class: 'page-head__back', href: backHref, 'data-link': '' }, backLabel),
-      h('div', {},
-        h('h1', { class: 'page-head__title', text: targetName }),
-        h('p', {
-          class: 'page-head__sub',
-          text: isCategory
-            ? `${category.kind === 'taste' ? '口味人格' : '菜系人格'}${category.meta.en ? ` · ${category.meta.en}` : ''}${
-                category.dishes.length ? ` · ${category.dishes.length} 道菜` : ''
-              }`
-            : `${cuisine?.name || ''} · ${dish.nameEn || ''}`,
-        })
-      ),
-      h('div', { class: 'page-head__spacer' }),
-      topicDish
-        ? h('a', { class: 'btn btn--sm', href: `/dishes/${topicDish.id}`, 'data-link': '' }, '查看菜品')
-        : null,
+/* ================= 左页：中国美食档案 ================= */
+    /* 迁移菜品库的条目带 credit（照片为 AI 生成、内容迁移自参考项目），文化记载要据此打标 */
+    const isLibraryDish = Boolean(topicDish?.credit);
+    const cuisineCulture = !isCategory && cuisine ? CUISINE_CULTURE[cuisine.id] || null : null;
+
+    const dishName = isCategory ? category.meta.name : dish.name;
+    const dishNameEn = isCategory
+      ? category.kind === 'cuisine'
+        ? category.meta.en || ''
+        : category.meta.en || ''
+      : dish.nameEn || cuisine?.en || '';
+    const regionLine = isCategory
+      ? category.kind === 'cuisine'
+        ? category.meta.region || ''
+        : ''
+      : cuisine?.region || '';
+    const cuisineLine = isCategory
+      ? category.kind === 'taste'
+        ? '口味档案'
+        : '菜系档案'
+      : cuisine?.name || '';
+    const leadLine = isCategory ? category.meta.tagline || category.meta.desc || '' : dish.oneLiner || dish.signature || '';
+    const introLine = isCategory ? category.meta.desc || '' : dish.intro || '';
+
+    /* 图片：优先横向展示，按左页高度自适应，不做过度裁切 */
+    const media = topicDish
+      ? guardImage(
+          h('img', { src: topicDish.image, alt: topicDish.alt || topicDish.name, loading: 'lazy' }),
+          topicDish.name,
+          '图片暂不可用'
+        )
+      : h('div', { class: 'cr-visual__fallback', text: (isCategory ? category.meta.name : dish.name).slice(0, 1) });
+
+    const visual = h(
+      'figure',
+      { class: 'cr-visual' },
+      h('div', { class: 'cr-visual__frame' }, media),
       h(
-        'a',
-        {
-          class: 'btn btn--sm',
-          href: isCategory ? '/' : '/kitchen',
-          'data-link': '',
-        },
-        isCategory ? '回到首页' : '换个口味'
+        'figcaption',
+        { class: 'cr-visual__caption' },
+        h('b', { text: dishName }),
+        dishNameEn ? h('span', { class: 'cr-visual__en', text: dishNameEn }) : null,
+        leadLine ? h('span', { class: 'cr-visual__line', text: leadLine }) : null
       )
     );
 
-    /* ---------------- 侧栏 ---------------- */
-    const media = topicDish
-      ? guardImage(h('img', { src: topicDish.image, alt: topicDish.alt || topicDish.name }), topicDish.name, '图片暂不可用')
-      : h('div', { class: 'chat-aside__fallback', text: category?.meta.name.slice(0, 1) || '食' });
+    /* ---------- 风味档案 ---------- */
+    const flavorTastes = (isCategory ? [] : dish.tastes || [])
+      .map((t) => TASTE_BY_ID[t])
+      .filter(Boolean)
+      .map((t) => h('span', { class: 'cr-chip cr-chip--taste', style: `--chip:${t.color}`, text: t.name }));
 
-    const tags = isCategory
-      ? category.kind === 'cuisine'
-        ? [
-            h('span', { class: 'chip chip--gold', text: category.meta.region || '中国' }),
-            h('span', { class: 'chip', text: `${category.dishes.length} 道代表菜` }),
-          ]
-        : [
-            h('span', { class: 'chip chip--gold', text: category.meta.name }),
-            h('span', {
-              class: 'chip',
-              text: `${[...new Set(category.dishes.map((d) => d.cuisine))].length} 个菜系共享`,
-            }),
-          ]
-      : [
-          ...dish.tastes.map((t) =>
-            h('span', { class: 'chip chip--gold' }, h('i', { class: 'tag-dot' }), TASTE_BY_ID[t]?.name || t)
-          ),
-          h('span', { class: 'chip', text: `约 ${dish.prep + dish.cook} 分钟` }),
-        ];
+    const flavorChips = (items, cls) =>
+      items && items.length ? h('div', { class: 'cr-chips' }, ...items.map((x) => h('span', { class: `cr-chip ${cls || ''}`, text: x }))) : null;
 
-    const asideActions = isCategory
-      ? [
+    const cookMinutes = topicDish ? (topicDish.prep || 0) + (topicDish.cook || 0) : 0;
+
+    const flavorBlock = topicDish
+      ? h(
+          'section',
+          { class: 'cr-block cr-flavor' },
+          h('h2', { class: 'cr-block__title' }, h('span', { text: '风味档案' }), h('i', { text: 'FLAVOR' })),
           h(
-            'a',
-            {
-              class: 'btn btn--sm btn--gold',
-              href: category.kind === 'taste' ? `/tastes/${category.id}` : `/cuisines/${category.id}`,
-              'data-link': '',
-            },
-            `进入${category.kind === 'taste' ? '口味' : '菜系'}页`
-          ),
-          topicDish
-            ? h('a', { class: 'btn btn--sm', href: `/dishes/${topicDish.id}`, 'data-link': '' }, `看「${topicDish.name}」`)
-            : null,
-          h('a', { class: 'btn btn--sm', href: '/dishes', 'data-link': '' }, '逛美食图鉴'),
+            'div',
+            { class: 'cr-facts' },
+            flavorTastes.length
+              ? h('div', { class: 'cr-fact' }, h('span', { class: 'cr-fact__k', text: '核心口味' }), h('div', { class: 'cr-chips' }, ...flavorTastes))
+              : null,
+            topicDish.texture
+              ? h('div', { class: 'cr-fact cr-fact--wide' }, h('span', { class: 'cr-fact__k', text: '口感与层次' }), h('p', { class: 'cr-fact__v', text: topicDish.texture }))
+              : null,
+            topicDish.techniques?.length
+              ? h('div', { class: 'cr-fact' }, h('span', { class: 'cr-fact__k', text: '烹饪方式' }), flavorChips(topicDish.techniques))
+              : null,
+            h(
+              'div',
+              { class: 'cr-fact' },
+              h('span', { class: 'cr-fact__k', text: '烹饪信息' }),
+              h(
+                'div',
+                { class: 'cr-meta' },
+                cookMinutes ? h('span', { class: 'cr-meta__item' }, h('em', { text: '时间' }), h('b', { text: `${cookMinutes} 分钟` })) : null,
+                topicDish.difficulty ? h('span', { class: 'cr-meta__item' }, h('em', { text: '难度' }), h('b', { text: DIFFICULTY_LABEL[topicDish.difficulty] || topicDish.difficulty })) : null,
+                topicDish.servings ? h('span', { class: 'cr-meta__item' }, h('em', { text: '份量' }), h('b', { text: `${topicDish.servings} 人份` })) : null
+              )
+            ),
+            topicDish.ingredients?.length
+              ? h(
+                  'div',
+                  { class: 'cr-fact cr-fact--wide' },
+                  h('span', { class: 'cr-fact__k', text: '主要食材' }),
+                  h('div', { class: 'cr-chips' }, ...topicDish.ingredients.map((x) => h('span', { class: 'cr-chip cr-chip--ing', text: x })))
+                )
+              : null
+          )
+        )
+      : null;
+
+    /* ---------- 饮食文化：只用项目里已有的、区分了出处的资料 ---------- */
+    const cultureCards = [];
+    if (!isCategory && topicDish?.history) {
+      cultureCards.push(
+        h(
+          'article',
+          { class: 'cr-culture__card' },
+          h('h3', { class: 'cr-culture__h' }, h('span', { text: '菜品起源' }), h('i', { class: isLibraryDish ? 'cr-src cr-src--pending' : 'cr-src', text: isLibraryDish ? '迁移资料 · 待核实' : '菜品档案' })),
+          h('p', { class: 'cr-culture__text', text: topicDish.history })
+        )
+      );
+    }
+    if (cuisineCulture?.terrain || cuisineCulture?.habit) {
+      cultureCards.push(
+        h(
+          'article',
+          { class: 'cr-culture__card' },
+          h('h3', { class: 'cr-culture__h' }, h('span', { text: `${cuisine?.name || ''}地域饮食` }), h('i', { class: 'cr-src', text: '菜系档案' })),
+          cuisineCulture.period ? h('p', { class: 'cr-culture__period', text: cuisineCulture.period }) : null,
+          cuisineCulture.terrain ? h('p', { class: 'cr-culture__text', text: cuisineCulture.terrain }) : null,
+          cuisineCulture.habit ? h('p', { class: 'cr-culture__text', text: cuisineCulture.habit }) : null
+        )
+      );
+    }
+    if (cuisineCulture?.culture?.quote?.text) {
+      const q = cuisineCulture.culture.quote;
+      cultureCards.push(
+        h(
+          'blockquote',
+          { class: 'cr-culture__quote' },
+          h('p', { text: `「${q.text}」` }),
+          h('footer', { text: `—— ${q.from || ''}${q.note ? `（${q.note}）` : ''}` })
+        )
+      );
+    }
+
+    const cultureBlock = cultureCards.length
+      ? h(
+          'section',
+          { class: 'cr-block cr-culture' },
+          h('h2', { class: 'cr-block__title' }, h('span', { text: '饮食文化' }), h('i', { text: 'CULTURE' })),
+          h('div', { class: 'cr-culture__list' }, ...cultureCards.filter(Boolean))
+        )
+      : null;
+
+    /* ---------- 烹饪技法 ---------- */
+    const craftPoints = !isCategory && topicDish?.knowledge?.length ? topicDish.knowledge.slice(0, 3) : [];
+    const craftBlock =
+      !isCategory && (topicDish?.techniques?.length || craftPoints.length)
+        ? h(
+            'section',
+            { class: 'cr-block cr-craft' },
+            h('h2', { class: 'cr-block__title' }, h('span', { text: '烹饪技法' }), h('i', { text: 'CRAFT' })),
+            topicDish?.techniques?.length
+              ? h(
+                  'ol',
+                  { class: 'cr-craft__steps' },
+                  ...topicDish.techniques.map((t) => h('li', { class: 'cr-craft__step', text: t }))
+                )
+              : null,
+            craftPoints.length
+              ? h(
+                  'ul',
+                  { class: 'cr-craft__notes' },
+                  h('li', { class: 'cr-craft__notes-h', text: '厨艺要点' }),
+                  ...craftPoints.map((t) => h('li', { text: t }))
+                )
+              : null
+          )
+        : null;
+
+    /* ---------- 分类 AI：保留原有性格卡 ---------- */
+    const personaIntro = persona ? [persona.archetype, persona.emotion].filter(Boolean) : [];
+    const personaSkills = [
+      topicDish?.history ? '菜品历史' : null,
+      cuisine?.name ? `${cuisine.name}饮食文化` : null,
+      topicDish?.ingredients?.length ? '食材知识' : null,
+      topicDish?.texture || topicDish?.signature ? '风味特点' : null,
+      topicDish?.techniques?.length ? '烹饪技巧' : null,
+    ].filter(Boolean);
+    const personaBlock = h(
+      'section',
+      { class: 'cr-persona' },
+      h('h2', { class: 'cr-block__title' }, h('span', { text: '角色性格' }), h('i', { text: persona ? persona.name : 'DEFAULT' })),
+      personaIntro.map((line) => h('p', { class: 'cr-persona__text', text: line })).length
+        ? h('div', {}, ...personaIntro.map((line) => h('p', { class: 'cr-persona__text', text: line })))
+        : null,
+      persona?.flavor ? h('p', { class: 'cr-persona__quote', text: persona.flavor }) : null,
+      personaSkills.length
+        ? h(
+            'div',
+            { class: 'cr-skills' },
+            h('span', { class: 'cr-skills__label', text: '擅长聊' }),
+            ...personaSkills.map((s) => h('span', { class: 'cr-skills__item', text: s }))
+          )
+        : null
+    );
+
+    /* ---------- 底部操作 ---------- */
+    const mainActions = isCategory
+      ? [
+          h('a', { class: 'btn btn--sm btn--gold cr-act cr-act--main', href: category.kind === 'taste' ? `/tastes/${category.id}` : `/cuisines/${category.id}`, 'data-link': '' }, `进入${category.kind === 'taste' ? '口味' : '菜系'}页`),
+          topicDish ? h('a', { class: 'btn btn--sm cr-act', href: `/dishes/${topicDish.id}`, 'data-link': '' }, `看「${topicDish.name}」`) : null,
         ]
       : [
-          h('a', { class: 'btn btn--sm btn--gold', href: `/recipe?dish=${dish.id}`, 'data-link': '' }, '生成结构化菜谱'),
-          h('a', { class: 'btn btn--sm', href: `/videos?q=${encodeURIComponent(dish.name)}`, 'data-link': '' }, '做菜视频'),
-          h('a', { class: 'btn btn--sm', href: '#comments' }, '看食客评论'),
+          h('a', { class: 'btn btn--sm btn--gold cr-act cr-act--main', href: `/recipe?dish=${dish.id}`, 'data-link': '' }, '生成结构化菜谱'),
+          h('a', { class: 'btn btn--sm cr-act', href: `/dishes/${dish.id}`, 'data-link': '' }, '查看菜谱'),
+        ];
+    const minorActions = isCategory
+      ? [h('a', { class: 'btn btn--sm cr-act cr-act--ghost', href: '/dishes', 'data-link': '' }, '逛美食图鉴')]
+      : [
+          h('a', { class: 'btn btn--sm cr-act cr-act--ghost', href: '/kitchen', 'data-link': '' }, '换个口味'),
+          h('a', { class: 'btn btn--sm cr-act cr-act--ghost', href: `/videos?q=${encodeURIComponent(dish.name)}`, 'data-link': '' }, '做菜视频'),
+          h('button', { class: 'btn btn--sm cr-act cr-act--ghost', type: 'button', onclick: () => setPane('comments') }, '食客评论'),
         ];
 
-    const aside = h(
-      'aside',
-      { class: 'chat-aside' },
-      h(
-        'div',
-        { class: 'chat-aside__media' },
-        media,
-        h(
-          'div',
-          { class: 'chat-aside__name' },
-          h('h1', { text: isCategory ? category.meta.name : dish.name }),
-          h('p', {
-            text: isCategory
-              ? `${category.kind === 'taste' ? '口味 AI' : '菜系 AI'}${topicDish ? ` · 代表菜 ${topicDish.name}` : ''}`
-              : `${cuisine?.name || ''} · ${dish.nameEn || ''}`,
-          })
-        )
-      ),
-      h('div', { class: 'chat-aside__tags' }, ...tags),
-      h(
-        'div',
-        { class: 'chat-aside__persona' },
-        h('b', { text: persona ? `人格：${persona.name}` : '人格：默认' }),
-        h('p', {
-          text: persona
-            ? `${persona.archetype}。${persona.language}`
-            : '由味型驱动的默认人格。',
-        }),
-        isCategory
-          ? h('p', {
-              class: 'chat-aside__note',
-              text: `说话人＝${category.meta.name}${category.kind === 'taste' ? '口味 AI' : ' AI'}${
-                topicDish ? `；${topicDish.name} 只作当前话题` : ''
-              }。`,
-            })
-          : null
-      ),
-      h('div', { class: 'chat-aside__actions' }, ...asideActions)
+    const leftActions = h(
+      'footer',
+      { class: 'cr-actions' },
+      h('div', { class: 'cr-actions__row' }, ...mainActions.filter(Boolean)),
+      h('div', { class: 'cr-actions__row cr-actions__row--minor' }, ...minorActions.filter(Boolean))
     );
 
-    /* ---------------- 聊天主体 ---------------- */
-    const messagesEl = h('div', { class: 'messages', role: 'log', 'aria-live': 'polite' });
-    const modeBadge = h('span', { class: 'chat-bar__mode', text: '连接中' });
-    const bar = h(
+    const leftBody = h(
       'div',
-      { class: 'chat-bar' },
-      h('i', { class: 'chat-bar__dot' }),
-      h('span', { text: `${targetName} · 在线` }),
-      modeBadge
+      { class: 'cr-left__body' },
+      h(
+        'header',
+        { class: 'cr-titleblock' },
+        h('div', { class: 'cr-topbar' }, h('a', { class: 'cr-back', href: backHref, 'data-link': '' }, backLabel)),
+        h('p', { class: 'cr-titleblock__kicker' }, h('i', { text: cuisineLine }), regionLine ? h('span', { text: regionLine }) : null),
+        h('h1', { class: 'cr-titleblock__name', text: dishName }),
+        dishNameEn ? h('p', { class: 'cr-titleblock__en', text: dishNameEn }) : null,
+        leadLine ? h('p', { class: 'cr-titleblock__lead', text: leadLine }) : null,
+        introLine ? h('p', { class: 'cr-titleblock__intro', text: introLine }) : null
+      ),
+      visual,
+      isCategory ? personaBlock : null,
+      flavorBlock,
+      cultureBlock,
+      craftBlock,
+      isCategory ? null : h('p', { class: 'cr-note', text: isLibraryDish ? '文化内容迁移自项目菜品库，历史说法存在不同版本，仅供了解。' : '文化内容来自项目菜品档案；历史说法存在不同版本，仅供了解。' })
     );
 
-    const input = h('textarea', {
-      rows: '1',
-      placeholder: isCategory
-        ? `问 ${category.meta.name} AI：味型、代表菜、食材搭配……`
-        : `问 ${dish.name} 任何事：味道、火候、搭配……`,
-      'aria-label': '输入消息',
-    });
-    const sendBtn = h('button', { class: 'composer__send', type: 'submit', text: '发送' });
-    const stopBtn = h('button', { class: 'btn btn--sm btn--ghost', type: 'button', style: 'display:none' }, '停止生成');
+    const deco = h('div', { class: 'cr-left__deco', 'aria-hidden': 'true' });
+    if (!isCategory && cuisine && ['chuan', 'yue', 'zhe'].includes(cuisine.id)) {
+      deco.dataset.deco = cuisine.id;
+    }
 
-    const composer = h('form', { class: 'composer' }, input, stopBtn, sendBtn);
+    const leftScroll = h('div', { class: 'cr-left__inner' }, leftBody);
+
+    const dossier = h('aside', { class: 'cr-left' }, leftScroll, leftActions, deco);
+
+    /* ================= 中央书脊（独立一格，不挤占任何一页） ================= */
+    const spine = h('div', { class: 'cr-spine', 'aria-hidden': 'true' });
+
+    /* ================= 右页：沉浸式聊天室 ================= */
+    const messagesEl = h('div', { class: 'messages', role: 'log', 'aria-live': 'polite' });
+    /** 欢迎态节点：第一条消息发出后就摘掉 */
+    let welcomeEl = null;
+    const modeBadge = h('span', { class: 'cr-model', text: '连接中' });
+
+    const chatHead = h(
+      'header',
+      { class: 'cr-head' },
+      h('a', { class: 'cr-head__back', href: backHref, 'data-link': '', 'aria-label': backLabel.replace('← ', '').trim() || '返回' }, '←'),
+      h(
+        'div',
+        { class: 'cr-head__id' },
+        h(
+          'h2',
+          { class: 'cr-head__name' },
+          h('span', { class: 'cr-head__title', text: targetName }),
+          h('span', { class: 'cr-online' }, h('i', { class: 'cr-online__dot' }), h('em', { text: '在线' }))
+        ),
+        h('p', {
+          class: 'cr-head__sub',
+          text: isCategory
+            ? `${category.kind === 'taste' ? '口味' : '菜系'} AI · ${category.dishes.length} 道菜`
+            : [persona?.archetype || '美食角色', cuisine?.name].filter(Boolean).join(' · '),
+        })
+      ),
+      h(
+        'div',
+        { class: 'cr-head__meta' },
+        h('span', { class: 'cr-head__model-label', text: '模型' }),
+        modeBadge
+      )
+    );
+
+    const tabChat = h('button', { class: 'cr-tab is-on', type: 'button', role: 'tab', 'aria-selected': 'true' }, 'AI 聊天');
+    const tabComments = h('button', { class: 'cr-tab', type: 'button', role: 'tab', 'aria-selected': 'false' }, '食客评论');
+    // 分类 AI 页没有食客评论，就不摆这个切换器（避免点进去是一块空面板）
+    const tabs = isCategory ? null : h('div', { class: 'cr-tabs', role: 'tablist' }, tabChat, tabComments);
+
+    /* 单页模式（≤1023）下的三视图切换 */
+    const paneBtnDossier = h('button', { class: 'cr-pane-tab', type: 'button', 'data-pane': 'dossier' }, '菜品档案');
+    const paneBtnChat = h('button', { class: 'cr-pane-tab is-on', type: 'button', 'data-pane': 'chat' }, 'AI 聊天');
+    const paneBtnComments = isCategory ? null : h('button', { class: 'cr-pane-tab', type: 'button', 'data-pane': 'comments' }, '食客评论');
+    const paneTabs = h('div', { class: 'cr-pane-tabs', role: 'tablist' }, paneBtnDossier, paneBtnChat, paneBtnComments);
 
     const aiNoticeText = h('span', {
       text: '当前未接入 AI 大模型，请点击右上角「接入 AI」配置后再开始对话。',
@@ -232,28 +393,87 @@ export default {
       if (text) aiNoticeText.textContent = text;
       aiNotice.hidden = !text;
     }
-    const chatMain = h(
-      'section',
-      { class: 'chat-main' },
-      bar,
+
+    const input = h('textarea', {
+      rows: '1',
+      placeholder: isCategory
+        ? `问 ${category.meta.name} AI：味型、代表菜、食材搭配……`
+        : `问 ${dish.name} 任何事：味道、火候、搭配……`,
+      'aria-label': '输入消息',
+    });
+    const sendBtn = h('button', { class: 'composer__send', type: 'submit', text: '发送' });
+    const stopBtn = h('button', { class: 'btn btn--sm btn--ghost', type: 'button', style: 'display:none' }, '停止生成');
+    const composer = h('form', { class: 'composer' }, input, stopBtn, sendBtn);
+
+    const chatPanel = h(
+      'div',
+      { class: 'cr-panel cr-panel--chat', role: 'tabpanel' },
       aiNotice,
       messagesEl,
-      composer,
-      h('p', { class: 'composer__hint', text: 'Enter 发送 · Shift + Enter 换行 · 内容由 AI 生成，请自行判断' })
+      h(
+        'div',
+        { class: 'cr-composer' },
+        composer,
+        h('p', { class: 'composer__hint', text: 'Enter 发送 · Shift + Enter 换行 · 内容由 AI 生成，请自行判断' })
+      )
     );
 
-    const footer = h('div', { class: 'wrap comments-slot' });
-    const page = h(
-      'div',
-      { class: 'page chat-page theme-chat' },
-      // 分类（口味/菜系）AI 聊天页不再挂载「这个味型/菜系下的菜」模块；footer 仅用于菜品聊天的评论区
-      h('div', { class: 'wrap' }, head, h('div', { class: 'chat-layout' }, aside, chatMain), isCategory ? null : footer)
-    );
+    /* 评论区：复用现有 mountComments，只在右页里 */
+    const commentsHost = isCategory ? null : h('div', { class: 'cr-comments' });
+    const commentsPanel = isCategory
+      ? null
+      : h('div', { class: 'cr-panel cr-panel--comments', role: 'tabpanel' }, commentsHost);
+
+    const chatRoom = h('section', { class: 'cr-right' }, chatHead, tabs, chatPanel, commentsPanel);
+
+    const page = h('div', { class: 'page chat-page theme-chat cr', 'data-view': 'chat', 'data-pane': 'chat' }, paneTabs, dossier, spine, chatRoom);
     applyTheme(page, themeId);
     root.append(page);
 
+    /* 这一页盖住了整张跨页：画册中缝（.bk-gutter，z-index 高于内容层）必须让位，
+       否则它会压在右页中央，既画出多余的装饰线，又拦掉那一带的点击。 */
+    const bookStage = document.querySelector('.bk-stage');
+    bookStage?.classList.add('is-site-page');
+
+    /* ---------------- 视图切换：AI 聊天 / 食客评论 ---------------- */
+    function setView(view) {
+      const toComments = view === 'comments' && Boolean(commentsPanel);
+      page.dataset.view = toComments ? 'comments' : 'chat';
+      tabChat.classList.toggle('is-on', !toComments);
+      tabComments.classList.toggle('is-on', toComments);
+      tabChat.setAttribute('aria-selected', String(!toComments));
+      tabComments.setAttribute('aria-selected', String(toComments));
+      // 切回来时聊天记录原样还在，只把视角交回最新一条
+      if (!toComments) requestAnimationFrame(() => scrollToEnd());
+    }
+    tabChat.addEventListener('click', () => setPane('chat'));
+    tabComments.addEventListener('click', () => setPane('comments'));
+
+    /* ---------------- 单页三视图：档案 / 聊天 / 评论 ---------------- */
+    function setPane(pane) {
+      const next = pane === 'dossier' ? 'dossier' : pane === 'comments' && commentsPanel ? 'comments' : 'chat';
+      page.dataset.pane = next;
+      if (next !== 'dossier') setView(next);
+      [...paneTabs.children].forEach((b) => {
+        const on = b.dataset.pane === next;
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-selected', String(on));
+      });
+    }
+    [...paneTabs.children].forEach((b) => b.addEventListener('click', () => setPane(b.dataset.pane)));
+
+    /* 纸面里没有 3D 翻转了，但滚轮/触摸仍交给显式换算，手感才一致 */
+    const offWheel = [
+      enableWheelScroll(leftScroll),
+      enableWheelScroll(messagesEl),
+      commentsHost ? enableWheelScroll(commentsHost) : null,
+      enableTouchScroll(leftScroll),
+      enableTouchScroll(messagesEl),
+      commentsHost ? enableTouchScroll(commentsHost) : null,
+    ];
+
     if (!isCategory) {
-      comments = mountComments(footer, dish.id);
+      comments = mountComments(commentsHost, dish.id);
     }
 
     /* ---------------- 状态 ---------------- */
@@ -282,7 +502,8 @@ export default {
         modeBadge.classList.remove('is-demo');
         showAINotice('');
         input.disabled = false;
-        sendBtn.disabled = false;
+        // 流式中 meta 事件也会走到这里：不能把「生成中禁止重复提交」又打开
+        sendBtn.disabled = Boolean(state.streaming);
         input.placeholder = isCategory
           ? `问 ${category.meta.name} AI：味型、代表菜、食材搭配……`
           : `问 ${dish.name} 任何事：味道、火候、搭配……`;
@@ -297,7 +518,32 @@ export default {
       }
     }
 
+    /** 用户是否还停在底部附近：只有这时才跟着新消息往下走 */
+    function atBottom() {
+      return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120;
+    }
+
+    /*
+     * 是否跟随新内容滚动。用「滚动事件 + 标记」而不是每次渲染时现算：
+     * 流式分片在同一帧里连续到达时，scrollHeight 已经变了而 scrollTop 还没跟上，
+     * 现算会误判成「用户已经翻走了」，答案就再也不跟随了。
+     */
+    let follow = true;
+    let lastTop = 0;
+    messagesEl.addEventListener(
+      'scroll',
+      () => {
+        const top = messagesEl.scrollTop;
+        // 只有「往上翻」才停止跟随；内容变高或自己滚到底都不算用户离开
+        if (top < lastTop - 4) follow = false;
+        else if (atBottom()) follow = true;
+        lastTop = top;
+      },
+      { passive: true }
+    );
+
     function scrollToEnd() {
+      follow = true;
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
@@ -430,6 +676,7 @@ export default {
         h('span', { class: 'msg__suggest-label', text: '接着聊' }),
         h('span', { class: 'suggest-loading', text: '正在想接下来聊什么…' })
       );
+      if (follow) scrollToEnd();
 
       try {
         const ctx = isCategory
@@ -463,13 +710,12 @@ export default {
           return;
         }
 
-        const nearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 140;
         node.suggestBox.replaceChildren(
           h('span', { class: 'msg__suggest-label', text: '接着聊' }),
           ...chips
         );
         list.forEach((s) => state.shownSuggestions.add(s.text));
-        if (nearBottom) scrollToEnd();
+        if (follow) scrollToEnd();
       } catch (err) {
         // 建议失败/超时不影响主回答，收起加载占位
         if (node.node.isConnected) {
@@ -510,10 +756,11 @@ export default {
       state.stream = chatStream(payload, {
         onMeta: setMode,
         onDelta: (t) => {
+          // 用户正在往上翻历史时不拽回底部；发给自己的新消息才强制跟随
           buffer += t;
           node.textEl.textContent = buffer;
           node.textEl.append(h('span', { class: 'cursor' }));
-          scrollToEnd();
+          if (follow) scrollToEnd();
         },
         onDone: () => {},
         onAbort: () => {
@@ -568,6 +815,8 @@ export default {
         return;
       }
       state.messages.push({ role: 'user', content });
+      // 第一条消息发出后，欢迎语与快捷提问退场，让聊天记录成为主角
+      if (welcomeEl?.isConnected && messagesEl.contains(welcomeEl)) welcomeEl.remove();
       addMessage('user', content);
       input.value = '';
       input.style.height = 'auto';
@@ -610,6 +859,7 @@ export default {
 
     /* ---------------- 欢迎语 ---------------- */
     const empty = h('div', { class: 'chat-empty' });
+    welcomeEl = empty;
     const quickRow = h('div', { class: 'quick-row' });
     const quickList = isCategory ? quickForCategory(category) : QUICK_DISH;
     quickList.forEach((q) => {
@@ -635,8 +885,9 @@ export default {
       state.messages.push({ role: 'assistant', content: fallback });
     }
 
+    // 老的「看食客评论」锚点仍然可用：落到评论区视图，而不是滚到两页之外
     if (!isCategory && location.hash === '#comments') {
-      requestAnimationFrame(() => document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' }));
+      requestAnimationFrame(() => setView('comments'));
     }
 
     return {
@@ -644,7 +895,15 @@ export default {
         state.stream?.abort();
         state.suggestAborts.forEach((c) => c.abort());
         state.suggestAborts.clear();
+        offWheel.forEach((off) => {
+          try {
+            off?.();
+          } catch {
+            /* 忽略 */
+          }
+        });
         comments?.destroy?.();
+        bookStage?.classList.remove('is-site-page');
       },
     };
   },
