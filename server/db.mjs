@@ -53,7 +53,7 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
-  -- 首页卡片图片覆盖（菜系 / 口味分开存，按 id 精确匹配）
+  -- 首页卡片图片覆盖（历史表：首页转盘与后台「首页图片」模块已下线，保留数据但不再读写）
   CREATE TABLE IF NOT EXISTS card_images (
     kind TEXT NOT NULL,
     card_id TEXT NOT NULL,
@@ -352,26 +352,6 @@ export function setUserRole(userId, role) {
 }
 
 /* ---------------- 图片覆盖 ---------------- */
-
-export function listCardImages(kind) {
-  const rows = kind
-    ? db.prepare('SELECT * FROM card_images WHERE kind = ?').all(String(kind))
-    : db.prepare('SELECT * FROM card_images').all();
-  return rows;
-}
-
-export function upsertCardImage({ kind, cardId, url, updatedBy }) {
-  db.prepare(
-    `INSERT INTO card_images (kind, card_id, url, updated_by, updated_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(kind, card_id) DO UPDATE SET
-       url = excluded.url, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
-  ).run(String(kind), String(cardId), String(url), updatedBy || null, Date.now());
-}
-
-export function deleteCardImage(kind, cardId) {
-  db.prepare('DELETE FROM card_images WHERE kind = ? AND card_id = ?').run(String(kind), String(cardId));
-}
 
 export function listDishImages() {
   return db.prepare('SELECT * FROM dish_images').all();

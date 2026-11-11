@@ -125,7 +125,7 @@ const layout = await admin.evaluate(() => {
 });
 check('后台渲染在画册里（左导航页 + 右内容页）', layout.bothPages && layout.leftX < layout.rightX, JSON.stringify(layout));
 check('中缝保留、没有页码、没有翻页按钮', layout.gutter && layout.pageNums === 0 && layout.turnBtns === 0);
-check('概览统计卡 4 个', (await admin.locator('.adm-main .admin-stat').count()) === 4);
+check('概览统计卡 5 个', (await admin.locator('.adm-main .admin-stat').count()) === 5);
 await admin.screenshot({ path: path.join(SHOTS, 'admin-overview.png') });
 
 /* 社区内容 */
@@ -139,39 +139,12 @@ await admin.waitForTimeout(1000);
 check('社区搜索生效', (await admin.locator('.adm-main .admin-row').count()) >= 1);
 await admin.screenshot({ path: path.join(SHOTS, 'admin-posts.png') });
 
-/* 首页图片 */
-await tab(admin, '首页图片');
-const tiles = await admin.locator('.adm-main .admin-tile').count();
-check('首页图片：16 张卡片（8 菜系 + 8 口味）', tiles === 16, `${tiles} 张`);
-check('菜系与口味分组独立', (await admin.locator('.adm-main .admin-card__title').count()) === 2,
-  (await admin.locator('.adm-main .admin-card__title').allInnerTexts()).join(' / '));
-
-const firstTile = admin.locator('.adm-main .admin-tile').first();
-const firstName = await firstTile.locator('b').innerText();
-const beforeSrc = await firstTile.locator('.admin-tile__img').getAttribute('src');
-const isLocal = /127\.0\.0\.1|localhost/.test(BASE);
-if (isLocal) {
-  await firstTile.locator('input[type="file"]').setInputFiles(TMP_PNG);
-  await admin.waitForTimeout(2400);
-  const afterSrc = await firstTile.locator('.admin-tile__img').getAttribute('src');
-  check(`替换「${firstName}」卡片图片生效`, Boolean(afterSrc) && afterSrc !== beforeSrc && afterSrc.startsWith('/uploads/'), `${beforeSrc} -> ${afterSrc}`);
-  check('卡片状态标记为已替换', (await firstTile.locator('.admin-tile__state').innerText()).includes('已替换'));
-  const wheelImage = await admin.evaluate(async () => {
-    const m = await import('/src/data/wheel.js');
-    const nodes = m.nodesFor ? m.nodesFor('cuisine') : m.buildCuisineNodes();
-    return nodes[0]?.image;
-  });
-  check('首页数据源已使用新图片', wheelImage === afterSrc, String(wheelImage));
-  // 还原：点「恢复默认」（DELETE 覆盖记录），把这张卡片交还给内置图片
-  await firstTile.locator('button', { hasText: '恢复默认' }).first().click();
-  await admin.waitForTimeout(1900);
-  const restoredSrc = await admin.locator('.adm-main .admin-tile').first().locator('.admin-tile__img').getAttribute('src');
-  check('「恢复默认」把卡片交还内置图片', Boolean(restoredSrc) && !restoredSrc.startsWith('/uploads/'), restoredSrc);
-  check('还原后状态标记回到「默认图片」', (await admin.locator('.adm-main .admin-tile').first().locator('.admin-tile__state').innerText()).includes('默认'));
-} else {
-  check('线上环境跳过上传替换（避免改线上素材）', true, '仅校验界面与数据读取');
-}
-await admin.screenshot({ path: path.join(SHOTS, 'admin-cards.png') });
+/* 首页图片功能已下线：页签与接口都不存在 */
+const cardTab = await admin.locator('.admin-nav__item', { hasText: '首页图片' }).count();
+check('后台导航不再有「首页图片」', cardTab === 0, `${cardTab} 个`);
+// 用 request 上下文探测，避免浏览器把预期的 404 记成脚本异常
+const cardApi = await admin.request.get(new URL('/api/admin/cards', BASE).href);
+check('首页图片接口返回 404', cardApi.status() === 404, `HTTP ${cardApi.status()}`);
 
 /* 美食图鉴 */
 await tab(admin, '美食图鉴');
@@ -260,7 +233,7 @@ const mLayout = await mobile.evaluate(() => {
     pageOverflowX: document.documentElement.scrollWidth - window.innerWidth,
   };
 });
-check('移动端：导航与内容同页上下排布', mLayout.inline && mLayout.navItems === 6, JSON.stringify(mLayout));
+check('移动端：导航与内容同页上下排布', mLayout.inline && mLayout.navItems === 5, JSON.stringify(mLayout));
 check('移动端：无横向溢出', mLayout.overflowX === 0 && mLayout.pageOverflowX === 0, `${mLayout.overflowX}/${mLayout.pageOverflowX}`);
 await mobile.screenshot({ path: path.join(SHOTS, 'admin-mobile.png') });
 

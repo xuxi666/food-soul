@@ -17,9 +17,8 @@
 
 | 模块 | 结论 | 说明 |
 | --- | --- | --- |
-| 后台概览 | A | 6 项真实 DB 计数 + 内置 AI 状态 + Epicure 外部服务状态 + 最近审计 |
+| 后台概览 | A | 5 项真实 DB 计数 + 内置 AI 状态 + Epicure 外部服务状态 + 最近审计 |
 | 社区内容 | A | 列表/关键词/分类/时间/状态/只看被举报、详情、编辑正文与分类、隐藏、恢复、删除、分页 |
-| 首页图片 | A（写库与前台数据层） | 16 个固定位置（8 菜系 + 8 口味）换图、预览、复位、前台链接；前台渲染见 §6 |
 | 美食图鉴 | A | 搜索、按菜系筛选、详情（口味/难度/份量/主料/简介）、换图、复位 |
 | 内置 AI | A | 多套配置、启用、测试连接、删除；Key 只存服务端、浏览器只见掩码 |
 | 举报处理 | A | 状态筛选、理由计数、处理说明、处理中/已处理/驳回、确认违规并删除内容 |
@@ -27,17 +26,15 @@
 | 用户与角色 | D | 无用户列表/禁言/改角色接口与页面 |
 | 系统设置 | D | 无站点设置页（配置在 `.env` 与服务端） |
 | 待审核帖子 | D | 帖子发布即公开，数据模型只有软删除（`deletedAt`），没有 pending 状态；概览用说明文字代替假队列 |
-| 卡片排序 / 启用停用 | D | `card_images(kind, card_id, url)` 无 order/enabled 字段，16 个位置由菜系/口味顺序固定 |
 | 菜品新建 / 删除 / 改分类 / 改文案 | D | 菜品来自 `src/data/dishes.js` 静态数据源；后台只有图片覆盖表 |
 | Epicure 能力调用（network/autoadd/analyze/create/pair） | B | 服务端已有接口，后台没有调用入口；本轮只做「状态探测」 |
 
 ## 3. 接口（`/api/admin/*`，全部经 `sameOrigin` + `requireAdmin`）
 
-- `GET /overview` — `stats{users,posts,reports,cards,dishes,ai}`、`services{ai,epicure}`、`recentAudit`
-- `GET /service-health?probe=1` — 真实探测 Epicure（≤8s）并写 `service_health` 表
+- `GET /overview` — `stats{users,posts,reports,dishes,ai}`、`services{ai,epicure}`、`recentAudit`
+- `GET /service-health?probe=1` — 真实探测 Epicure（≤12s）并写 `service_health` 表
 - `GET /posts` — 支持 `q,page,pageSize,status(visible|deleted),kind,from,to,reported`
 - `POST /posts/:id` — 编辑正文（≤2000）与分类；`DELETE /posts/:id` 软删；`POST /posts/:id/restore` 恢复
-- `GET /cards` / `POST /cards` / `DELETE /cards/:kind/:id`
 - `GET /dishes?q&cuisine` / `POST /dishes` / `DELETE /dishes/:id`
 - `GET /reports?status` / `POST /reports/:id/handle`（`processing|resolve|reject|delete-post` + `note`≤200）
 - `POST /upload` — 类型/大小校验，限流 20 次/小时/管理员
@@ -61,17 +58,21 @@ DOM 一直在（`.admin-content` 有宽高、数据也渲染了），但容器�
 1. 类名改为 `is-entering`（`src/views/admin.js`），动画只作用于子节点（`src/styles/admin.css`）；
 2. 动画结束（`animationend`）后立刻摘掉类名，并留 900ms 兜底 —— 以后任何同名全局规则都不会再把右页隐藏。
 
-## 6. 首页图片的前台消费
+## 6. 首页图片功能（已移除）
 
-`/api/assets/overrides` → `src/lib/overrides.js` → `setCardOverrides()` → `buildCuisineNodes()/buildTasteNodes().image`。
-菜系/口味卡图原本由首页的 WebGL 转盘（`src/views/home.js` + `src/gallery.js`）消费；这两个文件已于 2026-11-11 随淘汰代码删除，
-所以后台换卡图现在只能验证到「数据层 + 前台接口」，**渲染层在站内已没有消费面**（记录为限制，未伪造截图）。
-菜品换图则真实可见：菜系页与菜品详情页都读同一份 `DISHES.image`。
+`/api/assets/overrides` → `src/lib/overrides.js` 这条链路原本同时喂「菜系/口味卡图」和「菜品图」。
+卡图唯一的消费方是旧首页 3D 转盘（`src/views/home.js` + `src/gallery.js`），转盘于 2026-11-11 删除后，
+后台「首页图片」模块再也没有可见效果。为避免保留无效操作，本轮一并下线：页签、`/api/admin/cards` 接口、
+`cardRows()`、`setCardOverrides()`、`src/data/wheel.js` 与 `card_images` 读写函数全部移除。
+
+- `card_images` 表与历史数据保留（不删数据、不迁移），只是不再被读写；
+- `GET /api/assets/overrides` 现在只返回 `{ dishes, updatedAt }`；
+- 菜品换图仍然真实可见：菜系页与菜品详情页都读同一份 `DISHES.image`。
 
 ## 7. 复现测试
 
-- 接口读写：`node .tmp/admin/test-api-flow.mjs`（25 项，覆盖权限/计数/探测/帖子/举报/卡片/图鉴/审计）
-- 界面：`node .tmp/admin/ui2.mjs`（28 项，PC 1440×900 / 平板 834×1112 / 手机 390×844）
-- 截图：`docs/admin-shots/`
+- 接口：`node scripts/verify-admin.mjs`（44 项：权限 / 计数 / 探测 / 帖子 / 举报 / 图鉴 / 上传 / 已下线的首页图片接口返回 404）
+- 界面：`BASE=http://127.0.0.1:5180 node scripts/verify-admin-ui.mjs`（29 项：PC 1440×900 / 平板 834×1112 / 手机 390×844）
+- 截图：`docs/admin-shots/`（已按当前界面重新生成，首页图片模块的旧截图已删除）
 
-> `.tmp/` 为本地临时目录（git 忽略），测试产生的帖子/举报/账号/图片在上传后已清理，数据库回到 107 帖、1 条历史举报、37 个账号。
+> 测试产生的帖子/举报/账号/上传文件在脚本末尾清理；`card_images` 历史数据未删除。

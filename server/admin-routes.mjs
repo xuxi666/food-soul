@@ -1,4 +1,4 @@
-// 管理员后台接口：概览、社区管理、卡片/菜品图片、举报处理
+// 管理员后台接口：概览、社区管理、菜品图片、举报处理
 // 所有写操作都经过 requireAdmin（服务端会话 + 环境变量白名单），前端声明无效。
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -6,7 +6,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { DISHES } from '../src/data/dishes.js';
-import { buildCuisineNodes, buildTasteNodes } from '../src/data/wheel.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../src/data/cuisines.js';
 import { adminListPosts, findPost, softDeletePost, restorePost, updatePost, postStats, saveImage } from './community.mjs';
 import { generatedDishes } from './dish-search.mjs';
@@ -27,9 +26,6 @@ import {
   toggleSiteAI,
 } from './site-ai.mjs';
 import {
-  listCardImages,
-  upsertCardImage,
-  deleteCardImage,
   listDishImages,
   upsertDishImage,
   deleteDishImage,
@@ -122,49 +118,14 @@ function audit(actor, action, targetType, targetId, detail) {
 
 /* ---------------- 公共：图片覆盖 ---------------- */
 
-/** 前端启动时读取：卡片与菜品的图片覆盖 */
+/** 前端启动时读取：菜品图片覆盖（菜系/口味卡图随旧首页转盘一起下线） */
 export function getAssetOverrides() {
-  const cards = { cuisine: {}, taste: {} };
-  for (const row of listCardImages()) {
-    if (!cards[row.kind]) continue;
-    cards[row.kind][row.card_id] = row.url;
-  }
   const dishes = {};
   for (const row of listDishImages()) dishes[row.dish_id] = row.url;
-  return { cards, dishes, updatedAt: Date.now() };
+  return { dishes, updatedAt: Date.now() };
 }
 
-/* ---------------- 数据组装 ---------------- */
-
-function cardRows() {
-  const overrides = getAssetOverrides().cards;
-  const rows = [];
-  for (const node of buildCuisineNodes()) {
-    rows.push({
-      kind: 'cuisine',
-      id: node.id,
-      name: node.name,
-      meta: node.meta,
-      href: node.href,
-      defaultImage: node.image || '',
-      image: overrides.cuisine[node.id] || node.image || '',
-      overridden: Boolean(overrides.cuisine[node.id]),
-    });
-  }
-  for (const node of buildTasteNodes()) {
-    rows.push({
-      kind: 'taste',
-      id: node.id,
-      name: node.name,
-      meta: node.meta,
-      href: node.href,
-      defaultImage: node.image || '',
-      image: overrides.taste[node.id] || node.image || '',
-      overridden: Boolean(overrides.taste[node.id]),
-    });
-  }
-  return rows;
-}
+/* ---------------- 摘要 ---------------- */
 
 function allDishes() {
   const map = new Map();
@@ -251,7 +212,6 @@ export async function handleAdmin(req, res, url) {
 
   /* 概览 */
   if (method === 'GET' && parts[0] === 'overview') {
-    const cards = cardRows();
     const ai = aiSummary();
     return send(res, 200, {
       ok: true,
@@ -260,11 +220,6 @@ export async function handleAdmin(req, res, url) {
         users: { total: countUsers() },
         posts: postStats(),
         reports: reportStats(),
-        cards: {
-          cuisine: cards.filter((c) => c.kind === 'cuisine').length,
-          taste: cards.filter((c) => c.kind === 'taste').length,
-          overridden: cards.filter((c) => c.overridden).length,
-        },
         dishes: { total: allDishes().length, overridden: listDishImages().length },
         ai: { activeName: ai.activeName, enabled: ai.enabled, model: ai.model, verified: ai.verified, total: ai.total },
       },
@@ -388,33 +343,6 @@ export async function handleAdmin(req, res, url) {
           note: '内容已被管理员删除',
         });
       }
-      return send(res, 200, { ok: true });
-    }
-  }
-
-  /* 首页卡片图片 */
-  if (parts[0] === 'cards') {
-    if (method === 'GET') {
-      return send(res, 200, { items: cardRows() });
-    }
-    if (method === 'POST' && parts.length === 1) {
-      const body = await readJson(req).catch(() => ({}));
-      const kind = body.kind === 'taste' ? 'taste' : body.kind === 'cuisine' ? 'cuisine' : '';
-      if (!kind) return send(res, 400, { error: '卡片类型不合法' });
-      const id = String(body.id || '');
-      const exists = kind === 'cuisine' ? CUISINE_BY_ID[id] : TASTE_BY_ID[id];
-      if (!exists) return send(res, 404, { error: '卡片不存在' });
-      const image = normalizeImageUrl(body.url);
-      if (!image) return send(res, 400, { error: '图片地址不合法' });
-      upsertCardImage({ kind, cardId: id, url: image, updatedBy: actor.id });
-      audit(actor, 'card.image', kind, id, { url: image });
-      return send(res, 200, { ok: true, kind, id, image });
-    }
-    if (method === 'DELETE' && parts.length === 3) {
-      const kind = parts[1] === 'taste' ? 'taste' : 'cuisine';
-      const id = String(parts[2] || '');
-      deleteCardImage(kind, id);
-      audit(actor, 'card.reset', kind, id, {});
       return send(res, 200, { ok: true });
     }
   }

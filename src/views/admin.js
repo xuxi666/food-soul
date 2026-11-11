@@ -17,7 +17,6 @@ import { openAuthModal } from '../components/account.js';
 const TABS = [
   { id: 'overview', label: '后台概览', en: 'OVERVIEW' },
   { id: 'posts', label: '社区内容', en: 'POSTS' },
-  { id: 'cards', label: '首页图片', en: 'CARDS' },
   { id: 'dishes', label: '美食图鉴', en: 'DISHES' },
   { id: 'siteai', label: '内置 AI', en: 'BUILT-IN AI' },
   { id: 'reports', label: '举报处理', en: 'REPORTS' },
@@ -34,7 +33,6 @@ const REPORT_STATUS = {
 const ADMIN_HINT = {
   overview: '数据库计数、内置 AI 与 Epicure 外部服务的真实状态',
   posts: '检索、查看详情、编辑正文、隐藏 / 恢复与删除',
-  cards: '替换首页菜系 / 口味配图（固定 16 个位置）',
   dishes: '搜索、按菜系筛选、查看详情与替换配图',
   siteai: '内置 AI 开关、服务商与 API 配置（Key 只存服务端）',
   reports: '待处理 → 处理中 → 已处理 / 驳回，处理说明写库',
@@ -144,8 +142,7 @@ export default {
         stat('注册用户', s.users?.total ?? 0, '登录账号'),
         stat('社区帖子', s.posts?.posts ?? 0, `评论 ${s.posts?.comments ?? 0}`),
         stat('待处理举报', s.reports?.pending ?? 0, `累计 ${s.reports?.total ?? 0}`, s.reports?.pending ? 'warn' : ''),
-        stat('首页图片', (s.cards?.cuisine || 0) + (s.cards?.taste || 0), `已替换 ${s.cards?.overridden || 0}`),
-        stat('图鉴菜品', s.dishes?.total ?? 0, `已替换 ${s.dishes?.overridden || 0}`),
+        stat('图鉴菜品', s.dishes?.total ?? 0, `已替换 ${s.dishes?.overridden ?? 0}`),
         stat('启用模型', aiStat.activeName || (aiStat.enabled ? '已开启' : '未启用'), aiStat.model || '内置 AI')
       ),
       h('p', { class: 'adm-side__label', text: '服务状态' }),
@@ -156,7 +153,6 @@ export default {
         { class: 'adm-quick' },
         quick('reports', '处理举报', `${s.reports?.pending ?? 0} 条待办`),
         quick('posts', '社区内容', '检索 / 隐藏'),
-        quick('cards', '首页配图', `${s.cards?.overridden || 0} 张已替换`),
         quick('siteai', '内置 AI', '开关与配置')
       ),
       h(
@@ -298,7 +294,6 @@ export default {
       animateIn();
       if (tab === 'overview') return renderOverview();
       if (tab === 'posts') return renderPosts();
-      if (tab === 'cards') return renderCards();
       if (tab === 'dishes') return renderDishes();
       if (tab === 'siteai') return renderSiteAI();
       if (tab === 'reports') return renderReports();
@@ -468,7 +463,6 @@ export default {
           stat('社区帖子', s.posts?.posts ?? 0, `评论 ${s.posts?.comments ?? 0}`),
           stat('待处理举报', s.reports?.pending ?? 0, `累计 ${s.reports?.total ?? 0}`, s.reports?.pending ? 'warn' : ''),
           stat('已处理 / 驳回', `${s.reports?.resolved ?? 0} / ${s.reports?.rejected ?? 0}`, '举报处置结果'),
-          stat('首页图片', (s.cards?.cuisine || 0) + (s.cards?.taste || 0), `菜系 ${s.cards?.cuisine ?? 0} · 口味 ${s.cards?.taste ?? 0} · 已替换 ${s.cards?.overridden ?? 0}`),
           stat('图鉴菜品', s.dishes?.total ?? 0, `已替换图片 ${s.dishes?.overridden ?? 0}`)
         )
       );
@@ -1016,107 +1010,7 @@ export default {
         }
       });
       return form;
-    }    /* ---------------- 首页卡片图片 ---------------- */
-
-    async function renderCards() {
-      content.append(loading());
-      let data;
-      try {
-        data = await api.admin.cards();
-      } catch (err) {
-        clear(content);
-        content.append(failed(err.message, renderCards));
-        return;
-      }
-      clear(content);
-
-      const group = (kind, title, hint) => {
-        const rows = data.items.filter((c) => c.kind === kind);
-        return h('section', { class: 'admin-card' },
-          h('div', { class: 'admin-card__head' },
-            h('h2', { class: 'admin-card__title', text: title }),
-            h('span', { class: 'admin-card__hint', text: hint })
-          ),
-          h('div', { class: 'admin-grid' }, ...rows.map((c) => cardTile(kind, c)))
-        );
-      };
-
-      content.append(
-        h('div', { class: 'admin-note' },
-          h('b', { text: '关于「排序 / 启用停用」' }),
-          h('p', {
-            text: '首页卡片是固定 16 个位置（8 菜系 + 8 口味），顺序来自 src/data/wheel.js，数据库只保存「这个位置用哪张图」，没有排序字段，也没有启用字段。因此后台不提供排序和启停按钮，以免做成假操作；换图与恢复默认是真实写库的。',
-          })
-        ),
-        group('cuisine', '八大菜系卡片', '首页「八大菜系」模式的卡片主图'),
-        group('taste', '八大口味卡片', '首页「口味探索」模式的卡片主图')
-      );
-    }
-
-    function cardTile(kind, c) {
-      const img = h('img', { class: 'admin-tile__img', src: c.image, alt: c.name, loading: 'lazy' });
-      const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif', hidden: true });
-      const stateEl = h('span', { class: 'admin-tile__state', text: c.overridden ? '已替换' : '默认图片' });
-
-      file.addEventListener('change', async () => {
-        const f = file.files?.[0];
-        file.value = '';
-        if (!f) return;
-        if (!/^image\/(jpeg|png|webp|gif)$/.test(f.type)) return toast('只支持 JPG / PNG / WebP / GIF', 'err');
-        if (f.size > 3 * 1024 * 1024) return toast('图片不能超过 3MB', 'err');
-        if (!confirm(`确认用这张图片替换「${c.name}」的卡片主图？`)) return;
-        try {
-          const dataUrl = await compressImage(f);
-          const up = await api.admin.upload(dataUrl);
-          await api.admin.saveCard({ kind, id: c.id, url: up.url });
-          img.src = up.url;
-          applyOverrideLocally({ kind, id: c.id, url: up.url });
-          stateEl.textContent = '已替换';
-          resetBtn.disabled = false; // 刚换上去的图，立刻可以恢复默认
-          toast(`「${c.name}」图片已更新`);
-        } catch (err) {
-          toast(err.message || '替换失败', 'err');
-        }
-      });
-
-      const resetBtn = h('button', {
-        class: 'btn btn--sm',
-        type: 'button',
-        disabled: !c.overridden,
-        onclick: async () => {
-          if (!confirm(`恢复「${c.name}」为默认图片？\n\n只会解除这一处的图片覆盖，已上传的文件不会被删除（避免误删其他地方正在用的图片）。`)) return;
-          try {
-            await api.admin.resetCard(kind, c.id);
-            applyOverrideLocally({ kind, id: c.id, url: '' });
-            toast('已恢复默认');
-            clear(content);
-            renderCards();
-          } catch (err) {
-            toast(err.message || '恢复失败', 'err');
-          }
-        },
-      }, '恢复默认');
-
-      return h('div', { class: 'admin-tile' },
-        h('div', { class: 'admin-tile__media' }, img),
-        h('div', { class: 'admin-tile__body' },
-          h('b', { text: c.name }),
-          h('span', { class: 'admin-tile__meta', text: `${kind === 'cuisine' ? '菜系卡片' : '口味卡片'} · 首页固定位置` }),
-          h('span', { class: 'admin-tile__path', text: c.image, title: c.image }),
-          h('div', { class: 'admin-tile__actions' },
-            h('button', { class: 'btn btn--sm btn--gold', type: 'button', onclick: () => file.click() }, '更换图片'),
-            resetBtn
-          ),
-          stateEl,
-          c.href
-            ? h('a', { class: 'admin-tile__link', href: c.href, target: '_blank', rel: 'noopener' }, '前台查看')
-            : null
-        ),
-        file
-      );
-    }
-
-    /* ---------------- 美食图鉴 ---------------- */
+    }    /* ---------------- 美食图鉴 ---------------- */
 
     let dishQ = '';
     let dishPage = 1;

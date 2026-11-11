@@ -44,8 +44,8 @@ const stamp = Date.now();
 /* ---------- 1. 匿名 ---------- */
 const anonOverview = await req('/api/admin/overview');
 check('未登录访问后台接口返回 401', anonOverview.status === 401, `HTTP ${anonOverview.status}`);
-const anonCards = await req('/api/admin/cards');
-check('未登录读取卡片配置返回 401', anonCards.status === 401, `HTTP ${anonCards.status}`);
+const anonDishes = await req('/api/admin/dishes');
+check('未登录读取图鉴配置返回 401', anonDishes.status === 401, `HTTP ${anonDishes.status}`);
 const anonDelete = await req('/api/admin/posts/seed-post-1', { method: 'DELETE' });
 check('未登录删除帖子返回 401', anonDelete.status === 401, `HTTP ${anonDelete.status}`);
 
@@ -59,8 +59,8 @@ const normalOverview = await req('/api/admin/overview', { cookie: normal.cookie 
 check('普通用户访问概览返回 403', normalOverview.status === 403, `HTTP ${normalOverview.status}`);
 const normalDelete = await req('/api/admin/posts/seed-post-1', { method: 'DELETE', cookie: normal.cookie });
 check('普通用户删除帖子返回 403', normalDelete.status === 403, `HTTP ${normalDelete.status}`);
-const normalCard = await req('/api/admin/cards', { method: 'POST', cookie: normal.cookie, body: { kind: 'cuisine', id: 'chuan', url: '/dishes/mapo-tofu.jpg' } });
-check('普通用户改卡片图片返回 403', normalCard.status === 403, `HTTP ${normalCard.status}`);
+const normalDish = await req('/api/admin/dishes', { method: 'POST', cookie: normal.cookie, body: { id: 'mapo-tofu', url: '/dishes/mapo-tofu.jpg' } });
+check('普通用户改菜品图片返回 403', normalDish.status === 403, `HTTP ${normalDish.status}`);
 const normalUpload = await req('/api/admin/upload', { method: 'POST', cookie: normal.cookie, body: { image: PNG } });
 check('普通用户调用管理上传返回 403', normalUpload.status === 403, `HTTP ${normalUpload.status}`);
 
@@ -71,8 +71,9 @@ check('管理员 role 为 admin', admin.user?.role === 'admin', String(admin.use
 
 const overview = await req('/api/admin/overview', { cookie: admin.cookie });
 check('管理员可读概览', overview.status === 200 && Boolean(overview.data?.stats), `HTTP ${overview.status}`);
-check('概览包含帖子/举报/卡片/菜品统计',
-  Boolean(overview.data?.stats?.posts && overview.data?.stats?.reports && overview.data?.stats?.cards && overview.data?.stats?.dishes));
+check('概览包含帖子/举报/菜品统计，且不再有卡片统计',
+  Boolean(overview.data?.stats?.posts && overview.data?.stats?.reports && overview.data?.stats?.dishes) &&
+    overview.data?.stats?.cards === undefined);
 
 /* ---------- 4. 社区管理 ---------- */
 const postText = `后台测试帖 ${stamp}`;
@@ -96,35 +97,20 @@ check('删除后前台列表不再出现', !(publicList.data?.items || []).some(
 const detailAfter = await req(`/api/admin/posts/${postId}`, { cookie: admin.cookie });
 check('软删除保留原记录（可审计）', detailAfter.data?.post?.deletedAt > 0, `deletedAt=${detailAfter.data?.post?.deletedAt}`);
 
-/* ---------- 5. 首页卡片图片 ---------- */
-const cards = await req('/api/admin/cards', { cookie: admin.cookie });
-check('卡片列表含 8 菜系 + 8 口味', cards.status === 200 && cards.data.items.filter((c) => c.kind === 'cuisine').length === 8 && cards.data.items.filter((c) => c.kind === 'taste').length === 8,
-  `cuisine=${cards.data?.items?.filter((c) => c.kind === 'cuisine').length} taste=${cards.data?.items?.filter((c) => c.kind === 'taste').length}`);
+/* ---------- 5. 首页图片功能已下线 ---------- */
+const cardsGone = await req('/api/admin/cards', { cookie: admin.cookie });
+check('首页图片列表接口已下线（404）', cardsGone.status === 404, `HTTP ${cardsGone.status}`);
 
-const chuan = cards.data.items.find((c) => c.kind === 'cuisine' && c.id === 'chuan');
-const targetUrl = chuan.defaultImage;
+const cardsPostGone = await req('/api/admin/cards', { method: 'POST', cookie: admin.cookie, body: { kind: 'cuisine', id: 'chuan', url: '/dishes/mapo-tofu.jpg' } });
+check('首页卡片保存接口已下线（404）', cardsPostGone.status === 404, `HTTP ${cardsPostGone.status}`);
 
-const saveCard = await req('/api/admin/cards', { method: 'POST', cookie: admin.cookie, body: { kind: 'cuisine', id: 'chuan', url: targetUrl } });
-check('管理员保存菜系卡片图片', saveCard.status === 200, `HTTP ${saveCard.status}`);
+const cardsResetGone = await req('/api/admin/cards/cuisine/chuan', { method: 'DELETE', cookie: admin.cookie });
+check('首页卡片恢复接口已下线（404）', cardsResetGone.status === 404, `HTTP ${cardsResetGone.status}`);
 
 const overrides = await req('/api/assets/overrides');
-check('公开覆盖接口返回该卡片', overrides.data?.cards?.cuisine?.chuan === targetUrl, JSON.stringify(overrides.data?.cards?.cuisine));
-
-const badCard = await req('/api/admin/cards', { method: 'POST', cookie: admin.cookie, body: { kind: 'cuisine', id: 'chuan', url: '/../../etc/passwd' } });
-check('非法图片路径被拒绝', badCard.status === 400, `HTTP ${badCard.status} ${badCard.data?.error || ''}`);
-
-const badKind = await req('/api/admin/cards', { method: 'POST', cookie: admin.cookie, body: { kind: 'hack', id: 'chuan', url: targetUrl } });
-check('非法卡片类型被拒绝', badKind.status === 400, `HTTP ${badKind.status}`);
-
-// 只影响目标卡片
-const tasteNodes = await req('/api/admin/cards', { cookie: admin.cookie });
-const tasteOverride = tasteNodes.data.items.filter((c) => c.kind === 'taste' && c.overridden);
-check('替换菜系不影响口味卡片', tasteOverride.length === 0, `口味已覆盖 ${tasteOverride.length} 个`);
-
-const resetCard = await req('/api/admin/cards/cuisine/chuan', { method: 'DELETE', cookie: admin.cookie });
-check('恢复默认卡片图片', resetCard.status === 200);
-const afterReset = await req('/api/assets/overrides');
-check('恢复后覆盖消失', !afterReset.data?.cards?.cuisine?.chuan);
+check('公开覆盖接口只剩菜品、不再返回 cards',
+  overrides.status === 200 && Boolean(overrides.data?.dishes) && overrides.data?.cards === undefined,
+  JSON.stringify(Object.keys(overrides.data || {})));
 
 /* ---------- 6. 美食图鉴 ---------- */
 const dishes = await req('/api/admin/dishes?q=麻婆&page=1', { cookie: admin.cookie });

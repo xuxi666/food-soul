@@ -174,10 +174,6 @@ export const api = {
         headers: JSON_HEADERS,
         body: JSON.stringify({ reason }),
       }),
-    cards: () => jsonFetch('/api/admin/cards'),
-    saveCard: (payload) =>
-      jsonFetch('/api/admin/cards', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
-    resetCard: (kind, id) => jsonFetch(`/api/admin/cards/${kind}/${id}`, { method: 'DELETE' }),
     dishes: ({ q = '', page = 1, pageSize = 12, cuisine = '' } = {}) =>
       jsonFetch(
         `/api/admin/dishes?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}` +
