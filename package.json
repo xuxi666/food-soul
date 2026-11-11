@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "three": "^0.160.0",
     "zod": "^4.6.7"
   },
   "engines": {

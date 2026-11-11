@@ -1,6 +1,5 @@
 import { clear } from './lib/dom.js';
 import { syncNavActive } from './lib/nav-active.js';
-import home from './views/home.js';
 import chat from './views/chat.js';
 import recipe from './views/recipe.js';
 import kitchen from './views/kitchen.js';
@@ -24,7 +23,7 @@ let active = null;
 let renderToken = 0;
 
 const ROUTES = [
-  { name: 'home', re: /^\/$/, mod: home },
+  // 首页（/）由画册外壳直接接管，不经过路由；这里只登记站内页。
   { name: 'cuisine', re: /^\/cuisines\/([\w-]+)$/, mod: cuisine },
   { name: 'taste', re: /^\/tastes\/([\w-]+)$/, mod: taste },
   { name: 'chatCategory', re: /^\/chat\/(cuisine|taste)\/([\w-]+)$/, mod: chat },

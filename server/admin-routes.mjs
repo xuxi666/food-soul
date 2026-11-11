@@ -283,7 +283,9 @@ export async function handleAdmin(req, res, url) {
     const wantProbe = url.searchParams.get('probe') === '1';
     let epicure = epicureSummary();
     if (wantProbe) {
-      const result = await diagnoseEpicure({ timeoutMs: 8000, toolProbe: true });
+      // 外部 MCP 在高峰期「握手 + 工具调用」会接近 8 秒，这里放宽到 12 秒再判超时，
+      // 避免把「慢」误报成「不可用」；真实耗时仍如实显示在概览里。
+      const result = await diagnoseEpicure({ timeoutMs: 12000, toolProbe: true });
       recordServiceHealth('epicure', {
         ...result,
         detail: {

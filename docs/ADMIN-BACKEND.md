@@ -64,8 +64,8 @@ DOM 一直在（`.admin-content` 有宽高、数据也渲染了），但容器�
 ## 6. 首页图片的前台消费
 
 `/api/assets/overrides` → `src/lib/overrides.js` → `setCardOverrides()` → `buildCuisineNodes()/buildTasteNodes().image`。
-菜系/口味卡图由 `src/views/home.js` 的 WebGL 转盘消费；当前画册入口（封面 → 目录 → 章节）不呈现该转盘，
-所以后台换图只能验证到「数据层 + 前台接口」，**渲染层在画册版式里没有可见位置**（记录为限制，未伪造截图）。
+菜系/口味卡图原本由首页的 WebGL 转盘（`src/views/home.js` + `src/gallery.js`）消费；这两个文件已于 2026-11-11 随淘汰代码删除，
+所以后台换卡图现在只能验证到「数据层 + 前台接口」，**渲染层在站内已没有消费面**（记录为限制，未伪造截图）。
 菜品换图则真实可见：菜系页与菜品详情页都读同一份 `DISHES.image`。
 
 ## 7. 复现测试

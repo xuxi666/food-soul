@@ -4,7 +4,6 @@
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933)](https://nodejs.org/)
 [![Vite](https://img.shields.io/badge/vite-5-646CFF)](https://vitejs.dev/)
-[![Three.js](https://img.shields.io/badge/three-0.160-000000)](https://threejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#许可)
 
 ## 这是什么
@@ -44,7 +43,7 @@
 
 ## 技术栈
 
-- **前端**：Vite 5 + 原生 ES Modules + Three.js 0.160（无框架）
+- **前端**：Vite 5 + 原生 ES Modules（无框架）
 - **后端**：Node.js 原生 `http`，无 Express
 - **数据库**：`node:sqlite`（Node ≥ 22.5 内置），单文件 `data/foodsoul.db`
 - **加密**：`node:crypto` —— scrypt 密码哈希、AES-256-GCM 密钥加密
@@ -154,7 +153,7 @@ ADMIN_EMAILS=you@example.com,another@example.com
 
 **移动端**：单页模式下整页可滚动，导航改竖列、统计三列，`退出登录` 与全部功能都可达（1440 / 834 / 390 三档均有回归测试）。
 
-图片替换写入 `card_images` / `dish_images` 表，前端启动时通过 `GET /api/assets/overrides` 拉取并覆盖本地数据源：菜品图在菜系页与详情页真实可见。菜系 / 口味卡图由首页的 WebGL 转盘消费，而当前画册入口（封面 → 目录 → 章节）不呈现该转盘，所以后台换卡图目前只能验证到「数据层已生效」，前台没有可见落点——这一点在后台页面与 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md) 里都如实标注。
+图片替换写入 `card_images` / `dish_images` 表，前端启动时通过 `GET /api/assets/overrides` 拉取并覆盖本地数据源：菜品图在菜系页与详情页真实可见。菜系 / 口味卡图原本由首页的 3D 转盘消费，该页面已删除，所以后台换卡图目前只能验证到「数据层已生效」，前台没有可见落点——这一点在后台页面与 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md) 里都如实标注。
 
 
 ### 内置 AI（全站统一模型）
@@ -293,7 +292,6 @@ node scripts/diagnose-search.mjs
 ├── src/
 │   ├── main.js           启动、路由、账号组件挂载
 │   ├── book/             画册外壳：章节、纸张、翻页、书签、双页拆分
-│   ├── gallery.js        历史组件：Three.js 环形画廊（当前画册版式未挂载）
 │   ├── lib/              转场、剪贴板、图片覆盖层、DOM 工具
 │   ├── views/            各页面（含 admin.js 后台）
 │   ├── data/             菜品、菜系、味型、人格数据
@@ -319,7 +317,7 @@ node scripts/diagnose-search.mjs
 - 未实现邮箱验证、找回密码、双因素登录。
 - HTTP 环境下 `crypto.randomUUID` 与 `navigator.clipboard` 不可用，已在 `src/lib/clipboard.js` 做回退。
 - 后台只覆盖「已经存在的数据模型」：没有待审核队列、卡片排序/启停、菜品增删改、用户管理、独立审计页——这些在页面上会明确说明，而不是放无效按钮。
-- 3D 环形画廊（`src/gallery.js`，Three.js）是历史组件，当前画册版式没有挂载它的入口；因此首页卡图覆盖只在数据层生效，前台无可见落点。
+- 首页卡图覆盖（`card_images`）目前没有前台消费面：原来消费它的 3D 转盘页面已随淘汰代码删除，后台仍可维护数据，但站点不再渲染菜系/口味卡图。
 - 后台写接口统一用 `readJson(req).catch(() => ({}))`，非法 JSON / 413 会被当成空对象，存在静默失败风险（待单独修）。
 - Epicure 的 `analyze / pair / create` 只有服务端接口，尚未接入后台。
 
