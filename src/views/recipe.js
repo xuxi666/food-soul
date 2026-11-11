@@ -3,6 +3,7 @@ import { epicurePanel } from '../components/epicure-panel.js';
 import { api } from '../lib/api.js';
 import { copyText } from '../lib/clipboard.js';
 import { DISHES, DISH_BY_ID, DIFFICULTY_LABEL } from '../data/dishes.js';
+import { RECIPE_NAV_EVENT, consumeRecipeNav } from '../book/recipe-nav.js';
 import { TASTES, CUISINE_BY_ID } from '../data/cuisines.js';
 
 const HEAT_LABEL = { low: '小火', medium: '中火', high: '大火' };
@@ -756,8 +757,77 @@ export default {
       }
     });
 
-    // 带参数进入时只回填名称，由用户点「生成菜谱」再触发（不自动发请求）
+    /*
+     * ---------------- 菜名自动填充（全站「生成菜谱」统一入口） ----------------
+     *
+     * 填的是页面上原有的这个 input，不新建字段、不重复加一项。
+     * 只填菜名：口味、菜系、食材、难度这些用户已经调好的参数一律不动。
+     * 填完绝不自动生成——必须用户自己点「生成菜谱」。
+     */
+    let lastPrefillAt = 0;
 
-    return { destroy() {} };
+    function applyPrefill(task) {
+      const name = String(task?.dishName || '').trim().slice(0, 30);
+      if (!name) return false;
+      dishInput.value = name;
+      dishInput.dataset.autofilled = '1';
+      dishInput.dataset.fillSource = 'nav';   // 来自「生成菜谱」那一下
+      lastPrefillAt = Date.now();
+      fieldError.hidden = true;
+      fieldHint.textContent = `已按「${name}」预填菜名：可继续调整条件，确认后点「生成菜谱」。`;
+      return true;
+    }
+
+    /*
+     * 两条来源：
+     * 1. 统一导航任务（用户刚点的那一下；一次性消费，消费后立刻失效）；
+     * 2. 地址参数（刷新 / 分享链接 / 独立页整页进入时兜底）。
+     */
+    const bootTask = consumeRecipeNav();
+    if (bootTask) {
+      applyPrefill(bootTask);
+    } else if (presetName) {
+      dishInput.dataset.autofilled = '1';
+      dishInput.dataset.fillSource = 'url';   // 来自地址（刷新 / 分享链接），不该被收回
+      fieldHint.textContent = `已按「${presetName}」预填菜名：可继续调整条件，确认后点「生成菜谱」。`;
+    }
+
+    /* 画册翻页落地后再进来的一次性回填：模块已挂载时也要能收到 */
+    const onRecipeNav = (event) => {
+      const task = consumeRecipeNav(event?.detail?.navigationId);
+      if (task) applyPrefill(task);
+    };
+    window.addEventListener(RECIPE_NAV_EVENT, onRecipeNav);
+
+    /* 用户自己打过字：这一格就不再算「自动填的」，后面也不该被收回 */
+    dishInput.addEventListener('input', () => {
+      dishInput.dataset.autofilled = '0';
+    });
+
+    /*
+     * 从书签 / 目录普通进入菜谱章（不是「生成菜谱」带过来的）：
+     * 把上一次自动填进去的菜名收回去，书签入口不该带着上一道菜。
+     * 用户自己改过的名字不动。
+     */
+    const onPlainEnter = () => {
+      // 删的是「上一次生成菜谱留下」的名字；地址参数带来的名字属于当前地址，保留
+      if (dishInput.dataset.fillSource === 'url') return;
+      // 刚被「生成菜谱」回填过（落地与派发在同一拍）：这一下不算普通进入
+      if (Date.now() - lastPrefillAt < 2000) return;
+      if (dishInput.dataset.autofilled !== '1') return;
+      dishInput.value = '';
+      dishInput.dataset.autofilled = '0';
+      dishInput.dataset.fillSource = '';
+      fieldHint.textContent = '';
+      fieldError.hidden = true;
+    };
+    window.addEventListener('foodsoul:recipe-enter', onPlainEnter);
+
+    return {
+      destroy() {
+        window.removeEventListener(RECIPE_NAV_EVENT, onRecipeNav);
+        window.removeEventListener('foodsoul:recipe-enter', onPlainEnter);
+      },
+    };
   },
 };

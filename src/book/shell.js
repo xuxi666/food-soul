@@ -5,13 +5,30 @@
 import { h } from '../lib/dom.js';
 import { createFoodWall } from './foodwall.js';
 
+/* 正式封面：水墨山水 + 食材 + 金色边框，原图直接上书面，不做任何裁切与重绘 */
+const COVER_ART = '/bg/food-soul-book-cover.png';
+
 export function createShell(root) {
   /* 书签接口由 index.js 挂载（书签需要知道章节对应第几页，那时才有页面库） */
   let markApi = null;
   /* ---------- 封面 ---------- */
+  /*
+   * 封面正面：正式封面原图整张铺在书面上（object-fit: contain，不裁切、不拉伸）。
+   * 原来用 CSS 画的标题 / 边框 / 云纹仍然保留在 DOM 里，由 .bk-cover__front--art 隐藏，
+   * 将来要回退这套封面，去掉那个类即可，不必改结构。
+   */
   const coverFront = h(
     'div',
-    { class: 'bk-cover__front' },
+    { class: 'bk-cover__front bk-cover__front--art' },
+    h('img', {
+      class: 'bk-cover__art',
+      src: COVER_ART,
+      alt: '',
+      'aria-hidden': 'true',
+      decoding: 'async',
+      fetchpriority: 'high',
+    }),
+    h('p', { class: 'bk-cover__tap', text: '轻点封面 · 翻开画册' }),
     h(
       'div',
       { class: 'bk-cover__frame' },
@@ -104,12 +121,20 @@ export function createShell(root) {
     h('span', { class: 'bk-catalog-btn__label', text: '目录' })
   );
 
-  /* ---------- 合上画册 ---------- */
+  /* ---------- 返回（上一页 / 上一模块，不合书） ---------- */
   const backBtn = h(
     'button',
-    { class: 'bk-back', type: 'button', 'aria-label': '合上画册' },
+    { class: 'bk-back', type: 'button', 'aria-label': '返回上一页' },
     h('span', { class: 'bk-back__icon', 'aria-hidden': 'true' }, '←'),
-    h('span', { class: 'bk-back__label', text: '合上' })
+    h('span', { class: 'bk-back__label', text: '返回' })
+  );
+
+  /* ---------- 合上画册（唯一的合书入口） ---------- */
+  const shutBtn = h(
+    'button',
+    { class: 'bk-catalog-btn bk-shut', type: 'button', 'aria-label': '合上画册' },
+    h('span', { class: 'bk-catalog-btn__icon', 'aria-hidden': 'true' }, '⤡'),
+    h('span', { class: 'bk-catalog-btn__label', text: '合上' })
   );
 
   /*
@@ -134,6 +159,7 @@ export function createShell(root) {
     camera,
     tools,
     catalogBtn,
+    shutBtn,
     backBtn
   );
 
@@ -158,6 +184,7 @@ export function createShell(root) {
     sealBtn,
     sealPanel,
     catalogBtn,
+    shutBtn,
     backBtn,
     setActive(id) {
       markApi?.setActive(id);

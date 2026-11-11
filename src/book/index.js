@@ -24,10 +24,27 @@ import './category.css';
 import './catalog.css';
 import './videos.css';
 import { closeAllOverlays } from './overlay.js';
+import {
+  RECIPE_NAV_EVENT,
+  peekRecipeNav,
+  recipeHref,
+  setRecipeNavigator,
+} from './recipe-nav.js';
+import {
+  cancelRevisit,
+  currentEntry,
+  expectRevisit,
+  historyState,
+  moduleNameOf,
+  previousEntry,
+  recordNavigation,
+  restoreCursor,
+  revisitPending,
+} from './nav.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function initBook({ root }) {
+export function initBook({ root, routerApi = null }) {
   document.body.classList.add('is-book');
   const shell = createShell(root);
   let lastBox = null;
@@ -107,6 +124,11 @@ export function initBook({ root }) {
   // CLOSED_TILTED → OPENING（回正 + 掀封面，同帧启动）→ EXPANDING → READING
   const OPEN_MS = 1300;
   const CHROME_MS = 760;
+  /**
+   * 「生成菜谱」入口的翻页时长：比通用翻页（TURN_MS 680ms）快 30%。
+   * 只作用于菜谱统一导航；书签翻章、普通翻页仍是 TURN_MS。
+   */
+  const RECIPE_TURN_MS = Math.round(TURN_MS * 0.7);
   let phase = 'CLOSED_TILTED';
   let bookStateClass = 'bk-book--closed';
   /* 开书动画进入「页已摊开」阶段后为 true：书签据此落到各自绑定的纸张上 */
@@ -162,6 +184,38 @@ export function initBook({ root }) {
   });
   const sheets = createSheets(shell.content);
 
+  /* 统一导航层的状态（书签 / 返回 / 站内页共用） */
+  let suppressHistory = false;   // 站内页回来时的中间落位不入历史
+  let parkedSite = null;         // 寄存中的站内页（聊天）
+  let pendingReenter = null;     // 忙时的最后一次书签请求
+  let backRetry = 0;
+  let lastChromeChapter = null;   // 上一次落地的章节：只在「真的换章」时通知模块
+
+  /** 中间落位（换纸 / 翻页中）不记历史；可嵌套，内层结束不提前恢复 */
+  async function withoutHistory(fn) {
+    const prev = suppressHistory;
+    suppressHistory = true;
+    try {
+      return await fn();
+    } finally {
+      suppressHistory = prev;
+    }
+  }
+
+  /** 每次落到新页面记一笔历史：模块 + 地址 + 参数 + 内部状态 + 滚动位置 */
+  function recordBookVisit(chapterId) {
+    if (mode !== 'open') return;
+    const id = inner ? innerKind || 'dishDetail' : chapterId;
+    recordNavigation({
+      moduleId: id,
+      moduleName: moduleNameOf(id),
+      route: location.pathname + location.search,
+      params: { chapter: chapterId, spread: position.value, single: position.single },
+      pageState: { inner: !!inner, single: position.single },
+      scrollPosition: window.scrollY || 0,
+    });
+  }
+
   /*
    * 章节书签：一枚书签绑一张真实的纸。
    * anchorPage 取的是这一章第一跨页的「右页」（2*spread+3）——
@@ -185,7 +239,8 @@ export function initBook({ root }) {
         anchorPage: spread * 2 + 3,
       };
     }),
-    onPick: (spec) => void openChapter(spec.id),
+    // 书签：统一走 goBookmark（书开着就翻页；站内页上先把纸张挂回来再翻）
+    onPick: (spec) => void goBookmark(spec),
   });
   shell.attachMarks(marks);
   marksApi = marks;
@@ -377,6 +432,13 @@ export function initBook({ root }) {
       const href = chapterHrefOfPage(position.single ? position.value : position.value * 2 + 2, ch);
       if (href && location.pathname !== href) history.replaceState({ path: href }, '', href);
     }
+    if (!suppressHistory) recordBookVisit(chapterId);
+    // 普通进入菜谱章（书签 / 目录 / 翻页）：如果输入框里是上一次「生成菜谱」留下的名字，
+    // 通知菜谱页收回去 —— 书签进入不该带着上一道菜（用户自己改过的名字不受影响）
+    if (chapterId === 'recipe' && chapterId !== lastChromeChapter && !inner && !peekRecipeNav()) {
+      window.dispatchEvent(new CustomEvent('foodsoul:recipe-enter', { detail: { chapter: chapterId } }));
+    }
+    lastChromeChapter = chapterId;
     return list;
   }
 
@@ -391,13 +453,17 @@ export function initBook({ root }) {
     return ch.href;
   }
 
+  /**
+   * 返回按钮只负责「上一页 / 上一模块」，永远不合书：
+   * 合书是独立的「合上」按钮，两者不再共用同一个行为。
+   */
   function updateBackLabel() {
     const label = shell.backBtn.querySelector('.bk-back__label');
     const isAdmin = currentKey === 'admin';
-    const isDetail = currentKey === 'dishDetail';
-    shell.backBtn.dataset.action = isAdmin ? 'admin-back' : isDetail ? 'gallery' : 'close';
-    shell.backBtn.setAttribute('aria-label', isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '合上画册');
-    if (label) label.textContent = isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '合上';
+    const isDetail = currentKey === 'dishDetail' && !bookDomGone();
+    shell.backBtn.dataset.action = isAdmin ? 'admin-back' : 'back';
+    shell.backBtn.setAttribute('aria-label', isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '返回上一页');
+    if (label) label.textContent = isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '返回';
   }
 
   /* ---------------- 开书 ---------------- */
@@ -509,11 +575,12 @@ export function initBook({ root }) {
       inner = entry;
       innerKind = info.key;
       position = { single: lastBox.mode === 'single', value: lastBox.mode === 'single' ? 2 : 0 };
-      await render();
+      // 内页要先换纸、再把地址改成自己的：中间那一帧不单独记历史，避免同一页记两次
+      await withoutHistory(() => render());
       // 开书 / 换纸过程中 syncChrome 会把地址写成章节路径，内页要把自己的地址写回来
       if (location.pathname + location.search !== path) history.replaceState({ path }, '', path);
       syncChrome();
-      return;
+      return true;
     }
 
     const target = book.spreadOfPath(path);
@@ -533,7 +600,8 @@ export function initBook({ root }) {
         if (turned) {
           position = { single, value };
           await render();
-          return;
+          syncChrome();
+          return true;
         }
       } finally {
         busy = false;
@@ -546,6 +614,8 @@ export function initBook({ root }) {
     innerKind = null;
     position = { single, value };
     await render();
+    syncChrome();
+    return true;
   }
 
   /**
@@ -671,7 +741,7 @@ export function initBook({ root }) {
    * @param {number} fromValue    此刻屏幕停在哪一跨页
    * @returns {Promise<boolean>}  是否真的翻了（false 时调用方走原来的硬切）
    */
-  async function flipFromDetailTo(targetSpread, fromValue) {
+  async function flipFromDetailTo(targetSpread, fromValue, ms = TURN_MS) {
     if (position.single || targetSpread <= fromValue) return false;
     const left = await book.pageByNumber(targetSpread * 2 + 2);
     const right = await book.pageByNumber(targetSpread * 2 + 3);
@@ -694,7 +764,7 @@ export function initBook({ root }) {
     const gone = inner;
     inner = null;
     innerKind = null;
-    const ok = await sheets.turn('next', { resolve: resolvePage, spread: targetSpread - 1, single: false });
+    const ok = await sheets.turn('next', { resolve: resolvePage, spread: targetSpread - 1, single: false, ms });
     if (gone) void book.disposeInner(gone);
     return ok;
   }
@@ -730,8 +800,9 @@ export function initBook({ root }) {
       await openFirst(target);
       if (mode !== 'open') return;
       history.replaceState({ chapter: id }, '', location.pathname.startsWith(href) ? location.href : href);
+      syncChrome();
       flushPendingChapter();
-      return;
+      return true;
     }
     busy = true;
     try {
@@ -741,11 +812,12 @@ export function initBook({ root }) {
       inner = null;
       if (position.single !== single) position = { single, value: single ? (position.value * 2 + 2) : Math.floor((position.value - 2) / 2) };
 
-      // 已经就在目标分类上（例如连点两下同一枚书签）：换内容即可，不假装翻一页
-      if (position.value === targetValue) {
-        await prefillFaces();
-        syncChrome();
-      } else {
+      await withoutHistory(async () => {
+        // 已经就在目标分类上（例如连点两下同一枚书签）：换内容即可，不假装翻一页
+        if (position.value === targetValue) {
+          await prefillFaces();
+          return;
+        }
         let steps = 0;
         const maxSteps = 3;
         while (position.value !== targetValue && steps < maxSteps) {
@@ -760,12 +832,405 @@ export function initBook({ root }) {
           position = { single, value: targetValue };
           await render();
         }
-      }
+      });
       history.pushState({ chapter: id }, '', location.pathname === href ? location.href : href);
+      // 翻页途中的中间跨页不算「访问过的模块」：落地后只记这一条
+      syncChrome();
+      return true;
     } finally {
       busy = false;
       flushPendingChapter();
     }
+  }
+
+  /* ---------------- 「生成菜谱」统一导航（画册侧） ---------------- */
+
+  /** 书忙时先存着的那一条：只保留最后一次点击 */
+  let pendingRecipeNav = null;
+
+  function dispatchRecipeNav(payload) {
+    window.dispatchEvent(new CustomEvent(RECIPE_NAV_EVENT, { detail: payload }));
+  }
+
+  /**
+   * 开书 / 翻页还没走完：先排队，书闲下来再执行最后一次；
+   * 超过约 4 秒还忙就放弃并记一笔，避免死等。
+   */
+  function queueRecipeNav(payload, attempt = 0) {
+    pendingRecipeNav = payload;
+    const run = (n) => {
+      if (!pendingRecipeNav) return;
+      if (busy) {
+        if (n >= 45) {
+          pendingRecipeNav = null;
+          console.warn('[recipe-nav] 画册长时间忙碌，放弃本次菜名导航');
+          return;
+        }
+        window.setTimeout(() => run(n + 1), 90);
+        return;
+      }
+      const next = pendingRecipeNav;
+      pendingRecipeNav = null;
+      void goRecipeModule(next);
+    };
+    window.setTimeout(() => run(attempt), 90);
+  }
+
+  /**
+   * 全站「生成菜谱」的画册实现（由 recipe-nav 注册，入口不直接调它）。
+   *
+   * - 书合着：按章节注册信息取出菜谱章跨页，走一次原有开书动画，落地就在菜谱页；
+   * - 书开着：走画册自己的翻页（render({animate}) 一页一页翻，纸页 / 中缝都在）；
+   * - 落地后写地址（带 dish / name / from，刷新与分享都能回填）并派发一次性任务。
+   */
+  async function goRecipeModule(payload) {
+    if (!payload) return;
+    /* 从图鉴浮层点过来：先收起浮层，别让它压在菜谱页上 */
+    closeAllOverlays();
+    const href = recipeHref(payload);
+    const land = () => {
+      if (location.pathname + location.search !== href) history.pushState({ path: href }, '', href);
+      dispatchRecipeNav(payload);
+    };
+
+    if (mode === 'closed') {
+      if (busy || phase !== 'CLOSED_TILTED') {
+        queueRecipeNav(payload);
+        return;
+      }
+      await openFirst(book.spreadOfChapter('recipe'));
+      if (mode !== 'open') {
+        queueRecipeNav(payload);
+        return;
+      }
+      land();
+      return;
+    }
+
+    if (busy) {
+      queueRecipeNav(payload);
+      return;
+    }
+
+    busy = true;
+    try {
+      const single = lastBox.mode === 'single';
+      const target = book.spreadOfChapter('recipe');
+
+      /*
+       * 从菜品详情（内页 / 图鉴浮层）过来时走原有那条专门路径：
+       * 只翻一页，翻起来那张纸的背面就是菜谱页，落地即到 —— 一次动画，最自然。
+       */
+      if (!single && inner && target > position.value) {
+        const turned = await flipFromDetailTo(target, position.value, RECIPE_TURN_MS);
+        if (turned) {
+          position = { single, value: target };
+          await render();
+          syncChrome();
+          land();
+          return;
+        }
+      }
+
+      const targetValue = single ? target * 2 + 2 : target;
+      void book.disposeInner(inner);
+      inner = null;
+      innerKind = null;
+      if (position.single !== single) {
+        position = { single, value: single ? position.value * 2 + 2 : Math.floor((position.value - 2) / 2) };
+      }
+
+      if (position.value === targetValue) {
+        await prefillFaces();
+      }
+      let steps = 0;
+      while (position.value !== targetValue && steps < 3) {
+        /* 每翻一页之前把正反面重贴一次：翻起来那张纸的背面就是菜谱页 */
+        await prefillFaces();
+        const dir = targetValue > position.value ? 'next' : 'prev';
+        const ok = await render({ animate: dir, ms: RECIPE_TURN_MS });
+        if (!ok) break;
+        steps += 1;
+      }
+      if (position.value !== targetValue) {
+        position = { single, value: targetValue };
+        await render();
+      }
+      syncChrome();
+
+      /*
+       * 无条件落地：地址带上本次菜名参数（刷新 / 分享都能回填），并派发一次性任务。
+       * 任务可能已经在菜谱模块挂载时被消费掉（首次进入），此时事件是空操作；
+       * 页面已缓存时则由这次事件回填。点了别的菜的旧任务会被 navigationId 挡掉。
+       */
+      land();
+    } finally {
+      busy = false;
+    }
+  }
+
+  /* ============================================================
+   * 统一导航层：书签 / 返回 / 合上 / 站内页（聊天）
+   * 书签最高优先级 —— 书开着时任何模块都能直接翻过去；
+   * 返回只回上一页 / 上一模块，不再合书；合书只认「合上」按钮。
+   * ============================================================ */
+
+  function moduleIdOfRoute(route) {
+    const p = String(route || '').split('?')[0];
+    return p.startsWith('/chat') ? 'chat' : 'site';
+  }
+
+  /** 站内页（聊天等）本身也是历史里的一层 */
+  function recordSiteVisit(route) {
+    const id = moduleIdOfRoute(route);
+    return recordNavigation({
+      moduleId: id,
+      moduleName: moduleNameOf(id),
+      route,
+      params: {},
+      pageState: {},
+      scrollPosition: window.scrollY || 0,
+      site: true,
+    });
+  }
+
+  /** 收进寄存盒：DOM 与视图实例都留着 —— 聊天记录、正在流式生成的回复都不会断 */
+  function stashSitePage(route, nodes, instance) {
+    const box = h('div', { class: 'bk-parked', 'aria-hidden': 'true' });
+    box.hidden = true;
+    for (const node of nodes) {
+      node.classList.remove('is-park-leaving', 'is-park-out');
+      box.append(node);
+    }
+    document.body.append(box);
+    parkedSite = { route, box, instance, at: Date.now() };
+    return parkedSite;
+  }
+
+  /** 立即整页寄存（合书这种没有翻页过程的路径） */
+  function parkSitePage(route) {
+    const nodes = [...shell.content.children];
+    const instance = routerApi?.park?.() ?? null;
+    sheets.detach();                    // 纸张整体摘下：站内页在时书页不在 DOM 里
+    shell.el.classList.remove('is-site-page');
+    return stashSitePage(route, nodes, instance);
+  }
+
+  /**
+   * 离开站内页的准备：只交出视图所有权（不销毁），页面先留在原位并标成「正在淡出」，
+   * 底下的书页才能一边摆位一边被看见 —— 不是「先藏旧页面再显示新页面」。
+   */
+  function releaseSitePage(route) {
+    const nodes = [...shell.content.children];
+    const instance = routerApi?.park?.() ?? null;
+    for (const node of nodes) node.classList.add('is-park-leaving');
+    shell.el.classList.remove('is-site-page');   // 书页重新可见（站内页此刻还盖在上面淡出）
+    return { route, nodes, instance };
+  }
+
+  /** 翻页开始的同一拍：站内页淡出，露出正在翻动的纸 */
+  function beginSiteFadeOut(released) {
+    if (!released) return;
+    for (const node of released.nodes) node.classList.add('is-park-out');
+  }
+
+  /** 接回寄存的站内页：不重新加载、不重建视图 */
+  function restoreSitePage(route) {
+    const park = parkedSite;
+    if (!park) return false;
+    for (const node of [...park.box.children]) {
+      node.classList.remove('is-park-leaving', 'is-park-out');
+      shell.content.append(node);
+    }
+    park.box.remove();
+    parkedSite = null;
+    sheets.detach();                    // 书页让位：站内页整页显示时纸张不进 DOM
+    routerApi?.restore?.(park.instance, route || park.route);
+    shell.el.classList.add('is-site-page');
+    recordSiteVisit(route || park.route);
+    return true;
+  }
+
+  /**
+   * 站内页上点书签：四张纸挂回书里 → 摆到目标前一跨页 → 真翻一页过去。
+   * 目标章节的内容和书签选中态由同一条 syncChrome 收尾，不另写跳转。
+   */
+  async function reenterFromSite({ id, param, path } = {}) {
+    if (mode !== 'open') return false;
+    if (busy) {
+      pendingReenter = { id, param, path };
+      return false;
+    }
+    busy = true;
+    let released = null;
+    try {
+      const siteRoute = location.pathname + location.search;
+      if (!parkedSite && !revisitPending()) recordSiteVisit(siteRoute);
+      released = releaseSitePage(siteRoute);
+      sheets.reattach(shell.content);
+      void book.disposeInner(inner);
+      inner = null;
+      innerKind = null;
+      closeAllOverlays({ instant: true });
+
+      const chapter = id ? chapterById(id) : null;
+      // 菜系 / 口味带分类：书签进来没有分类时，回到该章默认代表（与 openChapter 完全一致）
+      const wanted = chapter ? param || chapter.href.split('/')[2] : undefined;
+      if (chapter) book.setChapterParam?.(chapter.id, wanted);
+      const target = path ? book.spreadOfPath(path) : book.spreadOfChapter(id);
+      const single = lastBox.mode === 'single';
+      const landValue = single ? target * 2 + 2 : target;
+      const fromValue = single ? Math.max(2, landValue - 1) : Math.max(0, target - 1);
+
+      const href = path || (chapter ? chapterHrefFor(chapter.id, wanted) : '/dishes');
+      const isInnerTarget = !!path && INNER_KEYS.has(moduleOf(path).key);
+
+      await withoutHistory(async () => {
+        position = { single, value: fromValue };
+        await render();
+        if (landValue !== fromValue) {
+          await prefillFaces();
+          const turning = render({ animate: 'next' });
+          await wait(24);
+          beginSiteFadeOut(released);   // 纸开始翻的同一拍，站内页淡出
+          await turning;
+        } else {
+          beginSiteFadeOut(released);
+        }
+        history.pushState({ path: href }, '', href);
+        // 目标是内页（菜品详情 / 后台）：落章之后按既有换纸逻辑进内页
+        if (isInnerTarget) await showPath(path, { flip: false });
+      });
+
+      if (released?.nodes.length) stashSitePage(siteRoute, released.nodes, released.instance);
+      // 整段中间落位都不进历史；到这里才记这一次导航（翻页途中不出现中间条目）
+      syncChrome();
+      return true;
+    } finally {
+      if (released?.nodes.length && !parkedSite) {
+        stashSitePage(released.route, released.nodes, released.instance);
+      }
+      suppressHistory = false;
+      busy = false;
+      const next = pendingReenter;
+      pendingReenter = null;
+      if (next) {
+        window.setTimeout(() => {
+          if (bookDomGone()) void reenterFromSite(next);
+          else void openChapter(next.id, next.param);
+        }, 0);
+      } else if (pendingChapter) {
+        // 站内页上连点不同书签：最后一次点击在书里等着，这里接着执行
+        flushPendingChapter();
+      }
+    }
+  }
+
+  /** 书签点击：统一入口（书开着翻页；站内页上先挂回纸张再翻） */
+  async function goBookmark(spec) {
+    const chapter = chapterById(spec?.id);
+    if (!chapter) return false;
+    if (bookDomGone()) return reenterFromSite({ id: chapter.id });
+    return openChapter(chapter.id);
+  }
+
+  /** 按历史记录导航到某一层 */
+  async function navigateEntry(entry) {
+    if (!entry) return false;
+    if (entry.site) return restoreSitePage(entry.route);
+    if (INNER_KEYS.has(entry.moduleId)) {
+      if (bookDomGone()) return reenterFromSite({ path: entry.route });
+      await showPath(entry.route, { flip: false });
+      return true;
+    }
+    const chapter = chapterById(entry.moduleId);
+    if (!chapter) return false;
+    const param =
+      chapter.id === 'cuisines' || chapter.id === 'tastes' ? String(entry.route).split('/')[2] : undefined;
+    if (bookDomGone()) return reenterFromSite({ id: chapter.id, param, path: entry.route });
+    return openChapter(chapter.id, param);
+  }
+
+  /**
+   * 返回：上一页 / 上一模块。
+   * 详情页先回它的上一级；没有历史就回目录 —— 任何情况下都不合书。
+   */
+  async function goBackOne(source = 'button') {
+    if (mode !== 'open') return false;
+    if (busy) {
+      if (backRetry < 24) {
+        backRetry += 1;
+        window.setTimeout(() => void goBackOne('retry'), 120);
+      }
+      return false;
+    }
+    backRetry = 0;
+    if (currentKey === 'admin') return void leaveAdmin(), true;
+    if (shell.el.classList.contains('is-atlas-expanded')) {
+      closeAllOverlays();
+      return true;
+    }
+    const state = historyState();
+    const prev = state.index > 0 ? state.entries[state.index - 1] : null;
+
+    // 详情页：先回它的上一级模块（图鉴），不合书。
+    // 「上一级」是一次退货：占住详情当前这一格，不新增条目（否则返回会在详情与列表间打乒乓）
+    if (inner) {
+      expectRevisit(state.index);
+      const ok = await showPath('/dishes', { flip: false });
+      if (!ok) {
+        cancelRevisit();
+        restoreCursor(state.index);
+      }
+      history.replaceState({ path: '/dishes' }, '', '/dishes');
+      return true;
+    }
+
+    if (bookDomGone()) {
+      if (prev && prev.site) {
+        expectRevisit(state.index - 1);
+        if (restoreSitePage(prev.route)) return true;
+        cancelRevisit();
+      }
+      if (prev) {
+        expectRevisit(state.index - 1);
+        const ok = await reenterFromSite({ id: chapterById(prev.moduleId)?.id, path: prev.route });
+        if (!ok) cancelRevisit();
+        return ok;
+      }
+      return reenterFromSite({ id: 'catalog', path: '/' });
+    }
+
+    if (!prev) {
+      // 没有历史：回目录，但书继续保持打开（占住当前这一格，反复返回不会来回打乒乓）
+      expectRevisit(state.index);
+      return openChapter('catalog');
+    }
+    expectRevisit(state.index - 1);
+    const ok = await navigateEntry(prev);
+    if (!ok) {
+      cancelRevisit();
+      restoreCursor(state.index);
+    }
+    return ok;
+  }
+
+  /** 合上：唯一的合书入口（站内页上先把书页挂回来再合） */
+  async function shutBook(source = 'button') {
+    if (mode !== 'open' || busy) return false;
+    if (bookDomGone()) {
+      parkSitePage(location.pathname + location.search);
+      sheets.reattach(shell.content);
+      void book.disposeInner(inner);
+      inner = null;
+      innerKind = null;
+      const single = lastBox.mode === 'single';
+      position = { single, value: single ? 2 : 0 };
+      await render();
+    }
+    await shut();
+    history.pushState({ path: '/' }, '', '/');
+    return true;
   }
 
   /* 书签点击已在 createBookmarks 内部绑定，这里不再重复绑定 */
@@ -800,18 +1265,16 @@ export function initBook({ root }) {
       void leaveAdmin();
       return;
     }
-    if (shell.backBtn.dataset.action === 'gallery') {
-      history.pushState({ path: '/dishes' }, '', '/dishes');
-      void showPath('/dishes');
-      return;
-    }
-    void shut();
+    void goBackOne('button');
   });
+
+  /* 合上：独立按钮，只有它执行合书动画 */
+  shell.shutBtn.addEventListener('click', () => void shutBook('button'));
 
   /* 返回目录：和书签、目录条目走同一个 openChapter —— 一页一页翻回去，不重开书 */
   shell.catalogBtn.addEventListener('click', () => {
     if (mode !== 'open') return;
-    void openChapter('catalog');
+    void goBookmark({ id: 'catalog' });
   });
 
   /* ---------------- 印章面板 ---------------- */
@@ -864,11 +1327,16 @@ export function initBook({ root }) {
 
   window.addEventListener('popstate', () => {
     if (busy) return;
+    const path = location.pathname + location.search;
     if (bookDomGone()) {
-      location.reload();
+      // 站内页上按浏览器前进 / 后退：能接回寄存的聊天页就接回，否则重进书里
+      if (parkedSite && parkedSite.route === path) {
+        restoreSitePage(path);
+        return;
+      }
+      void reenterFromSite({ id: chapterOf(path), path });
       return;
     }
-    const path = location.pathname + location.search;
     if (mode === 'closed') {
       shell.setActive(chapterOf(path));
       return;
@@ -879,7 +1347,7 @@ export function initBook({ root }) {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (panelOpen) return setPanel(false);
-      if (mode === 'open') return void shut();
+      if (mode === 'open') return void shutBook('escape');
     }
     if (mode !== 'open') return;
     if (e.key === 'ArrowRight') void turn('next');
@@ -894,6 +1362,20 @@ export function initBook({ root }) {
    */
   shell.setActive(chapterOf(location.pathname));
   setBookState('bk-book--closed');
+
+  /*
+   * 菜谱模块的深链接：从菜品详情「生成菜谱」跳过来后再刷新（或直接打开分享链接），
+   * 地址里带着 dish/name，用户期望一进来就看见表单，而不是再点一次封面。
+   *
+   * 只对「/recipe 且带菜品参数」破例：裸的 /recipe 仍按全站规则停在合上的书，
+   * 别的页面一概不受影响。
+   */
+  const bootQuery = new URLSearchParams(location.search);
+  if (location.pathname === '/recipe' && (bootQuery.get('dish') || bootQuery.get('name'))) {
+    window.setTimeout(() => {
+      if (phase === 'CLOSED_TILTED' && mode === 'closed') void openFirst();
+    }, 120);
+  }
 
   /** 首开预热：书签、返回键、翻页键平时隐藏，第一次点封面时才在 760ms 那一刻上屏 */
   function warmOpenChrome() {
@@ -948,9 +1430,23 @@ export function initBook({ root }) {
     catalogItems: () => [...document.querySelectorAll('.catalog__item')].map((i) => ({ id: i.dataset.chapter, on: i.classList.contains('is-on') })),
     /* 书签当前绑在哪张纸、在哪一侧（诊断 / 验收用） */
     marks: () => (marksApi ? marksApi.state() : []),
+    /* 「生成菜谱」统一导航（验收 / 诊断用；全站入口走 recipe-nav.navigateToRecipeModule） */
+    recipeNav: goRecipeModule,
+    recipePayload: () => peekRecipeNav(),
+    /* 统一导航：历史栈 / 返回 / 合上（验收与诊断用） */
+    history: historyState,
+    busy: () => busy,
+    currentModule: () => currentEntry(),
+    back: () => goBackOne('api'),
+    shutBook: () => shutBook('api'),
+    parkedRoute: () => parkedSite?.route ?? null,
+    goModule: (id) => goBookmark({ id }),
     syncMarks,
     shell,
   };
+
+  /* 全站「生成菜谱」入口 → 画册翻页 → 菜谱模块回填 */
+  setRecipeNavigator(goRecipeModule);
 
   return {
     shell,

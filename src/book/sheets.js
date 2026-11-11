@@ -280,6 +280,30 @@ export function createSheets(host) {
     }
   }
 
+  /**
+   * 站内页（聊天 / 视频等）接管过内容层之后，把四张纸原样挂回书里：
+   * 纸面节点与页内容都还在内存里（页面的滚动、筛选、输入全部保真），
+   * 这里只做「重新入 DOM」，不重建、不重新挂载页面。
+   */
+  function reattach(host) {
+    if (!host) return false;
+    let changed = false;
+    for (const sheet of [A1, A0, C, B]) {
+      if (sheet.el.parentElement !== host) {
+        host.append(sheet.el);
+        changed = true;
+      }
+    }
+    setZ();
+    hooks.onAngle?.();
+    return changed;
+  }
+
+  /** 站内页接管时把四张纸整体摘下（节点与页内容都留在内存里，回来再挂上） */
+  function detach() {
+    for (const sheet of [A0, A1, B, C]) sheet.el.remove();
+  }
+
   /** 诊断用：当前四张纸各自的正反面是哪一页 */
   function inspect() {
     const one = (s) => ({
@@ -297,6 +321,8 @@ export function createSheets(host) {
   }
 
   return {
+    reattach,
+    detach,
     settle,
     turn,
     collapse,

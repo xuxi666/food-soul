@@ -87,7 +87,11 @@ body.is-book {
    * mk-base-*        书签的基准宽/字号/内边距，JS 会在此基础上按书口长度收放
    */
   --closed-scale: 0.585;
-  --closed-cover-stretch: 1.06;
+  /*
+   * 合上时封面不再纵向拉伸：正式封面是一整幅画，
+   * 拉伸 6% 会把「食有灵」和画里的器物压扁拉长，宁可不做这点挺拔。
+   */
+  --closed-cover-stretch: 1;
   --mark-w: 42px;
   --mk-base-font: 14.5px;
   --mk-base-pad: 7px;
@@ -812,6 +816,71 @@ body.is-book {
     radial-gradient(ellipse 52% 70% at 78% 120%, rgba(120, 100, 70, 0.14) 0%, transparent 62%);
 }
 
+/* ---------- 正式封面：整幅原图铺面（不裁切、不拉伸） ---------- */
+.bk-cover__front--art {
+  /* 原图四边就是暖白宣纸，露出的这一点底色与它同色，留白不会看起来像贴上去的图 */
+  background: #f7e7cd;
+  box-shadow:
+    0 18px 44px rgba(120, 82, 56, 0.26),
+    inset 0 0 0 1px rgba(168, 122, 62, 0.4);
+}
+
+/*
+ * 封面背景必须从书边到书边盖满：图片盒 = 书籍正面盒，object-fit: cover 让画面
+ * 等比放大到两边都不小于书面，再以画面中心为基准裁掉溢出的边。
+ * 只用 cover（可能裁边），不用 100% 100%（会把人像/字压扁），也不留 contain 的空条。
+ */
+.bk-cover__art {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* 标题、金色边框、云纹都画在原图里了，CSS 那套让位，避免出现第二套标题和重影边框 */
+.bk-cover__front--art .bk-cover__frame,
+.bk-cover__front--art .bk-cover__corner,
+.bk-cover__front--art .bk-cover__body,
+.bk-cover__front--art .bk-cover__mountains {
+  display: none;
+}
+
+/* 翻开提示：平时不压画面，桌面悬停 / 键盘聚焦时才浮出来 */
+.bk-cover__tap {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 122, 62, 0.34);
+  background: rgba(255, 250, 240, 0.84);
+  color: #6a4022;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.bk-cover:hover .bk-cover__tap,
+.bk-cover:focus-visible .bk-cover__tap {
+  opacity: 1;
+}
+
+/* 触屏没有悬停：这行提示常显，否则手机上只剩一张画、不知道能点 */
+@media (hover: none) {
+  .bk-cover__tap {
+    opacity: 0.78;
+  }
+}
+
 /* 封面内侧（扉页） */
 .bk-cover__inner {
   position: absolute;
@@ -861,6 +930,41 @@ body.is-book {
 
 .bk-cover:focus-visible .bk-cover__front {
   box-shadow: 0 18px 44px rgba(120, 82, 56, 0.24), 0 0 0 2px rgba(194, 69, 45, 0.55);
+}
+
+/* 站内页（聊天 / 视频等）整页压在书上时：
+   纸张藏在下面（不重排、不销毁），书签仍在最上层并且可以点 —— 书签优先级最高。 */
+.bk-stage.is-site-page .bk-sheet {
+  visibility: hidden !important;
+}
+
+.bk-stage.is-site-page .bk-marks {
+  z-index: 900;
+}
+
+/* 从站内页翻回画册：聊天页先留在原位，翻页开始时淡出（260ms），
+   纸一直在动 —— 不是「藏起旧页面再显示新页面」。 */
+.bk-content > .is-park-leaving {
+  position: absolute;
+  inset: 0;
+  z-index: 450 !important;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.bk-content > .is-park-out {
+  opacity: 0;
+}
+
+/* 站内页寄存盒：聊天页切走时先停在这里，回来时原样接回（不重建、不丢记录） */
+.bk-parked {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* ---------- 章节书签：书口纸质索引 ----------
@@ -1215,8 +1319,13 @@ body.is-book {
   pointer-events: auto;
 }
 
-/* 已经站在目录页上：这一下没有意义，收起来 */
-.bk-stage.is-on-catalog .bk-catalog-btn {
+/* 合上按钮：排在「目录」下面一格，合书只认它 */
+.bk-catalog-btn.bk-shut {
+  top: 106px;
+}
+
+/* 已经站在目录页上：这一下没有意义，收起来（合上按钮不在此列） */
+.bk-stage.is-on-catalog .bk-catalog-btn:not(.bk-shut) {
   opacity: 0;
   pointer-events: none;
 }
@@ -1237,6 +1346,10 @@ body.is-book {
     left: 14px;
     padding: 7px 11px;
     font-size: 11px;
+  }
+
+  .bk-catalog-btn.bk-shut {
+    top: 96px;
   }
 
   .bk-back {
@@ -1338,7 +1451,7 @@ body.is-book {
     --closed-tx: 0%;
     /* 手机另有自己的合书尺寸，不沿用桌面数值：屏幕窄，书要占更多纵向空间 */
     --closed-scale: 0.64;
-    --closed-cover-stretch: 1.06;
+    --closed-cover-stretch: 1;
     --mark-w: 36px;
     --mk-base-font: 13px;
     --mk-base-pad: 6px;

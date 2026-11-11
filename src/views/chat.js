@@ -8,6 +8,7 @@ import { categoryMeta, personaForCategory, dishesForCategory } from '../data/cat
 import { applyTheme } from '../data/visualThemes.js';
 import { mountComments } from '../components/comments.js';
 import { guardImage } from '../lib/placeholder.js';
+import { navigateToRecipeModule, recipeHref } from '../book/recipe-nav.js';
 import { copyText } from '../lib/clipboard.js';
 import { enableWheelScroll, enableTouchScroll } from '../lib/wheel-scroll.js';
 import notFound from './notfound.js';
@@ -288,7 +289,19 @@ export default {
           topicDish ? h('a', { class: 'btn btn--sm cr-act', href: `/dishes/${topicDish.id}`, 'data-link': '' }, `看「${topicDish.name}」`) : null,
         ]
       : [
-          h('a', { class: 'btn btn--sm btn--gold cr-act cr-act--main', href: `/recipe?dish=${dish.id}`, 'data-link': '' }, '生成结构化菜谱'),
+          h('button', {
+            class: 'btn btn--sm btn--gold cr-act cr-act--main',
+            type: 'button',
+            /* 聊天页是独立页（画册不在 DOM）：统一导航会自动整页进入并带着菜名 */
+            onclick: () =>
+              navigateToRecipeModule({
+                dishId: dish.id,
+                dishName: dish.name,
+                englishName: dish.nameEn,
+                sourceType: 'chat-dossier',
+                sourcePage: location.pathname,
+              }),
+          }, '生成结构化菜谱'),
           h('a', { class: 'btn btn--sm cr-act', href: `/dishes/${dish.id}`, 'data-link': '' }, '查看菜谱'),
         ];
     const minorActions = isCategory
@@ -615,7 +628,8 @@ export default {
 
     function suggestionHref(s) {
       const p = s.actionPayload || {};
-      if (s.actionType === 'recipe') return `/recipe?dish=${encodeURIComponent(p.dishName || '')}`;
+      /* 地址也由统一契约拼装：点击仍走统一入口，这里只是中键 / 新窗口的兜底 */
+      if (s.actionType === 'recipe') return recipeHref({ dishName: p.dishName, sourceType: 'chat-suggestion' });
       if (s.actionType === 'recommend') return `/kitchen?taste=${encodeURIComponent(p.taste || '')}`;
       if (s.actionType === 'video') return `/videos?q=${encodeURIComponent(p.query || '')}`;
       return '';
@@ -660,7 +674,18 @@ export default {
         h('span', { class: 'suggest-chip__text', text: s.text }),
         h('span', { class: 'suggest-chip__arrow', text: '↗', 'aria-hidden': 'true' })
       );
-      link.addEventListener('click', () => markSuggestionUsed(box, link));
+      link.addEventListener('click', (e) => {
+        markSuggestionUsed(box, link);
+        /* AI 给的菜谱建议同样走统一导航：模型只给菜名，没有 id，交给 recipe-nav 标准化 */
+        if (s.actionType === 'recipe') {
+          e.preventDefault();
+          navigateToRecipeModule({
+            dishName: s.actionPayload?.dishName,
+            sourceType: 'chat-suggestion',
+            sourcePage: location.pathname,
+          });
+        }
+      });
       return link;
     }
 

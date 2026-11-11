@@ -20,6 +20,7 @@ import { DISHES, DIFFICULTY_LABEL } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
 import { guardImage } from '../lib/placeholder.js';
+import { navigateToRecipeModule } from './recipe-nav.js';
 
 /**
  * 打开站内独立页面（AI 聊天 / 生成菜谱）。
@@ -166,12 +167,21 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
       {
         type: 'button',
         title: '进结构化食谱，菜名已代填',
-        onclick: (e) =>
-          void appRoute(
-            `/recipe?dish=${encodeURIComponent(dish.id)}&name=${encodeURIComponent(dish.name)}`,
-            e.currentTarget,
-            accent
-          ),
+        onclick: (e) => {
+          /*
+           * 全站统一入口：这里不再自己拼地址、不再分「书开着走 goto / 书合着走 appRoute」。
+           * recipe-nav 统一做菜名标准化，然后交给画册用原有的翻页（或开书）动画进入菜谱章，
+           * 落地后菜谱模块消费这条任务并回填菜名——入口之间行为完全一致。
+           */
+          e.preventDefault?.();
+          navigateToRecipeModule({
+            dishId: dish.id,
+            dishName: dish.name,
+            englishName: dish.nameEn,
+            sourceType: 'dish-detail',
+            sourcePage: location.pathname,
+          });
+        },
       },
       'recipe',
       '生成菜谱'

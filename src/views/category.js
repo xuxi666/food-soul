@@ -6,6 +6,7 @@ import { getVisualTheme, themeIdFor, applyTheme } from '../data/visualThemes.js'
 import { fluidTransition } from '../lib/transition.js';
 import { mountInto, adopt } from '../router.js';
 import { guardImage } from '../lib/placeholder.js';
+import { navigateToRecipeModule, recipeHref } from '../book/recipe-nav.js';
 import {
   catalogState,
   catalogMeta,
@@ -41,7 +42,23 @@ export function dishCard(d) {
       h('div', { class: 'dish-card__actions' },
         h('a', { class: 'btn btn--sm', href: `/dishes/${d.id}`, 'data-link': '' }, '查看详情'),
         h('a', { class: 'btn btn--sm btn--gold', href: `/chat/${d.id}`, 'data-link': '' }, '与它聊天'),
-        h('a', { class: 'btn btn--sm', href: `/recipe?dish=${d.id}`, 'data-link': '' }, '查看做法')
+        h('a', {
+          class: 'btn btn--sm',
+          href: recipeHref({ dishId: d.id, dishName: d.name, sourceType: 'dish-card' }),
+          'data-link': '',
+          /* 卡片上的菜谱入口也走统一导航：菜名跟着这张卡片走 */
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigateToRecipeModule({
+              dishId: d.id,
+              dishName: d.name,
+              englishName: d.nameEn,
+              sourceType: 'dish-card',
+              sourcePage: location.pathname,
+            });
+          },
+        }, '查看做法')
       )
     )
   );
@@ -137,7 +154,17 @@ export function buildCategoryPage({ kind, id }) {
             h('button', {
               class: 'btn',
               type: 'button',
-              onclick: (e) => go(`/recipe?dish=${lead.id}`, e.currentTarget),
+              onclick: (e) => {
+                e.preventDefault?.();
+                /* 没有代表菜时照样进菜谱模块，只是不预填（由 recipe-nav 记一条告警） */
+                navigateToRecipeModule({
+                  dishId: lead?.id,
+                  dishName: lead?.name,
+                  englishName: lead?.nameEn,
+                  sourceType: 'category-hero',
+                  sourcePage: location.pathname,
+                });
+              },
             }, '生成菜谱')
           )
         ),

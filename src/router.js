@@ -212,3 +212,32 @@ export function initRouter(el) {
 export function currentView() {
   return active;
 }
+
+/**
+ * 画册接管：把当前站内页视图「寄存」出去。
+ * 只交出所有权，不调用 destroy —— 聊天记录、流式回复都还在 DOM 与闭包里。
+ */
+export function parkActiveView() {
+  const instance = active;
+  active = null;
+  return instance;
+}
+
+/** 画册放回：把寄存的视图重新认作当前视图，并同步地址与导航激活态 */
+export function restoreActiveView(instance, path) {
+  active = instance || null;
+  const want = String(path || '').split('#')[0];
+  if (want && location.pathname + location.search !== want) {
+    history.pushState({}, '', want);
+  }
+  syncNavActive(location.pathname);
+}
+
+/** 彻底销毁寄存的站内页（合书 / 换页时用） */
+export function disposeView(instance) {
+  try {
+    instance?.destroy?.();
+  } catch (err) {
+    console.warn('[view destroy]', err);
+  }
+}

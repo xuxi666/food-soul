@@ -53,7 +53,12 @@ export function createBookmarks({ list, onPick }) {
     );
     tab.style.setProperty('--mark-tint', spec.tint);
     tab.style.setProperty('--mark-jog', `${(i % 3) * 2}px`);
-    tab.addEventListener('click', () => onPick(spec));
+    /* 书签优先级最高：先吃掉这次点击，绝不让它落到下面的页面内容上 */
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onPick(spec);
+    });
 
     // 联动杆：从书脊伸到书页外缘，绕书脊转，角度跟纸张同步
     const rig = h('div', { class: 'bk-mark-rig' }, tab);
