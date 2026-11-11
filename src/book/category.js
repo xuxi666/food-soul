@@ -39,6 +39,7 @@ const logCat = (...args) => {
 };
 import { openDishOverlay, closeAllOverlays } from './overlay.js';
 import { appRoute } from './dish-page.js';
+import { openChat } from './chat-panel.js';
 
 const PER_PAGE = 6; // 右页首屏 6 道（正好三行两列），菜系 / 口味一致
 const PICKS = 3;
@@ -113,18 +114,22 @@ export function mountCategory(el, kind, id) {
       h(
         'div',
         { class: 'catb__chips' },
-        ...(isTaste() ? TASTES : CUISINES).map((c) =>
-          h(
+        ...(isTaste() ? TASTES : CUISINES).map((c) => {
+          const on = c.id === state.id;
+          const accent = (isTaste() ? c.color : c.accent) || '#b03a2e';
+          return h(
             'button',
             {
-              class: `catb__chip${c.id === state.id ? ' is-on' : ''}`,
+              class: `catb__chip${on ? ' is-on' : ''}`,
               type: 'button',
               'data-chip': c.id,
+              'aria-current': on ? 'true' : null,
+              style: on ? `--catb-accent:${accent}` : null,
               onclick: () => switchTo(c.id),
             },
             c.name
-          )
-        )
+          );
+        })
       )
     );
   }
@@ -304,11 +309,15 @@ export function mountCategory(el, kind, id) {
         type: 'button',
         'data-act': 'chat',
         'data-cuisine': state.id,
-        'aria-label': `和${m.name}聊天`,
+        'data-context': `${taste ? 'flavor' : 'cuisine'}:${state.id}`,
+        'aria-label': `和${m.name}聊聊`,
         onclick: (e) => {
           e.preventDefault();
           e.stopPropagation();
           const accent = taste ? m.color || '#b0794a' : m.accent || '#b03a2e';
+          // 先在另一半书页展开（与菜品详情同一套双页聊天）；书册没接管时才回落到整页聊天
+          const subject = { type: taste ? 'flavor' : 'cuisine', id: state.id, name: m.name };
+          if (openChat(subject, e.currentTarget)) return;
           void appRoute(`/chat/${taste ? 'taste' : 'cuisine'}/${state.id}`, e.currentTarget, accent);
         },
       },
@@ -316,7 +325,7 @@ export function mountCategory(el, kind, id) {
       h(
         'span',
         { class: 'catb__ai-copy' },
-        h('b', { class: 'catb__ai-t', text: `和${m.name}聊天` }),
+        h('b', { class: 'catb__ai-t', text: `和${m.name}聊聊` }),
         h('span', { class: 'catb__ai-sub', text: taste ? '由该味型的 AI 人格应答' : '由该菜系的 AI 人格应答' })
       )
     );
@@ -397,6 +406,14 @@ export function mountCategory(el, kind, id) {
     clear(leftScroll);
     leftScroll.append(stack);
     leftScroll.scrollTop = 0;
+    // 窄屏索引是横向滑动的：把当前项滚进可视区，别让选中项停在屏幕外
+    requestAnimationFrame(() => {
+      const chips = leftScroll.querySelector('.catb__chips');
+      const on = chips?.querySelector('.catb__chip.is-on');
+      if (chips && on && chips.scrollWidth > chips.clientWidth + 4) {
+        on.scrollIntoView({ block: 'nearest', inline: 'center' });
+      }
+    });
   }  /* ================= 右页 A：菜品目录 + 图鉴外发现 ================= */
 
   let rightGrid = null;

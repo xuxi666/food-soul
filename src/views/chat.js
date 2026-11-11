@@ -35,7 +35,9 @@ function quickForCategory(category) {
 }
 
 export default {
-  async mount(root, params = []) {
+  async mount(root, params = [], opts = {}) {
+    /** 内嵌模式：挂在画册另一半页里，不是站内独立页（不接管 stage、不加 is-site-page） */
+    const inline = opts.inline === true;
     const search = new URLSearchParams(location.search);
     const isCategory = params.length === 2 && (params[0] === 'cuisine' || params[0] === 'taste');
 
@@ -446,7 +448,8 @@ export default {
     /* 这一页盖住了整张跨页：画册中缝（.bk-gutter，z-index 高于内容层）必须让位，
        否则它会压在右页中央，既画出多余的装饰线，又拦掉那一带的点击。 */
     const bookStage = document.querySelector('.bk-stage');
-    bookStage?.classList.add('is-site-page');
+    // 内嵌时纸张仍属于画册：不能把整本书判成站内页（那会把页码纸全藏起来）
+    if (!inline) bookStage?.classList.add('is-site-page');
 
     /* ---------------- 视图切换：AI 聊天 / 食客评论 ---------------- */
     function setView(view) {
@@ -928,7 +931,7 @@ export default {
           }
         });
         comments?.destroy?.();
-        bookStage?.classList.remove('is-site-page');
+        if (!inline) bookStage?.classList.remove('is-site-page');
       },
     };
   },

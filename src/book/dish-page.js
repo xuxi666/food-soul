@@ -21,6 +21,7 @@ import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
 import { guardImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from './recipe-nav.js';
+import { openDishChat } from './chat-panel.js';
 
 /**
  * 打开站内独立页面（AI 聊天 / 生成菜谱）。
@@ -157,7 +158,16 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
       {
         type: 'button',
         title: `和 AI 食灵聊「${dish.name}」的风味、来历与做法`,
-        onclick: (e) => void appRoute(`/chat/${dish.id}`, e.currentTarget, accent),
+        /*
+         * 双页联动：详情不动，聊天直接开在「详情所在页的另一半」。
+         * 聊天室是 views/chat.js 的同一个实例（inline 模式），不是新的一套聊天。
+         * 只有画册没接管（比如独立预览）时才回落到原来的整页聊天。
+         */
+        onclick: (e) => {
+          e.preventDefault?.();
+          e.stopPropagation?.();
+          if (!openDishChat(dish, e.currentTarget)) void appRoute(`/chat/${dish.id}`, e.currentTarget, accent);
+        },
       },
       'chat',
       `与「${dish.name}」聊聊`

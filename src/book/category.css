@@ -54,48 +54,71 @@
 }
 
 /* ---------- 左页：分类索引 ---------- */
+/* 第 34 轮：索引栏放大 —— 字更大、按钮更高、选中项更醒目 */
 .catb__index {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding-bottom: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--catb-gold);
 }
 
 .catb__index-kicker {
   flex: 0 0 auto;
-  font-size: 8.5px;
-  letter-spacing: 0.18em;
+  font-size: clamp(9.5px, 0.74vw, 11px);
+  letter-spacing: 0.16em;
   color: var(--catb-muted);
 }
 
 .catb__chips {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
 }
 
 .catb__chip {
-  padding: 2px 8px;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background: none;
-  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--catb-gold);
+  border-radius: 9px;
+  background: rgba(255, 252, 245, 0.6);
+  font-size: clamp(14px, 1vw, 15.5px);
+  font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--catb-ink-2);
   cursor: pointer;
-  transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .catb__chip:hover {
-  background: rgba(216, 178, 106, 0.14);
+  background: rgba(216, 178, 106, 0.2);
+  border-color: rgba(160, 110, 60, 0.55);
+  color: #6d4526;
 }
 
 .catb__chip.is-on {
-  border-color: var(--catb-gold);
-  background: rgba(216, 178, 106, 0.2);
-  color: #7c3f22;
+  border-color: var(--catb-accent, #b03a2e);
+  background: rgba(176, 58, 46, 0.1);
+  color: color-mix(in srgb, var(--catb-accent, #b03a2e) 78%, #3d2917);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--catb-accent, #b03a2e) 22%, transparent);
+}
+
+.catb__chip.is-on::after {
+  content: '';
+  display: block;
+  width: 12px;
+  height: 2px;
+  margin-left: 7px;
+  border-radius: 2px;
+  background: var(--catb-accent, #b03a2e);
+  opacity: 0.75;
 }
 
 /* ---------- 左页：标题区 ---------- */
@@ -1104,8 +1127,8 @@
 }
 
 .catb__stack--fit .catb__title {
-  margin-top: 2px;
-  font-size: 27px;
+  margin-top: 4px;
+  font-size: clamp(28px, 2.15vw, 33px);
 }
 
 .catb__stack--fit .catb__tagline {
@@ -1374,13 +1397,8 @@
   padding-bottom: 5px;
 }
 
-.catb__stack--fit .catb__index-kicker {
-  font-size: 8px;
-}
-
-.catb__stack--fit .catb__chip {
-  padding: 2px 7px;
-  font-size: 10px;
+.catb__stack--fit .catb__index {
+  padding-bottom: 9px;
 }
 
 .catb__stack--fit .catb__head {
@@ -1388,22 +1406,25 @@
 }
 
 .catb__stack--fit .catb__kicker {
-  font-size: 8.5px;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
 }
 
 .catb__stack--fit .catb__title {
-  margin-top: 2px;
-  font-size: 27px;
+  margin-top: 4px;
+  font-size: clamp(28px, 2.15vw, 33px);
 }
 
 .catb__stack--fit .catb__en {
-  margin-left: 8px;
-  font-size: 9px;
+  margin-left: 9px;
+  font-size: 10px;
 }
 
 .catb__stack--fit .catb__tagline {
-  margin-top: 3px;
-  font-size: 11px;
+  margin-top: 5px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #6a4a2c;
 }
 
 /* ---------- 左页：主视觉（左图 48%）+ 风味档案（右 52%） ---------- */
@@ -1773,4 +1794,58 @@
 
 .catb__more-btn {
   max-width: 190px;
+}
+
+/* ============================================================
+ * 第 34 轮：索引栏放大后的窄屏适配
+ *   · 手机 / 平板：索引改成横向滑动标签条，触控区域更大
+ *   · 不横向撑破纸页，选中项由脚本滚到可视区
+ * ============================================================ */
+@media (max-width: 900px) {
+  .catb__index {
+    align-items: flex-start;
+    row-gap: 8px;
+  }
+
+  .catb__chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 1px 1px 3px;
+    scroll-padding-inline: 6px;
+  }
+
+  .catb__chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .catb__chip {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+}
+
+/* 单页模式（手机开书）：同样走横向滑动，别把纸页撑宽 */
+.bk-stage.is-single .catb__chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 1px 1px 3px;
+}
+
+.bk-stage.is-single .catb__chips::-webkit-scrollbar {
+  display: none;
+}
+
+.bk-stage.is-single .catb__chip {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
 }

@@ -121,14 +121,6 @@ export function createShell(root) {
     h('span', { class: 'bk-catalog-btn__label', text: '目录' })
   );
 
-  /* ---------- 返回（上一页 / 上一模块，不合书） ---------- */
-  const backBtn = h(
-    'button',
-    { class: 'bk-back', type: 'button', 'aria-label': '返回上一页' },
-    h('span', { class: 'bk-back__icon', 'aria-hidden': 'true' }, '←'),
-    h('span', { class: 'bk-back__label', text: '返回' })
-  );
-
   /* ---------- 合上画册（唯一的合书入口） ---------- */
   const shutBtn = h(
     'button',
@@ -159,8 +151,7 @@ export function createShell(root) {
     camera,
     tools,
     catalogBtn,
-    shutBtn,
-    backBtn
+    shutBtn
   );
 
   root.append(stage);
@@ -185,7 +176,6 @@ export function createShell(root) {
     sealPanel,
     catalogBtn,
     shutBtn,
-    backBtn,
     setActive(id) {
       markApi?.setActive(id);
     },

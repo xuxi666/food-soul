@@ -1258,38 +1258,6 @@ body.is-book {
   }
 }
 
-/* ---------- 合上按钮 ---------- */
-.bk-back {
-  position: absolute;
-  top: 22px;
-  left: 26px;
-  z-index: 70;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 253, 248, 0.9);
-  color: var(--color-text-secondary);
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 300ms ease, border-color 200ms var(--ease), color 200ms var(--ease);
-}
-
-.bk-stage.is-open .bk-back {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.bk-back:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
 /* ---------- 回到目录 ---------- */
 /* 目录是画册的第一跨页，所以「回到目录」就是往回翻页：
    不重开书、不销毁内容，和书签 / 目录条目走同一条 openChapter。 */
@@ -1352,12 +1320,6 @@ body.is-book {
     top: 96px;
   }
 
-  .bk-back {
-    top: 18px;
-    left: 14px;
-    padding: 7px 11px;
-    font-size: 11px;
-  }
 }
 
 /* 页脚「上一页 / 下一页」按钮已移除：翻页走书页本身与书签 */
@@ -1922,3 +1884,191 @@ body.is-book {
   }
 }
 
+/* ==================================================================
+   双页聊天：菜品详情占一页，聊天占另一半页
+   ------------------------------------------------------------------
+   详情永远是「一页」，聊天只贴在它的另一半张纸上：
+   · 桌面/平板：.dm-chat--left / --right，从中缝向外铺开（clip-path），
+     收起时按同一条路径缩回去，下面那张纸从头到尾没被卸载，滚动与筛选原样还在。
+   · 手机单页：.dm-chat--full，整页淡入上浮，收起即回到详情。
+   ================================================================== */
+.dm-chat {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8f1e6;
+  opacity: 0;
+  transition:
+    opacity 200ms ease,
+    clip-path 320ms cubic-bezier(0.32, 0.06, 0.22, 1);
+  will-change: clip-path, opacity;
+}
+
+/* 聊天落在左页：从书脊（右侧）向左铺开；落在右页则相反 */
+.dm-chat--left {
+  clip-path: inset(0 0 0 100%);
+}
+.dm-chat--right {
+  clip-path: inset(0 100% 0 0);
+}
+/* 手机单页：没有另一半，整页淡入 + 轻微上浮 */
+.dm-chat--full {
+  clip-path: none;
+  transform: translateY(10px) scale(0.986);
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.32, 0.06, 0.22, 1);
+}
+.dm-chat.is-open {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+}
+.dm-chat--full.is-open {
+  transform: none;
+}
+.dm-chat.is-closing {
+  opacity: 0;
+}
+.dm-chat.is-closing.dm-chat--left {
+  clip-path: inset(0 0 0 100%);
+}
+.dm-chat.is-closing.dm-chat--right {
+  clip-path: inset(0 100% 0 0);
+}
+.dm-chat:not(.is-open) {
+  pointer-events: none;
+}
+
+.dm-chat__slot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 聊天室原来是「档案 / 书脊 / 聊天室」三栏整页，这里只留聊天室那一栏 */
+.dm-chat .page.cr {
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+}
+.dm-chat .cr-left,
+.dm-chat .cr-spine,
+.dm-chat .cr-tabs,
+.dm-chat .cr-pane-tabs,
+.dm-chat .cr-topbar,
+.dm-chat .cr-head__back {
+  display: none !important;
+}
+.dm-chat .cr-right {
+  grid-column: 1;
+  height: 100%;
+  background: transparent;
+}
+.dm-chat .cr-head {
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+.dm-chat .cr-head__name {
+  font-size: 16px;
+}
+.dm-chat .cr-head__sub {
+  font-size: 11px;
+}
+.dm-chat .cr-panel--chat .messages {
+  padding: 14px 16px 16px;
+}
+.dm-chat .cr-composer {
+  padding: 8px 14px 12px;
+}
+.dm-chat .composer__hint {
+  font-size: 9.5px;
+}
+.dm-chat .chat-empty {
+  padding: 2px 0 6px;
+}
+/* 还没有消息时，把欢迎语与快捷问题放在这一页的中间，别让半页空成一大片白 */
+.dm-chat .cr-panel--chat .messages:has(.chat-empty) {
+  justify-content: center;
+}
+.dm-chat .quick-row {
+  gap: 6px;
+}
+.dm-chat .quick {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+/* 收起聊天：清楚可认的一颗按钮，钉在聊天页顶栏右侧 */
+.dm-chat__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin-left: auto;
+  padding: 0 12px 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(179, 84, 58, 0.32);
+  background: rgba(255, 253, 248, 0.94);
+  color: #8f4029;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(90, 60, 30, 0.1);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+.dm-chat__close:hover {
+  background: #f7e9df;
+  border-color: rgba(179, 84, 58, 0.52);
+}
+.dm-chat__close:active {
+  transform: translateY(1px);
+}
+.dm-chat__close-ico {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+/* 手机单页：按钮再大一点，手指好点 */
+.bk-stage.is-single .dm-chat__close {
+  height: 34px;
+  font-size: 12.5px;
+  padding: 0 12px 0 9px;
+}
+
+.dm-chat.is-loading .dm-chat__slot::before {
+  content: '正在打开聊天室…';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(125, 106, 88, 0.7);
+  font-size: 13px;
+}
+
+.dm-chat__error {
+  margin: 22px;
+  color: #8f4029;
+  font-size: 13px;
+}

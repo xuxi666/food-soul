@@ -56,17 +56,13 @@ const SPLITTERS = {
     return { left, right };
   },
   dishDetail(root) {
-    // 左页：页头 + 标题区 + 「左图 / 右四入口」+ 信息条 + 介绍 · 风味；右页：其余段落与评论
-    const blocks = [...root.querySelectorAll('.cat-block')];
-    const left = [
-      root.querySelector('.page-head'),
-      root.querySelector('.dm-head'),
-      root.querySelector('.dm-top'),
-      root.querySelector('.dm-facts'),
-      ...blocks.slice(0, 2),
-    ];
-    const right = blocks.slice(2);
-    return { left, right };
+    // 详情只占「一页」：全部内容都排在右页，左页交给浏览内容（图鉴 / 菜系列表）。
+    // 聊天打开时也落在左页，收起后左页原样露回来。
+    // 这样详情永远不会横跨书脊，也不会和聊天抢同一张纸。
+    return {
+      left: [],
+      right: [root.querySelector('.page-head'), root.querySelector('.dm-head'), root.querySelector('.dm-top'), root.querySelector('.dm-facts'), ...root.querySelectorAll('.cat-block')],
+    };
   },
   admin(root) {
     // 后台是独立的一叠内页：左页管理导航、右页管理内容。
@@ -303,7 +299,7 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
   }
 
   /** 内页（详情/后台/404）：单独一叠纸，不参与章节顺序 */
-  async function innerPages(path) {
+  async function innerPages(path, { single = false } = {}) {
     const id = String(path).startsWith('/admin') ? 'admin' : String(path).startsWith('/dishes/') ? 'dishDetail' : 'notFound';
     const params = id === 'dishDetail' ? [String(path).split('/')[2]] : [];
     const def = EXTRA[id];
@@ -318,6 +314,21 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     }
     const split = (SPLITTERS[id] || ((root) => ({ left: [root], right: [] })))(holder);
     const entry = { left: wrapFace(false, split.left), right: wrapFace(false, split.right), instance, holder };
+    if (id === 'dishDetail') {
+      if (single) {
+        // 手机单页：一屏只有一张纸，没有「另一半」可放图鉴。
+        // 详情必须占这一张纸，所以把详情换到左页（单页模式下位置 2 就是这张纸）。
+        const blank = entry.left;
+        entry.left = entry.right;
+        entry.right = blank;
+      } else {
+        // 深链接进详情（双页）：左页放图鉴的那张纸，右页是详情本身 ——
+        // 与「在图鉴里点开详情」同一种半页结构。纸面节点仍归图鉴所有，
+        // 这里只是把它搬到本跨页；离开内页时图鉴会重新取回同一节点。
+        ensureAtlas();
+        entry.left = wrapFace(true, [atlas.page(0, 'left')], 'bk-pageface--atlas');
+      }
+    }
     if (id === 'admin') {
       // 后台两页各自整页铺满：滚动只发生在内容区，不牵动纸张
       entry.left.classList.add('bk-pageface--adm');

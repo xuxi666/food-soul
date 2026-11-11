@@ -41,6 +41,14 @@ import {
   restoreCursor,
   revisitPending,
 } from './nav.js';
+import {
+  closeDishChat,
+  dishChatState,
+  hasOpenDishChat,
+  openDishChatDishId,
+  openDishChatPanel,
+  setDishChatOpener,
+} from './chat-panel.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -424,7 +432,6 @@ export function initBook({ root, routerApi = null }) {
     book.setChapterActive?.(chapterId);
     // 已经在目录页时不再显示「回到目录」
     shell.el.classList.toggle('is-on-catalog', chapterId === 'catalog');
-    updateBackLabel();
 
     // 地址跟着书页走：翻到哪一章，地址就是那一章
     const ch = chapterById(chapterId);
@@ -451,19 +458,6 @@ export function initBook({ root, routerApi = null }) {
       return param ? `${root}/${param}` : ch.href;
     }
     return ch.href;
-  }
-
-  /**
-   * 返回按钮只负责「上一页 / 上一模块」，永远不合书：
-   * 合书是独立的「合上」按钮，两者不再共用同一个行为。
-   */
-  function updateBackLabel() {
-    const label = shell.backBtn.querySelector('.bk-back__label');
-    const isAdmin = currentKey === 'admin';
-    const isDetail = currentKey === 'dishDetail' && !bookDomGone();
-    shell.backBtn.dataset.action = isAdmin ? 'admin-back' : 'back';
-    shell.backBtn.setAttribute('aria-label', isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '返回上一页');
-    if (label) label.textContent = isAdmin ? '返回画册' : isDetail ? '返回图鉴' : '返回';
   }
 
   /* ---------------- 开书 ---------------- */
@@ -545,11 +539,50 @@ export function initBook({ root, routerApi = null }) {
    */
   const bookDomGone = () => mode === 'open' && !document.querySelector('.bk-sheet');
 
+  /* ---------------- 双页聊天：详情一页，聊天另一页 ---------------- */
+  /**
+   * 详情浮层 / 详情页所在的那张纸。
+   * 图鉴的宿主是 .atlas-page，菜系 / 口味是 .bk-pageface，深链接详情是内页的右页。
+   */
+  function hostPageOf(el) {
+    return (
+      el?.closest?.('.atlas-page') ||
+      el?.closest?.('.bk-pageface') ||
+      document.querySelector('.atlas-detail')?.closest('.atlas-page, .bk-pageface') ||
+      null
+    );
+  }
+
+  /** 当前跨页的另一张纸（单页模式没有另一半，聊天就落在详情自己那页） */
+  async function otherPageOf(host) {
+    if (position.single) return { page: host, side: 'full', single: true };
+    const [ln, rn] = pagesHere();
+    const left = await resolvePage(ln);
+    const right = await resolvePage(rn);
+    if (host === left) return { page: right, side: 'right', single: false };
+    if (host === right) return { page: left, side: 'left', single: false };
+    return null;
+  }
+
+  /** 「和某某聊聊」：详情保持不动，聊天开在另一半页 */
+  async function openDualChat(subject, originEl) {
+    if (!subject?.id || mode !== 'open') return false;
+    if (busy) return false;
+    const host = hostPageOf(originEl);
+    if (!host) return false;
+    const slot = await otherPageOf(host);
+    if (!slot?.page) return false;
+    await openDishChatPanel({ subject, page: slot.page, side: slot.side, single: slot.single });
+    return true;
+  }
+
   /* ---------------- 显示某个路径 ---------------- */
   const INNER_KEYS = new Set(['dishDetail', 'admin', 'notFound']);
 
   async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
+    // 聊天是详情页的临时另一半：换路径就不该留着
+    closeDishChat('nav');
     // 是不是从「菜品详情」出发的：内页 / 图鉴里展开的详情浮层都算。
     // 必须在收起浮层之前判断，收起之后就看不出来了。
     const fromDetail = !!inner || shell.el.classList.contains('is-atlas-expanded');
@@ -570,7 +603,7 @@ export function initBook({ root, routerApi = null }) {
 
     if (isInner) {
       // 内页：单独一叠纸，左右两页都来自这个模块（后台 = 左导航 / 右内容）
-      const entry = await book.innerPages(path);
+      const entry = await book.innerPages(path, { single: lastBox.mode === 'single' });
       void book.disposeInner(inner);
       inner = entry;
       innerKind = info.key;
@@ -787,6 +820,8 @@ export function initBook({ root, routerApi = null }) {
   async function openChapter(id, param, opts = {}) {
     const chapter = chapterById(id);
     if (!chapter) return;
+    // 书签 / 目录 / 章节切换：临时聊天面板不能跟着漂到别的模块
+    closeDishChat('nav');
     if (busy) { pendingChapter = { id, param, opts }; return; }
     if (id !== 'dishes') closeAllOverlays({ instant: true });
     // 书签是章节入口：不带分类时回到该分类的默认代表（川菜 / 麻辣鲜香）
@@ -1260,14 +1295,6 @@ export function initBook({ root, routerApi = null }) {
       busy = false;
     }
   }
-  shell.backBtn.addEventListener('click', () => {
-    if (shell.backBtn.dataset.action === 'admin-back') {
-      void leaveAdmin();
-      return;
-    }
-    void goBackOne('button');
-  });
-
   /* 合上：独立按钮，只有它执行合书动画 */
   shell.shutBtn.addEventListener('click', () => void shutBook('button'));
 
@@ -1439,6 +1466,13 @@ export function initBook({ root, routerApi = null }) {
     currentModule: () => currentEntry(),
     back: () => goBackOne('api'),
     shutBook: () => shutBook('api'),
+    /* 双页聊天（验收 / 诊断用） */
+    chat: dishChatState,
+    chatOpen: () => hasOpenDishChat(),
+    chatDish: () => openDishChatDishId(),
+    closeChat: () => closeDishChat('api'),
+    openChat: (subject) =>
+      openDualChat(subject, document.querySelector('.atlas-detail') || document.querySelector('.catb__ai') || null),
     parkedRoute: () => parkedSite?.route ?? null,
     goModule: (id) => goBookmark({ id }),
     syncMarks,
@@ -1447,6 +1481,11 @@ export function initBook({ root, routerApi = null }) {
 
   /* 全站「生成菜谱」入口 → 画册翻页 → 菜谱模块回填 */
   setRecipeNavigator(goRecipeModule);
+  /* 详情页「和某某聊聊」→ 画册把聊天开在另一半页 */
+  setDishChatOpener((subject, originEl) => {
+    void openDualChat(subject, originEl);
+    return true;
+  });
 
   return {
     shell,

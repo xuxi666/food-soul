@@ -162,6 +162,8 @@ export function openDishOverlay(hostEl, opts = {}) {
     overlay.classList.remove('is-open');
     hostEl.dataset.expanded = '0';
     syncStageFlag();
+    // 详情收起 = 它的双页聊天也该收起（聊天是详情的另一半页）
+    document.dispatchEvent(new CustomEvent('foodsoul:detail-close', { detail: { dish: overlay.dataset.dish } }));
     onChange?.();
     const finish = () => {
       stopWheel();
