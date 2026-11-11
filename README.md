@@ -1,6 +1,6 @@
 # 食有灵 · FOOD SOUL
 
-> 中国美食 × 用户自接入 AI 大模型。八大菜系与八种味型的 3D 环形画廊、菜品人格对话、结构化菜谱生成、真实来源检索、美食社区。
+> 中国美食 × 用户自接入 AI 大模型。画册式的中华美食站点：封面 → 序 → 目录 → 章节，菜系 / 味型双页聊天、菜品人格对话、结构化菜谱生成、真实来源检索、美食社区与后台管理。
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933)](https://nodejs.org/)
 [![Vite](https://img.shields.io/badge/vite-5-646CFF)](https://vitejs.dev/)
@@ -9,7 +9,7 @@
 
 ## 这是什么
 
-一个以「中国菜」为主题的互动站点。首页是一圈可以拖拽旋转的 3D 卡片环，点任意卡片会以圆形扩散转场进入对应页面；每个菜品、菜系、味型都有自己的 AI 人格，可以对话、生成菜谱、找相似口味。
+一个以「中国菜」为主题的互动站点：整站是一本可以翻阅的画册，封面翻开是序言与目录，目录之后依次是八大菜系、八种味型、图鉴、菜谱、厨房、社区、视频等章节；菜系与味型章节用「左档案 / 中书脊 / 右聊天」的双页布局，每个菜品、菜系、味型都有自己的 AI 人格。
 
 **关键设计：站点本身不内置任何模型密钥。** 每个用户登录后，在右上角「接入 AI」里填入自己的模型服务（任意 OpenAI 兼容接口），密钥经 AES-256-GCM 加密后存进服务端数据库，每次请求按当前登录用户解密使用。
 
@@ -17,16 +17,30 @@
 
 | 模块 | 说明 |
 |---|---|
-| 3D 环形画廊 | Three.js 手写，拖拽旋转、点击选中、HTML 面板经单应性矩阵投影贴合卡片 |
-| 圆形扩散转场 | 从点击坐标扩散覆盖全屏，支持 `prefers-reduced-motion` |
-| 双模式探索 | 八大菜系 / 八种味型，两套独立数据，切换不残留 |
+| 画册外壳 | 封面 / 序 / 目录 / 章节；双页纸面、书脊、侧边书签、页码，地址与书页顺序一致 |
+| 翻页与返回 | 页脚翻页、章节书签、返回与「合上画册」分离，浏览器前进后退可用 |
+| 双模式探索 | 八大菜系 / 八种味型各成一章，两套独立数据，切换不残留 |
 | 菜品人格对话 | 每个菜品有独立人格提示词，SSE 流式输出，支持多轮上下文 |
 | 对话延伸建议 | 每条回答结束后生成 1–3 条可点击的后续建议（不阻塞主回答） |
 | 菜谱工作台 | 手动输入菜名 → 图鉴优先匹配 → 图鉴没有则**真实联网检索**并展示来源 |
-| 美食推荐 | 按口味、预算、人数、可用食材筛选并让模型排序 |
+| Epicure 厨房 | 外部 Epicure MCP 的风味图谱 / 食材库 / 配方设计；服务不可用时整块降级，不伪造结果 |
+| 流体转场 | 菜品详情与页内跳转沿用圆形扩散转场，支持 `prefers-reduced-motion` |
+| 响应式 | PC 双页、平板压缩导航、手机单页，功能不裁剪 |
 | 美食社区 | 发帖、回复、点赞、图片上传、举报、删除自己的内容 |
+| 管理后台 | `/admin` 内页：真实计数概览、内置 AI 与 Epicure 双服务状态、社区内容、首页图片、图鉴、举报处理 |
 | 账号体系 | 邮箱 + 密码，scrypt 哈希，HttpOnly Cookie 会话 |
 | 用户级 AI 配置 | 服务商预设 / 自定义 Base URL / 模型 ID / 连接测试 / 密钥加密存储 |
+
+### 最近更新
+
+**2026-11-11 · 管理后台修复与功能恢复**
+
+- 右页空白根因修复：入场动画误用全局 `.is-swapping`（`opacity:0`）且从不移除，改为 `is-entering` 并在动画结束后摘除
+- 概览换掉壳子数据：六项真实库计数 + 内置 AI / Epicure 两个独立状态区 + 最近审计
+- 新增 `service_health` 表与 `diagnoseEpicure()`：服务端真实握手并调用 `list_targets`，错误按 DNS / 隧道 / 超时 / 鉴权等分类
+- 帖子补齐编辑正文与分类、隐藏、恢复、按状态/分类/时间/被举报筛选；举报处理支持处理说明写库
+- 单页 / 平板 / 手机：纸面恢复滚动、导航与统计重排，`退出登录` 可达
+- 验收记录与截图：[`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md)、[`docs/admin-shots/`](docs/admin-shots/)
 
 ## 技术栈
 
@@ -35,7 +49,8 @@
 - **数据库**：`node:sqlite`（Node ≥ 22.5 内置），单文件 `data/foodsoul.db`
 - **加密**：`node:crypto` —— scrypt 密码哈希、AES-256-GCM 密钥加密
 - **AI**：OpenAI 兼容 `/chat/completions`，SSE 流式
-- **检索**：智谱 Web Search API（独立于用户聊天模型）
+- **检索**：自建 SearXNG + Bing RSS 兜底（不依赖付费检索 API）
+- **外部风味服务**：Epicure MCP（Streamable HTTP，JSON-RPC），可开关、可降级
 
 ## 快速开始
 
@@ -117,17 +132,29 @@ ADMIN_EMAILS=you@example.com,another@example.com
 - 移出白名单后，该账号下次请求即降级为普通用户
 - 未登录访问管理接口返回 `401`，普通用户返回 `403`
 
-**功能模块**：
+**功能模块**（截至 2026-11-11，逐项状态见 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md)）：
 
 | 模块 | 说明 |
 |---|---|
-| 后台概览 | 帖子/举报/卡片/菜品统计 + 最近管理操作 |
-| 社区内容 | 关键词搜索、分页、查看详情、软删除（保留审计） |
-| 首页图片 | 八大菜系 / 八大口味卡片分别管理，可替换或恢复默认 |
-| 美食图鉴 | 按菜名搜索、替换菜品默认图片 |
-| 举报处理 | 按状态筛选，标记处理中 / 驳回 / 确认违规并删除 |
+| 后台概览 | 六项**真实库计数**（注册用户 / 帖子 / 待处理举报 / 已处理·驳回 / 首页图片 / 图鉴菜品），另含启用模型与最近测试；内置 AI 与 Epicure 两个独立状态区；最近 12 条管理操作 |
+| 社区内容 | 关键词、分类、时间、状态（正常 / 已隐藏）、只看被举报筛选；分页；详情；编辑正文与分类；隐藏、恢复、删除（均确认后写入并记审计） |
+| 首页图片 | 八大菜系 / 八大口味共 16 个固定位置的换图、预览、恢复默认，附前台链接 |
+| 美食图鉴 | 按菜名搜索、按菜系筛选、详情（口味 / 难度 / 份量 / 主料 / 简介）、换图与恢复 |
+| 内置 AI | 内置模型开关、当前配置、Key 掩码状态、真实连接测试入口 |
+| 举报处理 | 待处理 / 处理中 / 已处理 / 驳回筛选；处理说明写库；「确认违规并删除内容」会同时结案同类待处理举报 |
 
-图片替换写入 `card_images` / `dish_images` 表，前端启动时通过 `GET /api/assets/overrides` 拉取并写回本地数据源，因此首页、图鉴、详情页始终一致。
+**服务状态是探测出来的，不是猜的**：`GET /api/admin/service-health?probe=1` 会真实连接 Epicure（`listTools` + 调用 `list_targets`，整体 8 秒上限），结果写入 `service_health` 表，成功只更新上次成功时间、失败只更新上次失败时间。错误按 `dns / refused / timeout / tunnel / auth / rate-limit / http-5xx / http-4xx / network` 分类，Cloudflare 1033 一类归为「外部隧道异常」，不会被误报成 AI Key 问题。
+
+**明确没有做的**（页面会直接说明，不放无效按钮）：
+
+- 待审核帖子队列：帖子发布即公开，数据模型只有软删除，没有 pending 状态
+- 卡片排序 / 启用停用：`card_images` 只有覆盖关系，没有 order / enabled 字段
+- 菜品新建 / 删除 / 改分类：菜品来自静态数据源，后台只做图片覆盖
+- 用户与角色管理、站点设置、独立审计日志页：尚未实现
+
+**移动端**：单页模式下整页可滚动，导航改竖列、统计三列，`退出登录` 与全部功能都可达（1440 / 834 / 390 三档均有回归测试）。
+
+图片替换写入 `card_images` / `dish_images` 表，前端启动时通过 `GET /api/assets/overrides` 拉取并覆盖本地数据源：菜品图在菜系页与详情页真实可见。菜系 / 口味卡图由首页的 WebGL 转盘消费，而当前画册入口（封面 → 目录 → 章节）不呈现该转盘，所以后台换卡图目前只能验证到「数据层已生效」，前台没有可见落点——这一点在后台页面与 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md) 里都如实标注。
 
 
 ### 内置 AI（全站统一模型）
@@ -204,6 +231,22 @@ node scripts/diagnose-search.mjs
 
 检索失败不影响菜谱生成：降级为「基于模型已有知识」，页面标注未联网核实。
 
+## Epicure 风味服务（外部 MCP）
+
+厨房页的风味图谱、食材库与配方设计，用的是**外部 Epicure MCP**，不是本站自建的风味引擎。本站只做客户端与降级：
+
+| 项 | 说明 |
+|---|---|
+| 协议 | Streamable HTTP + JSON-RPC；超时、并发、缓存都可配 |
+| 端点 | `EPICURE_MCP_URL`，默认 `https://epicure-mcp.kaikaku.ai/mcp` |
+| 关闭 | `EPICURE_ENABLED=false` 后整块功能降级，聊天 / 菜谱 / 推荐照常工作 |
+| 降级 | 外部不可用时用本地食材目录与缓存数据，界面标注来源，不伪造风味图形 |
+| 状态 | 后台「后台概览 → Epicure 外部服务状态」可一键真实探测，或 `GET /api/admin/service-health?probe=1` |
+
+服务端接口：`GET /api/epicure/status|tools|ingredients`、`POST /api/epicure/network|autoadd|analyze|create|pair`。其中 `network` 需要 `{ids, depth, topK, expand}` 结构；`autoadd` 新增的食材会进入本地食材库。
+
+> 边界：`analyze / pair / create` 目前只有服务端接口，后台没有做调用入口；后台只展示真实探测结果，不做「配置了 URL 就算在线」的判断。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |
@@ -211,8 +254,15 @@ node scripts/diagnose-search.mjs
 | `AI_CONFIG_SECRET` | ✅ | 32 字节 base64/hex，用于加密用户 API Key。**丢失后已存的 Key 无法解密** |
 | `AI_CONFIG_KEY_VERSION` | | 密钥版本号，配合轮换使用，默认 `1` |
 | `AI_CONFIG_SECRET_PREVIOUS` | | 轮换期间解密旧密文用 |
-| `SEARCH_API_KEY` | | 联网检索服务的 Key。未配置时菜谱来源检索与图鉴补全会明确提示，**不会伪造来源** |
-| `SEARCH_BASE_URL` | | 检索服务地址，默认智谱 |
+| `ADMIN_EMAILS` | | 管理员白名单，逗号分隔；命中者登录即同步为 `admin`，移出后下次请求降级 |
+| `EPICURE_ENABLED` | | 外部 Epicure MCP 总开关，默认 `true`；`false` 时相关功能整体降级 |
+| `EPICURE_MCP_URL` | | Epicure 端点，默认 `https://epicure-mcp.kaikaku.ai/mcp` |
+| `EPICURE_TIMEOUT_MS` | | 单次调用超时，默认 `10000` |
+| `EPICURE_CACHE_TTL_MS` | | 工具列表缓存，默认 `300000`（5 分钟） |
+| `EPICURE_MAX_CONCURRENCY` | | 并发上限，默认 `3` |
+| `SEARXNG_URL` | | 自建 SearXNG 地址，默认 `http://127.0.0.1:8080` |
+| `SEARCH_PROVIDER` | | 保留字段；检索已固定走自建 SearXNG + Bing RSS |
+| `SEARCH_API_KEY` | | 旧版检索用；当前检索链路不再使用，留空即可 |
 | `SESSION_TTL_DAYS` | | 登录有效期，默认 7 |
 | `PORT` | | 生产端口，默认 5190 |
 
@@ -226,24 +276,32 @@ node scripts/diagnose-search.mjs
 ├── server/
 │   ├── index.mjs         生产入口：静态托管 + /api
 │   ├── api.mjs           全部路由
+│   ├── admin-routes.mjs  后台接口（概览 / 服务状态 / 帖子 / 卡片 / 图鉴 / 举报 / AI）
+│   ├── auth.mjs          Cookie 会话、管理员白名单与角色同步
+│   ├── service-health.mjs 服务健康表（上次成功 / 上次失败分开记）
+│   ├── epicure-client.mjs 外部 MCP 客户端、错误分类、真实探测
+│   ├── epicure-service.mjs 厨房的风味图谱与配方编排（含降级）
+│   ├── site-ai.mjs       全站内置模型（多套配置 + 总开关）
 │   ├── ai-adapter.mjs    OpenAI 兼容适配层（流式/JSON/连接测试）
 │   ├── ai-config.mjs     用户级 AI 配置读写与验证
-│   ├── auth.mjs          Cookie 会话与鉴权
+│   ├── db.mjs            SQLite（users / sessions / ai_configs / site_ai / 图片覆盖 / 举报 / 审计）
 │   ├── security.mjs      scrypt / AES-256-GCM
-│   ├── db.mjs            SQLite（users / sessions / ai_configs）
 │   ├── recipe-lookup.mjs 菜名规范化、图鉴匹配、真实检索
-│   ├── web-search.mjs    联网检索封装
+│   ├── web-search.mjs    SearXNG + Bing RSS 检索封装
 │   ├── prompt.mjs        各类系统提示词
-│   └── community.mjs     社区
+│   └── community.mjs     社区（帖子 / 评论 / 举报计数 / 软删除）
 ├── src/
 │   ├── main.js           启动、路由、账号组件挂载
-│   ├── gallery.js        Three.js 环形画廊 + 面板投影
-│   ├── lib/transition.js 圆形扩散转场
-│   ├── lib/clipboard.js  UUID / 复制（兼容非 HTTPS 环境）
-│   ├── views/            各页面
+│   ├── book/             画册外壳：章节、纸张、翻页、书签、双页拆分
+│   ├── gallery.js        历史组件：Three.js 环形画廊（当前画册版式未挂载）
+│   ├── lib/              转场、剪贴板、图片覆盖层、DOM 工具
+│   ├── views/            各页面（含 admin.js 后台）
 │   ├── data/             菜品、菜系、味型、人格数据
-│   └── styles/
-└── scripts/              校验脚本（Playwright）与部署脚本
+│   └── styles/           主题与各模块样式（admin.css 后台）
+├── docs/
+│   ├── DEPLOY.md         发布与同步（本地 → 服务器 → GitHub）
+│   └── ADMIN-BACKEND.md  后台模块台账与验收记录
+└── scripts/              校验脚本（Playwright）、部署与同步脚本
 ```
 
 ## 数据说明
@@ -255,11 +313,15 @@ node scripts/diagnose-search.mjs
 ## 已知限制
 
 - **仅支持 OpenAI 兼容接口**。Anthropic / Gemini 原生协议需要走兼容网关。
-- **配置了模型 ≠ 具备联网能力**。联网检索要单独配 `SEARCH_API_KEY`。
+- **配置了模型 ≠ 具备联网能力**。联网检索走自建 SearXNG + Bing RSS，不需要付费 Key。
 - **单实例部署**。SQLite 适合单机；多实例需要换 Postgres/MySQL，并把限流改成共享存储。
 - 限流基于单进程内存，重启后重置。
 - 未实现邮箱验证、找回密码、双因素登录。
 - HTTP 环境下 `crypto.randomUUID` 与 `navigator.clipboard` 不可用，已在 `src/lib/clipboard.js` 做回退。
+- 后台只覆盖「已经存在的数据模型」：没有待审核队列、卡片排序/启停、菜品增删改、用户管理、独立审计页——这些在页面上会明确说明，而不是放无效按钮。
+- 3D 环形画廊（`src/gallery.js`，Three.js）是历史组件，当前画册版式没有挂载它的入口；因此首页卡图覆盖只在数据层生效，前台无可见落点。
+- 后台写接口统一用 `readJson(req).catch(() => ({}))`，非法 JSON / 413 会被当成空对象，存在静默失败风险（待单独修）。
+- Epicure 的 `analyze / pair / create` 只有服务端接口，尚未接入后台。
 
 ## 校验脚本
 
@@ -269,9 +331,14 @@ node scripts/verify-ai-ui.mjs              # 注册→接入→聊天→退出�
 node scripts/verify-recipe-search.mjs      # 菜谱两阶段查询与来源
 node scripts/verify-chat-suggestions.mjs   # 对话延伸建议
 node scripts/check-chat-responsive.mjs     # 聊天页多视口自适应
+node scripts/verify-admin.mjs              # 后台权限：未登录 401 / 普通用户 403
+node scripts/verify-admin-ui.mjs           # 后台各页加载与关键控件
+node scripts/verify-epicure.mjs            # Epicure 连接与工具调用
 ```
 
 需要先启动 dev server（`npm run dev`，端口 5180）。
+
+后台逐模块的真实读写记录（帖子编辑/隐藏/恢复、举报状态流转、卡片与图鉴换图回读、审计落库）与 PC / 平板 / 手机截图见 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md) 与 [`docs/admin-shots/`](docs/admin-shots/)。
 
 ## 许可
 
