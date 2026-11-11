@@ -35,10 +35,11 @@
 **2026-11-11 · 管理后台修复与功能恢复**
 
 - 右页空白根因修复：入场动画误用全局 `.is-swapping`（`opacity:0`）且从不移除，改为 `is-entering` 并在动画结束后摘除
-- 概览换掉壳子数据：六项真实库计数 + 内置 AI / Epicure 两个独立状态区 + 最近审计
+- 概览换掉壳子数据：真实库计数（注册用户 / 帖子 / 举报 / 图鉴菜品）+ 内置 AI / Epicure 两个独立状态区 + 最近审计
 - 新增 `service_health` 表与 `diagnoseEpicure()`：服务端真实握手并调用 `list_targets`，错误按 DNS / 隧道 / 超时 / 鉴权等分类
 - 帖子补齐编辑正文与分类、隐藏、恢复、按状态/分类/时间/被举报筛选；举报处理支持处理说明写库
 - 单页 / 平板 / 手机：纸面恢复滚动、导航与统计重排，`退出登录` 可达
+- 移除「首页图片」模块：页签、`/api/admin/cards` 接口、卡图覆盖读写与 `src/data/wheel.js` 一并下线（该功能唯一消费方是已删除的 3D 转盘），`card_images` 历史数据保留
 - 验收记录与截图：[`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md)、[`docs/admin-shots/`](docs/admin-shots/)
 
 ## 技术栈
