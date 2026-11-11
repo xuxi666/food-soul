@@ -160,12 +160,26 @@ export async function openChatPanel({ subject, page, side = 'right', single = fa
   entry.holder.dataset.context = s.key;
   entry.holder.setAttribute('role', 'region');
   entry.holder.setAttribute('aria-label', `${s.name} 的 AI 聊天`);
+  /*
+   * 聊天面板是 absolute inset:0，铺满「这张纸当前的可视区域」。
+   * 如果纸面已经向下滚过（社区右页的帖子列表就是），面板会跟着内容一起偏上去，
+   * 只剩半截甚至整块跑到纸外面。所以挂载前先把纸面滚回顶部，
+   * 收起时按记下的位置还原 —— 列表的滚动位置照样不丢。
+   */
+  const scroller = page.classList?.contains('bk-pageface') ? page : page.closest?.('.bk-pageface');
+  let prevScroll = 0;
+  if (scroller && scroller.scrollTop > 0) {
+    prevScroll = scroller.scrollTop;
+    scroller.scrollTop = 0;
+  }
   page.append(entry.holder);
-  current = { key: s.key, subject: s, holder: entry.holder, page, side: entry.side, single };
+  current = { key: s.key, subject: s, holder: entry.holder, page, side: entry.side, single, scroller, prevScroll };
 
   await entry.ready;
   // 挂载可能是在「上一次收起动画」之后才完成的：确保它仍在纸上
   if (entry.holder.parentNode !== page) page.append(entry.holder);
+  // 输入框聚焦可能把纸面又滚下去：面板必须始终贴在纸的可视区
+  if (scroller && scroller.scrollTop !== 0) scroller.scrollTop = 0;
   decorate(entry, single);
   requestAnimationFrame(() => entry.holder.classList.add('is-open'));
 
@@ -206,6 +220,16 @@ export function closeDishChat(reason = 'api', { instant = false } = {}) {
   holder.classList.add('is-closing');
   const done = () => {
     if (holder.parentNode) holder.remove();
+    // 收起后把纸面滚回聊天打开前的阅读位置（社区列表的滚动位置）。
+    // 必须等浏览器把面板摘掉的布局算完再 restore：同一帧里改 scrollTop
+    // 会被滚动锚定按「刚被移除的面板」重新算，结果又贴到底部。
+    const scroller = cur.scroller;
+    const target = cur.prevScroll;
+    if (scroller?.isConnected && target) {
+      requestAnimationFrame(() => {
+        if (scroller.isConnected) scroller.scrollTop = target;
+      });
+    }
   };
   if (instant) done();
   else window.setTimeout(done, CLOSE_MS);

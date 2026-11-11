@@ -51,7 +51,7 @@ const SPLITTERS = {
     // 右页（帖子列表）永远翻不到——列表再好看也没人看得见。
     const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
     if (single) return { left: [...root.children], right: [] };
-    const left = [root.querySelector('.community-side')];
+    const left = [root.querySelector('.community-side'), root.querySelector('.com-detail')];
     const right = [root.querySelector('.community-main')];
     return { left, right };
   },

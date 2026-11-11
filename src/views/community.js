@@ -3,6 +3,7 @@ import { api, guest, compressImage } from '../lib/api.js';
 import { openAuthModal } from '../components/account.js';
 import { DISHES, DISH_BY_ID } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
+import { openDishChat, closeDishChat, hasOpenDishChat } from '../book/chat-panel.js';
 
 const SORTS = [
   { id: 'latest', label: '最新' },
@@ -266,13 +267,18 @@ export default {
     function closeLightbox() {
       if (lightbox) lightbox.remove();
       lightbox = null;
-      // 详情层还开着就继续锁住背景，避免滚到书页后面
-      document.body.style.overflow = document.querySelector('.post-detail') ? 'hidden' : '';
+      document.body.style.overflow = '';
     }
     const onEsc = (e) => {
-      if (e.key === 'Escape') closeLightbox();
+      // 只有大图开着时才处理 Esc，并把它截在这里：
+      // 否则同一次按键会继续冒泡给画册，把整本书合上。
+      if (e.key !== 'Escape' || !lightbox) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      closeLightbox();
     };
-    document.addEventListener('keydown', onEsc);
+    document.addEventListener('keydown', onEsc, true);
 
 /* ---------------- 列表状态（分页 / 去重 / 无限滚动） ---------------- */
     const PAGE_SIZE = 12; // 服务端上限 12；一屏 3 列刚好铺满两行
@@ -336,11 +342,13 @@ export default {
       );
     }
 
-    /* ---------------- 详情弹层：完整正文、全部图片、评论 ---------------- */
-    let detail = null; // { el, post, likeBtn, commentCount, commentsBox, commentsList }
+    /* ---------------- 帖子详情：画册左页（不再是居中弹层） ---------------- */
+    let detail = null; // { post, face, likeBtn, commentCount, commentsList }
 
     function onDetailKey(e) {
       if (!detail || e.key !== 'Escape') return;
+      // 大图优先：图片灯箱开着时让 Esc 只关图片
+      if (document.querySelector('.lightbox')) return;
       // 捕获阶段截住：书自己也在 document 上监听 Esc（合上画册），不拦会一起触发
       e.preventDefault();
       e.stopPropagation();
@@ -350,10 +358,15 @@ export default {
 
     function closeDetail() {
       if (!detail) return;
-      detail.el.remove();
+      // 返回社区：右页聊天先按现有逻辑收起，再露出左页原来的社区侧栏
+      if (hasOpenDishChat()) closeDishChat('detail');
+      const face = detail.face || detailHost.closest('.bk-pageface');
+      face?.classList.remove('has-com-detail');
       detail = null;
+      detailHost.classList.remove('is-open');
+      detailHost.hidden = true;
+      clear(detailHost);
       document.removeEventListener('keydown', onDetailKey, true);
-      document.body.style.overflow = '';
     }
 
     function commentNode(c) {
@@ -407,15 +420,42 @@ export default {
       );
     }
 
+    /**
+     * 帖子关联菜品卡片：图片 + 中文名 + 英文名 + 菜系 + 口味 + 简介，
+     * 出口是动态的「和某某聊聊」——直接复用画册双页聊天，不新造聊天系统。
+     * 只有帖子本身带 dishId 且这道菜在数据源里存在时才渲染；没有关联就整块不出现。
+     */
     function dishBlock(post) {
       const dish = DISH_BY_ID[post.dishId];
       if (!dish) return null;
-      return h('div', { class: 'post__dish' },
+      const cuisine = CUISINE_BY_ID[dish.cuisine]?.name || '';
+      const tastes = (dish.tastes || []).map((t) => TASTE_BY_ID[t]?.name).filter(Boolean).join(' / ');
+      const meta = [cuisine, tastes].filter(Boolean).join(' · ');
+      return h('div', { class: 'post__dish post__dish--detail' },
         h('a', { class: 'post__dish-main', href: `/dishes/${dish.id}`, 'data-link': '' },
-          h('img', { src: dish.image, alt: '', loading: 'lazy' }),
-          h('span', {}, h('b', { text: dish.name }), h('em', { text: `${CUISINE_BY_ID[dish.cuisine]?.name} · ${TASTE_BY_ID[dish.tastes[0]]?.name}` }))
+          h('img', { src: dish.image, alt: dish.name, loading: 'lazy' }),
+          h('span', {},
+            h('b', { text: dish.name + (dish.nameEn ? ` · ${dish.nameEn}` : '') }),
+            meta ? h('em', { text: meta }) : null,
+            dish.intro ? h('i', { class: 'post__dish-intro', text: dish.intro }) : null
+          )
         ),
-        h('a', { class: 'post__dish-chat', href: `/chat/${dish.id}`, 'data-link': '' }, '聊一聊')
+        h('button', {
+          class: 'post__dish-chat',
+          type: 'button',
+          title: `和「${dish.name}」的 AI 食灵聊聊`,
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            /*
+             * 与菜品详情「与某某聊聊」同一条链路：
+             * 聊天开在详情所在页的另一半（这里 = 右侧社区列表那页），
+             * 收起后右页原样露回社区浏览内容，左页帖子详情不受影响。
+             */
+            const ok = openDishChat(dish, e.currentTarget);
+            if (!ok) location.href = `/chat/${dish.id}`;
+          },
+        }, `和${dish.name}聊聊`)
       );
     }
 
@@ -522,9 +562,10 @@ export default {
       return card;
     }
 
-    /* ---------------- 详情层 ---------------- */
+    /* ---------------- 帖子详情：左页内联（不再是居中弹层） ---------------- */
     function openDetail(post) {
-      closeDetail();
+      // 正在聊上一道菜时点开另一条帖子：先把右页聊天按现有逻辑收起，避免上下文串台
+      if (hasOpenDishChat()) closeDishChat('switch', { instant: true });
       const liked = (post.likedBy || []).includes(me.id);
       const comments = post.comments || [];
 
@@ -537,12 +578,16 @@ export default {
       const commentCount = h('span', { class: 'post-detail__count', text: `${comments.length} 条评论` });
       const commentsList = h('div', { class: 'post-detail__comments' });
       const paintComments = () => {
+        // 每次重画都读 post.comments 的现值：评论 / 让菜回应之后是新数组，
+        // 不能继续用打开详情那一刻的快照。
+        const list = post.comments || [];
         clear(commentsList);
-        if (!comments.length) {
+        commentCount.textContent = `${list.length} 条评论`;
+        if (!list.length) {
           commentsList.append(h('p', { class: 'post-detail__empty', text: '还没有评论，说两句吧。' }));
           return;
         }
-        comments.forEach((c) => commentsList.append(commentNode(c)));
+        list.forEach((c) => commentsList.append(commentNode(c)));
       };
       paintComments();
 
@@ -663,15 +708,22 @@ export default {
       );
 
       const imgs = mediaUrls(post);
-      const panel = h('div', { class: 'post-detail__panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': '帖子详情' },
-        h('button', { class: 'post-detail__x', type: 'button', 'aria-label': '关闭', onclick: () => closeDetail() }, '×'),
+      const panel = h('article', { class: 'com-detail__panel', role: 'region', 'aria-label': '帖子详情' },
+        h('div', { class: 'com-detail__bar' },
+          h('button', {
+            class: 'btn btn--sm com-detail__back',
+            type: 'button',
+            onclick: () => closeDetail(),
+          }, '← 返回社区'),
+          h('span', { class: 'com-detail__kicker', text: '帖子详情' }),
+          post.kind ? h('span', { class: 'post__kind', text: post.kind }) : null
+        ),
         h('header', { class: 'post__head' },
           h('span', { class: 'post__avatar', text: String(post.author?.name || '匿').slice(0, 1) }),
           h('div', { class: 'post__who' },
             h('b', { text: post.author?.name || '匿名' }),
             h('span', { text: fmtTime(post.createdAt) })
-          ),
-          post.kind ? h('span', { class: 'post__kind', text: post.kind }) : null
+          )
         ),
         post.recipe?.title ? h('h2', { class: 'post-detail__title', text: post.recipe.title }) : null,
         h('p', { class: 'post-detail__text', text: post.content }),
@@ -696,18 +748,17 @@ export default {
         commentForm
       );
 
-      const overlay = h('div', {
-        class: 'post-detail',
-        onclick: (e) => {
-          if (e.target === overlay) closeDetail();
-        },
-      }, panel);
-
-      document.body.appendChild(overlay);
-      document.body.style.overflow = 'hidden';
+      clear(detailHost);
+      detailHost.append(panel);
+      detailHost.hidden = false;
+      const face = detailHost.closest('.bk-pageface');
+      if (face) {
+        face.classList.add('has-com-detail');
+        face.scrollTop = 0;
+      }
       document.addEventListener('keydown', onDetailKey, true);
-      detail = { el: overlay, post, likeBtn, commentCount, commentsList };
-      panel.scrollTop = 0;
+      detail = { post, face, likeBtn, commentCount, commentsList };
+      requestAnimationFrame(() => detailHost.classList.add('is-open'));
     }
 
     /* ---------------- 渲染 / 加载 ---------------- */
@@ -855,6 +906,10 @@ export default {
 
     let destroyed = false;
 
+    /* 左页详情挂载点：默认隐藏，点开帖子时把完整详情贴在左页，
+       右页的社区列表原样保留（双页模式下它本来就是独立的一张纸）。 */
+    const detailHost = h('div', { class: 'com-detail', hidden: true });
+
     const page_ = h(
       'div',
       { class: 'page community-page' },
@@ -880,7 +935,8 @@ export default {
             )
           ),
           h('div', { class: 'community-main' }, tabs, feed, feedState, sentinel)
-        )
+        ),
+        detailHost
       )
     );
 
@@ -907,7 +963,7 @@ export default {
         stopObserver();
         closeDetail();
         closeLightbox();
-        document.removeEventListener('keydown', onEsc);
+        document.removeEventListener('keydown', onEsc, true);
       },
     };
   },
