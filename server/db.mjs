@@ -448,6 +448,18 @@ export function reportStats() {
   return out;
 }
 
+/* ---------------- 用户统计（后台概览用，只读） ---------------- */
+
+export function countUsers() {
+  const row = db.prepare('SELECT COUNT(*) AS c FROM users').get();
+  return Number(row?.c || 0);
+}
+
+export function countUsersSince(sinceMs) {
+  const row = db.prepare('SELECT COUNT(*) AS c FROM users WHERE created_at >= ?').get(Number(sinceMs) || 0);
+  return Number(row?.c || 0);
+}
+
 /* ---------------- 审计 ---------------- */
 
 export function addAudit({ id, actorId, actorName, action, targetType, targetId, detail }) {

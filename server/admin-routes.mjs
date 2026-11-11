@@ -8,8 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { DISHES } from '../src/data/dishes.js';
 import { buildCuisineNodes, buildTasteNodes } from '../src/data/wheel.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../src/data/cuisines.js';
-import { adminListPosts, findPost, softDeletePost, postStats, saveImage } from './community.mjs';
+import { adminListPosts, findPost, softDeletePost, restorePost, updatePost, postStats, saveImage } from './community.mjs';
 import { generatedDishes } from './dish-search.mjs';
+import { diagnoseEpicure, epicureConfig } from './epicure-client.mjs';
+import { readServiceHealth, recordServiceHealth } from './service-health.mjs';
 import { requireAdmin, sameOrigin } from './auth.mjs';
 import {
   getSiteAIStatus,
@@ -40,6 +42,7 @@ import {
   reportStats,
   addAudit,
   listAudit,
+  countUsers,
 } from './db.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -170,6 +173,69 @@ function allDishes() {
   return [...map.values()];
 }
 
+/* ---------------- 服务状态摘要 ---------------- */
+
+/** 内置 AI（GLM / DeepSeek 等）：全部来自 site_ai / site_ai_profiles 的实测字段，不含 Key */
+function aiSummary() {
+  const panel = getSiteAIPanel();
+  const active = panel.profiles.find((p) => p.active) || null;
+  const verified = panel.profiles.filter((p) => p.verified).length;
+  const canCall = Boolean(panel.master.enabled && active && active.verified && active.hasKey);
+  return {
+    service: 'built-in-ai',
+    name: '内置 AI 模型',
+    external: false,
+    masterEnabled: panel.master.enabled,
+    enabled: Boolean(panel.master.enabled),
+    activeId: panel.activeId,
+    activeName: active?.name || '',
+    providerId: active?.provider || '',
+    provider: active?.providerLabel || '',
+    model: active?.model || '',
+    baseUrl: active?.baseUrl || '',
+    hasKey: Boolean(active?.hasKey),
+    status: active?.status || 'unconfigured',
+    canCall,
+    lastError: active?.lastError || null,
+    lastTestedAt: active?.lastTestedAt || null,
+    total: panel.profiles.length,
+    verified,
+    max: panel.max,
+  };
+}
+
+/**
+ * Epicure 外部风味服务：只反映「上次真实探测」的结果。
+ * 没探测过就是 unchecked —— 不因为环境里有默认 URL 就显示在线。
+ */
+function epicureSummary() {
+  const cfg = epicureConfig();
+  const rec = readServiceHealth('epicure');
+  const detail = rec?.detail || {};
+  return {
+    service: 'epicure',
+    name: 'Epicure 外部风味服务（MCP）',
+    external: true,
+    enabled: cfg.enabled,
+    endpoint: cfg.endpoint,
+    endpointSource: cfg.endpointSource,
+    callTimeoutMs: cfg.callTimeoutMs,
+    ok: rec ? rec.ok : null,
+    category: rec?.category || 'unchecked',
+    label: rec?.label || '尚未检测',
+    error: rec?.error || '',
+    durationMs: rec?.durationMs || 0,
+    toolCount: rec?.toolCount ?? null,
+    tools: Array.isArray(detail.tools) ? detail.tools : [],
+    toolCall: detail.toolCall || null,
+    pageSnippet: detail.pageSnippet || '',
+    checkedAt: rec?.checkedAt || 0,
+    lastOkAt: rec?.lastOkAt || 0,
+    lastFailAt: rec?.lastFailAt || 0,
+    affected: ['厨房 · 风味网络', '厨房 · 智能加食材', '厨房 · 创意菜谱', '菜谱 · 风味分析', '聊天 · 风味背景'],
+  };
+}
+
 /* ---------------- 路由 ---------------- */
 
 export async function handleAdmin(req, res, url) {
@@ -186,10 +252,12 @@ export async function handleAdmin(req, res, url) {
   /* 概览 */
   if (method === 'GET' && parts[0] === 'overview') {
     const cards = cardRows();
+    const ai = aiSummary();
     return send(res, 200, {
       ok: true,
       admin: { id: actor.id, name: actor.name, email: actor.email },
       stats: {
+        users: { total: countUsers() },
         posts: postStats(),
         reports: reportStats(),
         cards: {
@@ -198,8 +266,47 @@ export async function handleAdmin(req, res, url) {
           overridden: cards.filter((c) => c.overridden).length,
         },
         dishes: { total: allDishes().length, overridden: listDishImages().length },
+        ai: { activeName: ai.activeName, enabled: ai.enabled, model: ai.model, verified: ai.verified, total: ai.total },
+      },
+      services: {
+        ai,
+        // Epicure 只读「上次真实探测的结果」，概览不现探测（避免 8s 阻塞）；
+        // 面板上的「立即检测」才会真正连一次外部服务。
+        epicure: epicureSummary(),
       },
       recentAudit: listAudit(8),
+    });
+  }
+
+  /* 服务状态：内置 AI 与 Epicure 外部 MCP 分开返回，互不冒充 */
+  if (method === 'GET' && parts[0] === 'service-health') {
+    const wantProbe = url.searchParams.get('probe') === '1';
+    let epicure = epicureSummary();
+    if (wantProbe) {
+      const result = await diagnoseEpicure({ timeoutMs: 8000, toolProbe: true });
+      recordServiceHealth('epicure', {
+        ...result,
+        detail: {
+          enabled: result.enabled,
+          endpointSource: result.endpointSource,
+          toolCall: result.toolCall || null,
+          tools: result.tools || [],
+          pageSnippet: result.pageSnippet || '',
+        },
+      });
+      epicure = epicureSummary();
+      audit(actor, 'epicure.probe', 'service', 'epicure', {
+        ok: result.ok,
+        category: result.category,
+        ms: result.ms,
+      });
+    }
+    return send(res, 200, {
+      ok: true,
+      probed: wantProbe,
+      ai: aiSummary(),
+      epicure,
+      now: Date.now(),
     });
   }
 
@@ -207,12 +314,57 @@ export async function handleAdmin(req, res, url) {
   if (parts[0] === 'posts') {
     if (method === 'GET' && parts.length === 1) {
       const q = String(url.searchParams.get('q') || '').slice(0, 60);
-      return send(res, 200, adminListPosts({ q, page, pageSize }));
+      const status = String(url.searchParams.get('status') || '').slice(0, 12);
+      const kind = String(url.searchParams.get('kind') || '').slice(0, 20);
+      const from = Number(url.searchParams.get('from')) || 0;
+      const to = Number(url.searchParams.get('to')) || 0;
+      const reported = url.searchParams.get('reported') === '1';
+      return send(
+        res,
+        200,
+        adminListPosts({ q, page, pageSize, status, kind, from, to, reported, includeDeleted: status === 'all' })
+      );
     }
     if (method === 'GET' && parts.length === 2) {
       const post = findPost(parts[1]);
       if (!post) return send(res, 404, { error: '帖子不存在' });
       return send(res, 200, { post, reports: reportsForPost(post.id) });
+    }
+    /* 恢复（把「隐藏」撤销，原文与互动数据原样回来） */
+    if (method === 'POST' && parts.length === 3 && parts[2] === 'restore') {
+      const post = findPost(parts[1]);
+      if (!post) return send(res, 404, { error: '帖子不存在' });
+      const result = restorePost(post.id, { by: actor.id });
+      if (!result.ok) return send(res, 400, { error: '恢复失败' });
+      audit(actor, 'post.restore', 'post', post.id, { author: post.author?.name, already: Boolean(result.already) });
+      return send(res, 200, { ok: true, already: Boolean(result.already) });
+    }
+    /* 编辑正文 / 分类（不触碰作者、时间与互动数据） */
+    if (method === 'POST' && parts.length === 2) {
+      const body = await readJson(req).catch(() => ({}));
+      const post = findPost(parts[1]);
+      if (!post) return send(res, 404, { error: '帖子不存在' });
+      const content = String(body.content ?? '').trim();
+      const kind = String(body.kind ?? '').trim();
+      if (content.length > 2000) return send(res, 400, { error: '正文最多 2000 字' });
+      if (!content && !kind) return send(res, 400, { error: '没有要修改的内容' });
+      const result = updatePost(post.id, { content, kind, by: actor.id });
+      if (!result.ok) return send(res, 400, { error: result.reason === 'empty' ? '没有要修改的内容' : '保存失败' });
+      audit(actor, 'post.edit', 'post', post.id, {
+        author: post.author?.name,
+        kind: kind || post.kind,
+        len: String(result.post.content || '').length,
+      });
+      return send(res, 200, {
+        ok: true,
+        post: {
+          id: result.post.id,
+          content: result.post.content,
+          kind: result.post.kind,
+          editedAt: result.post.editedAt,
+          editCount: result.post.editCount,
+        },
+      });
     }
     if (method === 'DELETE' && parts.length === 2) {
       const body = await readJson(req).catch(() => ({}));
@@ -269,17 +421,29 @@ export async function handleAdmin(req, res, url) {
   if (parts[0] === 'dishes') {
     if (method === 'GET') {
       const q = String(url.searchParams.get('q') || '').trim().toLowerCase();
+      const cuisine = String(url.searchParams.get('cuisine') || '').trim();
       const overrides = getAssetOverrides().dishes;
       let list = allDishes();
-      if (q) list = list.filter((d) => `${d.name} ${d.id}`.toLowerCase().includes(q));
+      if (cuisine) list = list.filter((d) => d.cuisine === cuisine);
+      if (q) list = list.filter((d) => `${d.name} ${d.id} ${d.nameEn || ''}`.toLowerCase().includes(q));
       const total = list.length;
       const start = (page - 1) * pageSize;
       return send(res, 200, {
+        cuisines: Object.entries(CUISINE_BY_ID).map(([id, c]) => ({ id, name: c.name })),
         items: list.slice(start, start + pageSize).map((d) => ({
           id: d.id,
           name: d.name,
+          en: d.nameEn || '',
           cuisine: d.cuisine,
           cuisineName: CUISINE_BY_ID[d.cuisine]?.name || '',
+          tastes: (d.tastes || []).map((t) => TASTE_BY_ID[t]?.name || t),
+          tasteIds: d.tastes || [],
+          desc: d.intro || d.oneLiner || '',
+          time: [d.prep, d.cook].filter(Boolean).join(' / '),
+          difficulty: d.difficulty || '',
+          servings: d.servings || '',
+          signature: d.signature || '',
+          ingredients: (d.ingredients || []).slice(0, 12).map((i) => (typeof i === 'string' ? i : i?.name || '')),
           defaultImage: d.image || '',
           image: overrides[d.id] || d.image || '',
           overridden: Boolean(overrides[d.id]),

@@ -256,12 +256,67 @@ export function softDeletePost(id, { by = '', reason = '' } = {}) {
   return { ok: true, post: p };
 }
 
-/** 管理端列表：支持关键词搜索与分页，包含举报数与删除状态 */
-export function adminListPosts({ q = '', page = 1, pageSize = 10, includeDeleted = false } = {}) {
+/**
+ * 恢复被软删除（后台「隐藏」）的帖子：清掉删除标记，原文与互动数据原样回来。
+ * 保留一次恢复记录（restoredAt/restoredBy），方便审计追溯。
+ */
+export function restorePost(id, { by = '' } = {}) {
+  const state = read();
+  const p = state.posts.find((x) => x.id === id);
+  if (!p) return { ok: false, reason: 'not-found' };
+  if (!p.deletedAt) return { ok: true, already: true, post: p };
+  p.deletedAt = null;
+  p.deletedBy = '';
+  p.deleteReason = '';
+  p.restoredAt = Date.now();
+  p.restoredBy = by;
+  write(state);
+  return { ok: true, post: p };
+}
+
+/**
+ * 编辑帖子正文 / 分类（只允许这两项，作者、时间、互动数不动）。
+ * 每次编辑留痕：editedAt / editedBy / editCount。
+ */
+export function updatePost(id, { content = '', kind = '', by = '' } = {}) {
+  const state = read();
+  const p = state.posts.find((x) => x.id === id);
+  if (!p) return { ok: false, reason: 'not-found' };
+  const nextContent = String(content || '').trim().slice(0, 2000);
+  const nextKind = String(kind || '').trim().slice(0, 20);
+  if (!nextContent && !nextKind) return { ok: false, reason: 'empty' };
+  if (nextContent) p.content = nextContent;
+  if (nextKind) p.kind = nextKind;
+  p.editedAt = Date.now();
+  p.editedBy = by;
+  p.editCount = Number(p.editCount || 0) + 1;
+  write(state);
+  return { ok: true, post: p };
+}
+
+/** 管理端列表：关键词 / 分类 / 状态（正常·已隐藏）/ 时间范围 / 仅看被举报 */
+export function adminListPosts({
+  q = '',
+  page = 1,
+  pageSize = 10,
+  includeDeleted = false,
+  status = '',
+  kind = '',
+  from = 0,
+  to = 0,
+  reported = false,
+} = {}) {
   const { posts } = read();
   const kw = String(q || '').trim().toLowerCase();
+  const st = String(status || '').trim();
   let list = posts.slice();
-  if (!includeDeleted) list = list.filter((p) => !p.deletedAt);
+  if (st === 'deleted') list = list.filter((p) => p.deletedAt);
+  else if (st === 'visible') list = list.filter((p) => !p.deletedAt);
+  else if (!includeDeleted) list = list.filter((p) => !p.deletedAt);
+  if (kind) list = list.filter((p) => p.kind === kind);
+  if (from) list = list.filter((p) => Number(p.createdAt) >= Number(from));
+  if (to) list = list.filter((p) => Number(p.createdAt) <= Number(to));
+  if (reported) list = list.filter((p) => Number(p.reports || 0) > 0);
   if (kw) {
     list = list.filter((p) =>
       [p.content, p.author?.name, p.kind, p.dishId].filter(Boolean).join(' ').toLowerCase().includes(kw)
@@ -284,6 +339,9 @@ export function adminListPosts({ q = '', page = 1, pageSize = 10, includeDeleted
       comments: p.comments?.length || 0,
       reports: p.reports || 0,
       deletedAt: p.deletedAt || null,
+      deleteReason: p.deleteReason || '',
+      editedAt: p.editedAt || null,
+      editCount: Number(p.editCount || 0),
     })),
     total,
     page,

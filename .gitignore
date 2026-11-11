@@ -21,3 +21,5 @@ public/dishes/recipe
 # 参赛技术文档（大体积二进制，单独交付，不随代码发布）
 FOOD_SOUL项目技术文档.docx
 FOOD_SOUL项目技术文档.pdf
+
+data/backups/

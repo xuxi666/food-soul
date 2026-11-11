@@ -61,6 +61,13 @@ function headersToObject(h) {
   return { ...h };
 }
 
+/**
+ * 最近一次 HTTP 传输的原始状态：诊断用。
+ * Cloudflare 的 1033 / 5xx 是一张 HTML 错误页，SDK 只会报「解析失败」，
+ * 把状态码和页面片段留下来，后台才能说清是「隧道/网关」而不是「模型 Key 错误」。
+ */
+let lastHttp = { at: 0, status: 0, text: '' };
+
 /** 与标准 fetch 兼容的最小实现，只走 IPv4 */
 function ipv4Fetch(url, init = {}) {
   return new Promise((resolve, reject) => {
@@ -77,10 +84,36 @@ function ipv4Fetch(url, init = {}) {
         agent: isHttps ? agentHttps : agentHttp,
       },
       (res) => {
+        const status = res.statusCode || 200;
+        if (status >= 400) {
+          // 错误响应体很小，整段读下来当证据（成功响应仍走流式，不改变原行为）
+          const chunks = [];
+          let size = 0;
+          res.on('data', (c) => {
+            if (size < 4096) {
+              chunks.push(c);
+              size += c.length;
+            }
+          });
+          res.on('end', () => {
+            const text = Buffer.concat(chunks).toString('utf8');
+            lastHttp = { at: Date.now(), status, text: text.slice(0, 1200) };
+            resolve(
+              new Response(text, {
+                status,
+                statusText: res.statusMessage || '',
+                headers: res.headers,
+              })
+            );
+          });
+          res.on('error', (err) => reject(err));
+          return;
+        }
+        lastHttp = { at: Date.now(), status, text: '' };
         const body = Readable.toWeb(res);
         resolve(
           new Response(body, {
-            status: res.statusCode || 200,
+            status,
             statusText: res.statusMessage || '',
             headers: res.headers,
           })
@@ -135,6 +168,18 @@ function release() {
 
 export function isEpicureEnabled() {
   return ENABLED;
+}
+
+/** 只读配置摘要（不含任何密钥；用于后台展示「端点来自环境变量还是默认值」） */
+export function epicureConfig() {
+  return {
+    enabled: ENABLED,
+    endpoint: URL_RAW,
+    endpointSource: process.env.EPICURE_MCP_URL ? 'env' : 'default',
+    callTimeoutMs: CALL_TIMEOUT,
+    cacheTtlMs: CACHE_TTL,
+    maxConcurrency: MAX_CONCURRENCY,
+  };
 }
 
 async function ensureClient(force = false) {
@@ -299,6 +344,122 @@ export async function epicureStatus() {
       url: URL_RAW,
       error: String(err?.code || err?.message || err).slice(0, 160),
       ms: Date.now() - started,
+    };
+  }
+}
+
+/* ---------------- 诊断（后台状态面板用） ---------------- */
+
+/**
+ * 把各种失败归到一个可读的类别。
+ * 只是分类，不改变任何业务结果；分类依据是原始 code / message / HTTP 状态与页面片段。
+ */
+export function classifyEpicureError(err, http = lastHttp) {
+  const code = String(err?.code || '');
+  const msg = String(err?.message || err || '');
+  const all = `${code} ${msg}`;
+  const page = `${http?.text || ''}`;
+  const status = Number(http?.status || 0);
+
+  if (code === 'disabled') return { category: 'disabled', label: '外部服务已在服务端关闭' };
+  if (/ENOTFOUND|EAI_AGAIN|getaddrinfo|dns/i.test(all)) return { category: 'dns', label: '域名解析失败（DNS）' };
+  if (/ECONNREFUSED/i.test(all)) return { category: 'refused', label: '端口拒绝连接（服务未监听）' };
+  if (/ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|connect timeout|ABORT_ERR|aborted|诊断超时/i.test(all))
+    return { category: 'timeout', label: '连接超时（外部服务无响应）' };
+  if (/cloudflare|cf-ray|cf-mitigated|error 10\d\d\tunnel|\btunnel\b|1033|522|523|530/i.test(`${all} ${page}`))
+    return { category: 'tunnel', label: 'Cloudflare 隧道/网关异常', status };
+  if (status === 401 || status === 403 || /\b401\b|\b403\b|unauthor|forbidden/i.test(all))
+    return { category: 'auth', label: '外部服务鉴权失败（401/403）', status };
+  if (status === 429) return { category: 'rate-limit', label: '外部服务限流（429）', status };
+  if (status >= 500) return { category: 'http-5xx', label: `外部服务返回 HTTP ${status}`, status };
+  if (status >= 400) return { category: 'http-4xx', label: `外部服务返回 HTTP ${status}`, status };
+  return { category: 'network', label: '网络或协议错误' };
+}
+
+function withDeadline(promise, ms, onTimeout) {
+  let timer = null;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      try {
+        onTimeout?.();
+      } catch {
+        /* 超时清理失败不影响诊断结果 */
+      }
+      reject(Object.assign(new Error(`诊断超时（>${ms}ms）`), { code: 'ETIMEDOUT' }));
+    }, Math.max(1000, Number(ms) || 8000));
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * 真实诊断：重置连接 → 重新握手 + tools/list → 再真调一次工具。
+ * 与 epicureStatus() 的区别：
+ *  - 不吃 toolsCache（否则会把 5 分钟内的旧结果当成「现在还在线」）
+ *  - 整个握手阶段有硬超时（epicureStatus 没有，可能一直挂着）
+ *  - 区分 DNS / 隧道 / 超时 / 鉴权 / 网关 / 工具错误
+ * 永不抛异常。
+ */
+export async function diagnoseEpicure({ timeoutMs = 8000, toolProbe = true, tool = 'list_targets' } = {}) {
+  const started = Date.now();
+  const checkedAt = started;
+  const base = {
+    enabled: ENABLED,
+    endpoint: URL_RAW,
+    endpointSource: process.env.EPICURE_MCP_URL ? 'env' : 'default',
+    timeoutMs,
+    checkedAt,
+  };
+  if (!ENABLED) {
+    return {
+      ...base,
+      ok: false,
+      category: 'disabled',
+      label: '外部服务已在服务端关闭（EPICURE_ENABLED=false）',
+      error: 'epicure-disabled',
+      ms: 0,
+      checkedAt,
+    };
+  }
+
+  lastHttp = { at: 0, status: 0, text: '' };
+  try {
+    dropClient();
+    toolsCache = null;
+    const tools = await withDeadline(listTools({ force: true }), timeoutMs, dropClient);
+
+    let toolCall = { name: tool, ok: false, error: null, ms: 0 };
+    if (toolProbe) {
+      const r = await callTool(tool, {}, { noCache: true, timeout: Math.min(10000, Math.max(3000, timeoutMs)) });
+      toolCall = { name: tool, ok: Boolean(r.ok), error: r.ok ? null : String(r.error || '').slice(0, 200), ms: r.ms || 0 };
+    }
+    const ok = toolCall.ok || !toolProbe;
+    return {
+      ...base,
+      ok,
+      category: ok ? 'ok' : 'tool-error',
+      label: ok ? '外部服务可用' : '握手成功但工具调用失败',
+      toolCount: tools.length,
+      tools: tools.map((t) => t.name).slice(0, 20),
+      toolCall,
+      error: ok ? null : toolCall.error,
+      httpStatus: lastHttp.status || 0,
+      ms: Date.now() - started,
+      checkedAt,
+    };
+  } catch (err) {
+    const hit = classifyEpicureError(err);
+    dropClient();
+    toolsCache = null;
+    return {
+      ...base,
+      ok: false,
+      category: hit.category,
+      label: hit.label,
+      httpStatus: hit.status || lastHttp.status || 0,
+      error: `${hit.label}：${String(err?.code || err?.message || err).slice(0, 160)}`,
+      pageSnippet: lastHttp.text ? lastHttp.text.replace(/\s+/g, ' ').slice(0, 180) : '',
+      ms: Date.now() - started,
+      checkedAt,
     };
   }
 }

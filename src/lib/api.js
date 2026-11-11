@@ -152,8 +152,21 @@ export const api = {
 
   admin: {
     overview: () => jsonFetch('/api/admin/overview'),
-    posts: ({ q = '', page = 1, pageSize = 10 } = {}) =>
-      jsonFetch(`/api/admin/posts?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}`),
+    posts: ({ q = '', page = 1, pageSize = 10, status = '', kind = '', reported = false, from = 0, to = 0 } = {}) =>
+      jsonFetch(
+        `/api/admin/posts?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}` +
+          `${status ? `&status=${encodeURIComponent(status)}` : ''}` +
+          `${kind ? `&kind=${encodeURIComponent(kind)}` : ''}` +
+          `${reported ? '&reported=1' : ''}` +
+          `${from ? `&from=${from}` : ''}` +
+          `${to ? `&to=${to}` : ''}`
+      ),
+    restorePost: (id) =>
+      jsonFetch(`/api/admin/posts/${id}/restore`, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({}) }),
+    savePost: (id, payload) =>
+      jsonFetch(`/api/admin/posts/${id}`, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    serviceHealth: ({ probe = false } = {}) =>
+      jsonFetch(`/api/admin/service-health${probe ? '?probe=1' : ''}`),
     post: (id) => jsonFetch(`/api/admin/posts/${id}`),
     deletePost: (id, reason = '') =>
       jsonFetch(`/api/admin/posts/${id}`, {
@@ -165,8 +178,11 @@ export const api = {
     saveCard: (payload) =>
       jsonFetch('/api/admin/cards', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
     resetCard: (kind, id) => jsonFetch(`/api/admin/cards/${kind}/${id}`, { method: 'DELETE' }),
-    dishes: ({ q = '', page = 1, pageSize = 12 } = {}) =>
-      jsonFetch(`/api/admin/dishes?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}`),
+    dishes: ({ q = '', page = 1, pageSize = 12, cuisine = '' } = {}) =>
+      jsonFetch(
+        `/api/admin/dishes?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}` +
+          (cuisine ? `&cuisine=${encodeURIComponent(cuisine)}` : '')
+      ),
     saveDish: (payload) =>
       jsonFetch('/api/admin/dishes', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
     resetDish: (id) => jsonFetch(`/api/admin/dishes/${id}`, { method: 'DELETE' }),
