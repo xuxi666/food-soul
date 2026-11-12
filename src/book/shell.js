@@ -97,20 +97,16 @@ export function createShell(root) {
 
   const camera = h('div', { class: 'bk-camera' }, shadow, book);
 
-  /* ---------- 书签：挂在书里，跟着书缩放 / 倾斜 / 开合 ---------- */
+  /* ---------- 书签：画册级固定导航，不进入书页 / 翻页 3D 层 ---------- */
   function attachMarks(api) {
     markApi = api;
-    book.append(api.layer);
+    // 挂在 .bk-stage，而不是 .bk-book：书页的 rotateY / 翻页位移 / overflow 都碰不到它。
+    // 位置由 .bk-marks 相对舞台和 --book-w 计算，见 book.css。
+    stage.append(api.layer);
   }
 
-  /* ---------- 印章入口 ---------- */
-  const sealPanel = h('div', { class: 'bk-seal__panel' });
-  const sealBtn = h(
-    'button',
-    { class: 'bk-seal', type: 'button', 'aria-expanded': 'false', 'aria-label': '账号与设置' },
-    h('span', { class: 'bk-seal__mark', text: '印' })
-  );
-  const tools = h('div', { class: 'bk-tools' }, sealBtn, sealPanel);
+  /* ---------- 右上角账号 / AI 入口（由 account.js 填充） ---------- */
+  const tools = h('div', { class: 'bk-tools' });
 
   /* ---------- 返回目录 ---------- */
   // 目录是画册的第一跨页：回到目录 = 往回翻若干页（走和书签同一条 openChapter）
@@ -172,8 +168,7 @@ export function createShell(root) {
     get marks() {
       return markApi;
     },
-    sealBtn,
-    sealPanel,
+    tools,
     catalogBtn,
     shutBtn,
     setActive(id) {

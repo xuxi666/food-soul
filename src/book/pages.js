@@ -72,6 +72,15 @@ const SPLITTERS = {
     const right = root.querySelector('.adm-main');
     return left && right ? { left: [left], right: [right] } : { left: [root], right: [] };
   },
+  recommendations(root) {
+    // 左页输入需求、右页看推荐；手机只有一张纸，两个面板上下排成一页。
+    const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
+    if (single) return { left: [...root.children], right: [] };
+    return {
+      left: [root.querySelector('.rec-form-pane')],
+      right: [root.querySelector('.rec-result-pane')],
+    };
+  },
   notFound(root) {
     return { left: [root.querySelector('.page > .wrap') || root], right: [] };
   },
@@ -197,7 +206,13 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     }
     const split = (SPLITTERS[id] || ((root) => ({ left: [root], right: [] })))(holder);
     const faceClass =
-      id === 'kitchen' ? 'bk-pageface--kitchen' : id === 'recipe' ? 'bk-pageface--recipe' : '';
+      id === 'kitchen'
+        ? 'bk-pageface--kitchen'
+        : id === 'recipe'
+          ? 'bk-pageface--recipe'
+          : id === 'recommendations'
+            ? 'bk-pageface--rec'
+            : '';
     const entry = {
       left: wrapFace(false, split.left, faceClass),
       right: wrapFace(false, split.right, faceClass),
