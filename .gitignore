@@ -5,11 +5,13 @@ dist
 data/comments.json
 data/community.json
 data/generated-dishes.json
+data/recommendation-dishes.json
 data/*.db
 data/*.db-wal
 data/*.db-shm
 public/uploads
 public/dishes/generated
+public/dishes/recommendations
 shots
 .tmp
 .workbuddy-ai

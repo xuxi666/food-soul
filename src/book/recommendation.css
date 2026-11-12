@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    瀵诲懗鎺ㄨ崘 / AI FOOD CURATION
    宸﹂〉鏀堕泦闇€姹傦紝鍙抽〉鎵挎帴缁撴灉锛涗袱椤靛悇鑷粴鍔紝涓嶈法涔﹁剨銆?   瑙嗚浠嶆部鐢ㄧ敾鍐岀殑鏆栫背鐧姐€佹湵鐮備笌娣￠噾锛屼笉鍙﹁捣涓€濂椻€滅鎶€钃濃€濄€?   ============================================================ */
 
@@ -1194,6 +1194,37 @@
   color: var(--rec-faint);
 }
 
+/* 来源与核实状态：不改变原卡片布局，只在原有徽章行/副标题里补充说明 */
+.rec-badge--source {
+  border-style: dashed;
+  border-color: rgba(185, 139, 72, 0.42);
+  background: rgba(185, 139, 72, 0.055);
+  color: #7c6547;
+  letter-spacing: 0.02em;
+}
+
+.rec-badge--source.is-catalog {
+  border-style: solid;
+  border-color: rgba(185, 139, 72, 0.28);
+  color: var(--rec-muted, #8d755f);
+}
+
+.rec-badge--source.is-verified {
+  border-color: rgba(86, 116, 86, 0.42);
+  background: rgba(86, 116, 86, 0.07);
+  color: #5e735d;
+}
+
+.rec-badge--source-sm {
+  padding: 2px 5px;
+  font-size: 7px;
+}
+
+.rec-meta--unknown {
+  color: #a08a74;
+  opacity: 0.9;
+}
+
 .rec-top__head {
   display: flex;
   align-items: flex-start;
@@ -1560,12 +1591,16 @@
   left: 8px;
   bottom: 7px;
   z-index: 1;
+  max-width: calc(100% - 16px);
   padding: 2px 5px;
   border: 1px solid rgba(248, 231, 197, 0.35);
   background: rgba(43, 28, 18, 0.32);
   color: #f7e8c6;
   font-size: 7px;
   letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rec-card__body {

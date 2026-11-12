@@ -2,17 +2,17 @@
  * 寻味推荐 / AI FOOD CURATION
  * ------------------------------------------------------------
  * 左页：从心情、口味、预算与更多条件出发，收集一顿饭的线索。
- * 右页：真实图鉴菜品经服务端筛选、模型排序后的推荐结果。
+ * 右页：图鉴 / 站内补全资料 / 按需扩展的图鉴外候选，经服务端筛选、模型排序后的推荐结果。
  *
  * 这里刻意不维护「推荐菜谱」的假数据：
  *   · 初始状态只给可以填入左页的快捷起点，不展示虚构菜品；
- *   · 结果卡片的菜名、图片、时长、成本、标签全部来自接口返回的图鉴数据；
+ *   · 结果卡片的菜名、图片、时长、成本、标签全部来自接口返回的数据，并带来源/核实标记；
  *   · 详情 / 双页聊天 / 生成菜谱都复用站内已有入口。
  */
 import { h, clear, toast } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { TASTES } from '../data/cuisines.js';
-import { guardImage } from '../lib/placeholder.js';
+import { dishPlaceholder, guardImage } from '../lib/placeholder.js';
 import { openDishChat } from '../book/chat-panel.js';
 import { navigateToRecipeModule } from '../book/recipe-nav.js';
 
@@ -378,7 +378,7 @@ export default {
         h(
           'p',
           { class: 'rec-subtitle' },
-          '输入心情、口味和预算，让 AI 从图鉴的真实菜品里，为你挑选今天最值得尝试的一道。'
+          '输入心情、口味和预算，让 AI 从站内图鉴、补全资料和必要时的图鉴外候选里，为你挑选今天最值得尝试的一道。'
         )
       ),
       h(
@@ -411,7 +411,7 @@ export default {
           'div',
           { class: 'rec-section__head' },
           h('h2', { class: 'rec-section__title' }, h('span', { class: 'rec-section__no', text: '02' }), '想吃的口味'),
-          h('span', { class: 'rec-section__hint', text: '可多选 · 与图鉴味型一致' }),
+          h('span', { class: 'rec-section__hint', text: '可多选 · 站内味型' }),
           h(
             'button',
             {
@@ -440,7 +440,7 @@ export default {
         h(
           'p',
           { class: 'rec-fineprint' },
-          '按图鉴参考价 ÷ 份量估算，仅用于筛选；不是精确食材成本，也不代表餐厅售价。'
+          '按站内参考价 ÷ 份量估算，仅用于筛选；不是精确食材成本，也不代表餐厅售价。没有可靠价格时会标为“价格待确认”。'
         )
       ),
       moreDetails,
@@ -465,7 +465,7 @@ export default {
         'div',
         { class: 'rec-submit-row' },
         submitBtn,
-        h('p', { class: 'rec-submit-note' }, '✦ ', '推荐来自站内图鉴，不凭空编造菜品')
+        h('p', { class: 'rec-submit-note' }, '✦ ', '优先用站内图鉴与补全资料；不够时由 AI 扩展候选，并标明来源与核实情况')
       )
     );
 
@@ -564,7 +564,7 @@ export default {
             { class: 'rec-welcome__lead' },
             '不急着滑菜单。告诉我你现在的心情、想吃的味道和预算，',
             h('br'),
-            '食灵会从图鉴的真实菜品里，替你挑出这一顿最合拍的几道。'
+            '食灵会综合图鉴、站内补全资料和按需扩展的候选，替你挑出这一顿最合拍的几道。'
           ),
           h(
             'div',
@@ -587,7 +587,7 @@ export default {
             'p',
             { class: 'rec-welcome__note' },
             h('span', { class: 'rec-welcome__note-mark', text: '※' }),
-            '推荐只从站内图鉴挑选，不生成不存在的菜；初始页不会先塞给你一套固定菜单。'
+            '图鉴只是来源之一：站内资料不足时，由 AI 补充候选并标明来源与核实情况；初始页不会先塞给你一套固定菜单。'
           )
         )
       );
@@ -765,13 +765,14 @@ export default {
 
     /* ---------------- 加载状态 ---------------- */
 
-    const LOADING_STEPS = ['理解你的需求', '从图鉴筛选候选', '请 AI 结合条件排序', '核对推荐与忌口'];
+    const LOADING_STEPS = ['理解你的需求', '从图鉴与补全库筛选候选', '按需扩展图鉴外候选', '请 AI 结合条件排序', '核对忌口与来源标注'];
 
     function loadingCopy(step, elapsed) {
-      if (elapsed < 2600) return '正在理解你的心情、口味与预算…';
-      if (elapsed < 7000) return '已收到条件，正在从图鉴里筛出真正合适的候选…';
-      if (elapsed < 16000) return '正在请 AI 结合心情、场景和预算做排序…';
-      return '正在逐道核对菜名、时长、预算与忌口…';
+      if (elapsed < 3000) return '正在理解你的心情、口味与预算…';
+      if (elapsed < 8000) return '已收到条件，正在从图鉴与站内补全库里筛出合适的候选…';
+      if (elapsed < 16000) return '站内候选不够贴合时，正在按需补充图鉴外的真实菜名…';
+      if (elapsed < 28000) return '正在请 AI 结合心情、场景和预算做排序…';
+      return '正在逐道核对菜名、时长、预算、忌口与来源标注…';
     }
 
     function showLoading(action) {
@@ -809,14 +810,14 @@ export default {
           status,
           h('div', { class: 'rec-loading__bar', 'aria-hidden': 'true' }, h('i')),
           h('ul', { class: 'rec-loading__steps' }, ...stepDots),
-          h('p', { class: 'rec-loading__note' }, 'AI 通常需要 10–25 秒。结果只包含图鉴中的真实菜品。')
+          h('p', { class: 'rec-loading__note' }, 'AI 通常需要 20–60 秒，图鉴外扩展和配图检索可能更久。候选来自图鉴、站内补全库或明确标注的 AI 扩展，不会把未核实结果说成真实检索。')
         )
       );
 
       statusTimer = window.setInterval(() => {
         const elapsed = Date.now() - started;
         status.textContent = loadingCopy(0, elapsed);
-        const active = elapsed < 2600 ? 0 : elapsed < 7000 ? 1 : elapsed < 16000 ? 2 : 3;
+        const active = elapsed < 3000 ? 0 : elapsed < 8000 ? 1 : elapsed < 16000 ? 2 : elapsed < 28000 ? 3 : 4;
         stepDots.forEach((el, i) => el.classList.toggle('is-active', i === active));
       }, 900);
       loadingTimer = statusTimer;
@@ -851,39 +852,92 @@ export default {
     }
 
     function metaLine(item) {
+      const timeKnown = Number(item.timeMinutes) > 0 && item.timeStatus !== 'unconfirmed';
+      const timeText = timeKnown ? `约 ${item.timeMinutes} 分钟` : '时长待确认';
+      const costText =
+        item.estimatedCost?.status === 'unavailable' ? '价格待确认' : item.estimatedCost?.label || '价格待确认';
+      const servingsText = item.servings
+        ? `${item.servings} 人份${item.servingsEstimated ? '（AI 建议）' : ''}`
+        : '份量待确认';
       return h(
         'div',
         { class: 'rec-card__meta' },
-        h('span', { class: 'rec-meta' }, h('span', { class: 'rec-meta__icon', 'aria-hidden': 'true', text: '◷' }), `约 ${item.timeMinutes} 分钟`),
+        h(
+          'span',
+          { class: `rec-meta${timeKnown ? '' : ' rec-meta--unknown'}`, title: timeKnown ? '' : '没有可靠时长依据，不做硬填' },
+          h('span', { class: 'rec-meta__icon', 'aria-hidden': 'true', text: '◷' }),
+          timeText
+        ),
         h('span', { class: 'rec-meta' }, h('span', { class: 'rec-meta__icon', 'aria-hidden': 'true', text: '✦' }), item.difficultyLabel || ''),
         h(
           'span',
           { class: 'rec-meta rec-meta--cost', title: item.estimatedCost?.basis || '' },
           h('span', { class: 'rec-meta__icon', 'aria-hidden': 'true', text: '¥' }),
-          item.estimatedCost?.label || '成本待估'
+          costText
         ),
-        h('span', { class: 'rec-meta rec-meta--servings' }, `${item.servings || '—'} 人份`)
+        h('span', { class: 'rec-meta rec-meta--servings' }, servingsText)
+      );
+    }
+
+    function sourceBadge(item, { compact = false } = {}) {
+      const status = item.verification?.status;
+      const isCatalog = item.sourceType === 'catalog';
+      const isDatabase = item.sourceType === 'database';
+      const isExternal = item.sourceType === 'external';
+      const verified = status === 'web_verified';
+      const label = isCatalog
+        ? '图鉴'
+        : isDatabase
+          ? '站内补全库'
+          : isExternal
+            ? verified
+              ? '外部资料 · 有佐证'
+              : '外部资料 · 待核验'
+            : verified
+              ? 'AI 扩展 · 有佐证'
+              : 'AI 扩展 · 待核验';
+      const sources = Array.isArray(item.verification?.sources) ? item.verification.sources : [];
+      const title = sources.length
+        ? `可检索到的相关公开资料：${sources.map((s) => s.site || s.title).filter(Boolean).slice(0, 3).join('、')}`
+        : isCatalog
+          ? '来自站内图鉴的既有菜品档案'
+          : 'AI 按真实需求补充的候选；未逐条完成公开资料核实';
+      return h(
+        'span',
+        {
+          class: `rec-badge rec-badge--source${compact ? ' rec-badge--source-sm' : ''}${verified ? ' is-verified' : ''}${isCatalog ? ' is-catalog' : ''}`,
+          title,
+        },
+        h('span', { 'aria-hidden': 'true', text: verified ? '✓ ' : '◇ ' }),
+        label
       );
     }
 
     function actionRow(item, { compact = false } = {}) {
-      const detail = h(
-        'a',
-        { class: `rec-action${compact ? ' rec-action--compact' : ''}`, href: `/dishes/${encodeURIComponent(item.dishId)}`, 'data-link': '' },
-        '查看详情'
-      );
+      const dishId = item.dishId ? String(item.dishId) : '';
+      const actionClass = (extra = '') => `rec-action${extra}${compact ? ' rec-action--compact' : ''}`;
+      const detail = dishId
+        ? h('a', { class: actionClass(), href: `/dishes/${encodeURIComponent(dishId)}`, 'data-link': '' }, '查看详情')
+        : h(
+            'button',
+            { class: actionClass(), type: 'button', onclick: () => toast('这道菜的详情页暂时没有地址，可以先生成菜谱。') },
+            '查看详情'
+          );
       const chat = h(
         'button',
         {
-          class: `rec-action${compact ? ' rec-action--compact' : ''}`,
+          class: actionClass(),
           type: 'button',
           onclick: (e) => {
             e.stopPropagation();
-            const ok = openDishChat(
-              { id: item.dishId, name: item.name, cuisine: item.cuisine, tastes: item.tastes },
-              chat
-            );
-            if (!ok) location.assign(`/chat/${encodeURIComponent(item.dishId)}`);
+            const ok =
+              dishId &&
+              openDishChat(
+                { id: dishId, name: item.name, cuisine: item.cuisine, tastes: item.tastes },
+                chat
+              );
+            if (!ok && dishId) location.assign(`/chat/${encodeURIComponent(dishId)}`);
+            else if (!ok) toast('这道菜暂时无法打开聊天，可以先生成菜谱。');
           },
         },
         '和这道菜聊聊'
@@ -891,15 +945,15 @@ export default {
       const recipe = h(
         'button',
         {
-          class: `rec-action rec-action--gold${compact ? ' rec-action--compact' : ''}`,
+          class: actionClass(' rec-action--gold'),
           type: 'button',
           onclick: (e) => {
             e.stopPropagation();
             navigateToRecipeModule({
-              dishId: item.dishId,
+              dishId: dishId || undefined,
               dishName: item.name,
               englishName: item.nameEn,
-              sourceType: 'recommendation',
+              sourceType: item.sourceType || 'recommendation',
               sourcePage: '/recommendations',
             });
           },
@@ -961,11 +1015,14 @@ export default {
 
     function renderTop(item, data) {
       const card = h('article', { class: 'rec-top', 'data-dish': item.dishId });
+      const canOpenDetail = Boolean(item.dishId);
       const media = h(
-        'a',
-        { class: 'rec-top__media', href: `/dishes/${encodeURIComponent(item.dishId)}`, 'data-link': '' },
+        canOpenDetail ? 'a' : 'div',
+        canOpenDetail
+          ? { class: 'rec-top__media', href: `/dishes/${encodeURIComponent(item.dishId)}`, 'data-link': '' }
+          : { class: 'rec-top__media' },
         guardImage(
-          h('img', { src: item.image, alt: item.alt || item.name, loading: 'lazy', decoding: 'async' }),
+          h('img', { src: item.image || dishPlaceholder(item.name, '图片待补'), alt: item.alt || item.name, loading: 'lazy', decoding: 'async' }),
           item.name,
           '图片暂不可用'
         ),
@@ -977,14 +1034,15 @@ export default {
         h(
           'div',
           { class: 'rec-top__badges' },
-          h('span', { class: 'rec-badge rec-badge--ai' }, h('span', { 'aria-hidden': 'true', text: '✦ ' }), 'AI 首选'),
+          h('span', { class: 'rec-badge rec-badge--ai' }, h('span', { 'aria-hidden': 'true', text: '✦ ' }), 'AI 为你精选'),
           h('span', { class: 'rec-badge', text: '最合拍' }),
+          sourceBadge(item),
           h('span', { class: 'rec-badge rec-badge--ghost', text: `${data.generation?.model || 'AI'} 策展` })
         ),
         h(
           'div',
           { class: 'rec-top__head' },
-          h('div', {}, h('h3', { class: 'rec-top__name', text: item.name }), h('p', { class: 'rec-top__cuisine', text: item.cuisineName })),
+          h('div', {}, h('h3', { class: 'rec-top__name', text: item.name }), h('p', { class: 'rec-top__cuisine', text: `${item.cuisineName || '中国菜'} · ${item.sourceLabel || '图鉴'}` })),
           h('span', { class: 'rec-top__score', text: item.tasteNames?.[0] || '今日推荐' })
         ),
         h('p', { class: 'rec-top__line', text: item.oneLiner || item.intro }),
@@ -1011,15 +1069,33 @@ export default {
 
     function renderSmallCard(item, index) {
       const card = h('article', { class: 'rec-card', 'data-dish': item.dishId, style: `--rec-i:${index}` });
+      const canOpenDetail = Boolean(item.dishId);
+      const mediaLabel =
+        item.sourceType === 'catalog'
+          ? 'AI 推荐'
+          : item.sourceType === 'database'
+            ? '站内补全'
+            : item.sourceType === 'external'
+              ? '外部资料'
+              : item.verification?.status === 'web_verified'
+                ? 'AI 扩展 · 有佐证'
+                : 'AI 扩展 · 待核验';
       const media = h(
-        'a',
-        { class: 'rec-card__media', href: `/dishes/${encodeURIComponent(item.dishId)}`, 'data-link': '' },
+        canOpenDetail ? 'a' : 'div',
+        canOpenDetail
+          ? { class: 'rec-card__media', href: `/dishes/${encodeURIComponent(item.dishId)}`, 'data-link': '' }
+          : { class: 'rec-card__media' },
         guardImage(
-          h('img', { src: item.image, alt: item.alt || item.name, loading: 'lazy', decoding: 'async' }),
+          h('img', { src: item.image || dishPlaceholder(item.name, '图片待补'), alt: item.alt || item.name, loading: 'lazy', decoding: 'async' }),
           item.name,
           '图片暂不可用'
         ),
-        h('span', { class: 'rec-card__label' }, h('span', { 'aria-hidden': 'true', text: '✦ ' }), 'AI 推荐')
+        h(
+          'span',
+          { class: 'rec-card__label' },
+          h('span', { 'aria-hidden': 'true', text: '✦ ' }),
+          mediaLabel
+        )
       );
       const body = h(
         'div',
@@ -1027,7 +1103,7 @@ export default {
         h(
           'div',
           { class: 'rec-card__head' },
-          h('div', {}, h('h3', { class: 'rec-card__name', text: item.name }), h('p', { class: 'rec-card__cuisine', text: item.cuisineName })),
+          h('div', {}, h('h3', { class: 'rec-card__name', text: item.name }), h('p', { class: 'rec-card__cuisine', text: `${item.cuisineName || '中国菜'} · ${item.sourceLabel || '图鉴'}` })),
           h('span', { class: 'rec-card__no', text: String(index + 1).padStart(2, '0') })
         ),
         h('p', { class: 'rec-card__line', text: item.oneLiner || item.intro }),
@@ -1081,7 +1157,7 @@ export default {
             'div',
             { class: 'rec-model' },
             h('span', { class: 'rec-model__dot', 'aria-hidden': 'true' }),
-            h('span', { text: data.generation?.model ? `由 ${data.generation.model} 理解并排序` : 'AI 结合图鉴数据排序' })
+            h('span', { text: data.generation?.model ? `由 ${data.generation.model} 理解并排序` : 'AI 结合多来源候选排序' })
           ),
           h(
             'button',
@@ -1140,7 +1216,7 @@ export default {
             ? h(
                 'p',
                 { class: 'rec-result-note rec-result-note--count' },
-                `本轮从图鉴 ${data.generation.candidateCount} 道符合条件的菜中选出；已排除 ${data.generation.excludedCount || 0} 道看过的菜。`
+                `本轮从 ${data.generation.candidateCount} 道候选（图鉴 ${data.generation.sourceCounts?.catalog || 0}、站内补全 ${data.generation.sourceCounts?.database || 0}、AI 扩展 ${(data.generation.sourceCounts?.ai_generated || 0) + (data.generation.sourceCounts?.external || 0)}）中选出；已排除 ${data.generation.excludedCount || 0} 道看过的菜。`
               )
             : null
         ),

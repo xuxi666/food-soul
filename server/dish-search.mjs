@@ -15,6 +15,7 @@ import {
   downloadCandidate,
   searchImageCandidates,
 } from './dish-images.mjs';
+import { findRecommendationDish, readRecommendationDishes } from './recommendation-store.mjs';
 
 /**
  * AI 联网补全菜品：GLM(web_search) 生成真实菜品资料 → 真实图片检索去重 → 落盘持久化。
@@ -295,7 +296,7 @@ export function generatedDishes() {
 
 export function findDish(id) {
   if (!id) return null;
-  return DISH_BY_ID[id] || readGenerated().find((d) => d.id === id) || null;
+  return DISH_BY_ID[id] || readGenerated().find((d) => d.id === id) || findRecommendationDish(id) || null;
 }
 
 function knownHashes() {

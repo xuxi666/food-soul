@@ -7,7 +7,7 @@ import { PERSONALITY_BY_ID } from '../data/personalities.js';
 import { categoryMeta, personaForCategory, dishesForCategory } from '../data/categories.js';
 import { applyTheme } from '../data/visualThemes.js';
 import { mountComments } from '../components/comments.js';
-import { guardImage } from '../lib/placeholder.js';
+import { dishPlaceholder, guardImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule, recipeHref } from '../book/recipe-nav.js';
 import { copyText } from '../lib/clipboard.js';
 import { enableWheelScroll, enableTouchScroll } from '../lib/wheel-scroll.js';
@@ -115,7 +115,7 @@ export default {
     /* 图片：优先横向展示，按左页高度自适应，不做过度裁切 */
     const media = topicDish
       ? guardImage(
-          h('img', { src: topicDish.image, alt: topicDish.alt || topicDish.name, loading: 'lazy' }),
+          h('img', { src: topicDish.image || dishPlaceholder(topicDish.name, '图片待补'), alt: topicDish.alt || topicDish.name, loading: 'lazy' }),
           topicDish.name,
           '图片暂不可用'
         )

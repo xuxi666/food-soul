@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 
 import { DISHES } from '../src/data/dishes.js';
 import { findDish, generatedDishes } from './dish-search.mjs';
+import { readRecommendationDishes } from './recommendation-store.mjs';
 import { webSearchMany } from './web-search.mjs';
 
 /**
@@ -77,7 +78,7 @@ export function lookupLibrary(rawName) {
   const name = cleanInput(rawName);
   if (!name) return { status: 'invalid' };
 
-  const all = [...DISHES, ...generatedDishes()];
+  const all = [...DISHES, ...generatedDishes(), ...readRecommendationDishes()];
   const variants = nameVariants(name);
 
   // 精确/别名匹配

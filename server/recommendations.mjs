@@ -5,6 +5,9 @@ import { DISHES } from '../src/data/dishes.js';
 import { CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../src/data/cuisines.js';
 import { complete } from './ai-adapter.mjs';
 import { extractJSON } from './json-utils.mjs';
+import { findDish, generatedDishes } from './dish-search.mjs';
+import { readRecommendationDishes } from './recommendation-store.mjs';
+import { expandRecommendationCandidates } from './recommendation-expand.mjs';
 
 /* 从 Vite 已加载的模块中恢复的源码；保留 bundle 的局部别名。 */
 var MOODS = [
@@ -165,6 +168,90 @@ var isVegetarian = (dish) => {
 var isVegan = (dish) => isVegetarian(dish) && !VEGAN_EXTRA.some((k) => dishText(dish).includes(k));
 var nameKey = (dish) => str3(dish?.name, 40).replace(/\s+/g, "");
 var DISH_BY_ID2 = new Map(DISHES.map((d) => [d.id, d]));
+
+/**
+ * 统一候选来源：图鉴（catalog）、站内已核验的 AI 补全库（database）、
+ * 以及本次推荐持久化下来的 AI 扩展候选（ai_generated）。
+ * 图鉴仍然是最稳定的数据源，但不再是候选范围的边界。
+ */
+function sourceLabelOf(dish) {
+  if (dish.sourceType === "catalog") return "图鉴";
+  if (dish.sourceType === "database") return "站内 AI 补全库";
+  if (dish.sourceType === "external") return "外部资料";
+  return dish.sourceLabel || "AI 扩展候选";
+}
+function sourceVerificationOf(dish) {
+  if (dish.sourceType === "catalog") return { status: "catalog", checkedAt: "", sources: [] };
+  if (dish.verification && typeof dish.verification === "object") {
+    const sources = (Array.isArray(dish.verification.sources) ? dish.verification.sources : []).slice(0, 3).map((s) => ({
+      title: str3(s?.title, 120),
+      url: /^https?:\/\//i.test(String(s?.url || "")) ? String(s.url).slice(0, 500) : "",
+      site: str3(s?.site, 40)
+    })).filter((s) => s.url);
+    return {
+      status: dish.verification.status === "web_verified" && sources.length ? "web_verified" : "unverified",
+      checkedAt: str3(dish.verification.checkedAt, 40),
+      sources
+    };
+  }
+  if (dish.sourceType === "database") {
+    const fromSearch = Array.isArray(dish.source?.verificationSources) ? dish.source.verificationSources : [];
+    return {
+      status: fromSearch.length ? "web_verified" : "unverified",
+      checkedAt: str3(dish.source?.verifiedAt, 40),
+      sources: fromSearch.slice(0, 3).map((s) => ({
+        title: str3(s?.title, 120),
+        url: /^https?:\/\//i.test(String(s?.url || "")) ? String(s.url).slice(0, 500) : "",
+        site: str3(s?.site, 40)
+      })).filter((s) => s.url)
+    };
+  }
+  return { status: "unverified", checkedAt: "", sources: [] };
+}
+function allSourceDishes() {
+  const catalog = DISHES.map((dish) => ({
+    ...dish,
+    sourceType: "catalog",
+    sourceLabel: "图鉴",
+    verification: { status: "catalog", checkedAt: "", sources: [] }
+  }));
+  let database = [];
+  try {
+    database = generatedDishes().map((dish) => {
+      const out = {
+        ...dish,
+        sourceType: "database",
+        sourceLabel: "站内 AI 补全库"
+      };
+      out.verification = sourceVerificationOf(out);
+      return out;
+    });
+  } catch (err) {
+    console.warn("[recommend] 读取站内补全库失败：", trunc(err?.message || err, 140));
+  }
+  let expanded = [];
+  try {
+    expanded = readRecommendationDishes().map((dish) => {
+      const out = {
+        ...dish,
+        sourceType: dish.sourceType === "external" ? "external" : "ai_generated"
+      };
+      out.verification = sourceVerificationOf(out);
+      out.sourceLabel = out.sourceType === "external"
+        ? out.verification.status === "web_verified" ? "外部资料 · 公开资料佐证" : "外部资料 · 待核验"
+        : out.verification.status === "web_verified" ? "AI 扩展 · 公开资料佐证" : "AI 扩展 · 待核验";
+      return out;
+    });
+  } catch (err) {
+    console.warn("[recommend] 读取图鉴外候选失败：", trunc(err?.message || err, 140));
+  }
+  return [...catalog, ...database, ...expanded];
+}
+function sourceCountsOf(dishes) {
+  const counts = { catalog: 0, database: 0, ai_generated: 0, external: 0 };
+  for (const dish of dishes) counts[dish.sourceType] = (counts[dish.sourceType] || 0) + 1;
+  return counts;
+}
 var EXCLUDE_GROUPS = {
   \u6D77\u9C9C: ["\u9C7C", "\u867E", "\u87F9", "\u8D1D", "\u86E4", "\u869D", "\u87BA", "\u9C7F", "\u7AE0\u9C7C", "\u6D77\u53C2", "\u9C8D"],
   \u8089: ["\u8089", "\u732A", "\u725B", "\u7F8A", "\u9E21", "\u9E2D", "\u9E45", "\u9E3D", "\u5154", "\u706B\u817F", "\u814A", "\u57F9\u6839", "\u9999\u80A0", "\u6392\u9AA8", "\u9AA8"],
@@ -211,14 +298,15 @@ function cnNumber(raw) {
 function parseFreeText(text) {
   const raw = str3(text, 400);
   const lower = raw.toLowerCase();
-  const out = { peopleCount: 0, budgetTotal: 0, budgetPerPerson: 0, timeLimit: 0, difficulty: "", noSpicy: false, mildPreferred: false, vegan: false, vegetarian: false, excluded: [], availableIngredients: [], wantsRice: false, wantsSoup: false, wantsLight: false, wantsMeat: false, moodHints: [] };
+  const out = { peopleCount: 0, budgetTotal: 0, budgetPerPerson: 0, timeLimit: 0, difficulty: "", noSpicy: false, mildPreferred: false, vegan: false, vegetarian: false, excluded: [], availableIngredients: [], wantsRice: false, wantsSoup: false, wantsLight: false, wantsMeat: false, wantsOutsideCatalog: false, requestedDish: "", moodHints: [] };
   const people = raw.match(/(\d{1,2}|[一二两三四五六七八九十]{1,3})\s*(?:个)?\s*人(?:吃|用餐|份|食)?/);
   if (people) out.peopleCount = cnNumber(people[1]);
   else if (/一人食|一个人吃|单人食/.test(raw)) out.peopleCount = 1;
   const perPersonWord = /每人|人均|一个人平均/.test(raw);
   const totalWord = /总预算|总共|一共|合计|总共花/.test(raw);
   const range = raw.match(/(\d{2,4})\s*(?:-|~|到|至)\s*(\d{2,4})\s*(?:元|块)/);
-  const budget = raw.match(/(?:预算|花费|成本|价格|控制在|不超过|最多|大概|约)?\s*(\d{2,4})\s*(?:元|块)(?:左右|以内|以下|内)?/);
+  const budget = raw.match(/(?:预算|花费|成本|价格|控制在|不超过|最多|大概|约)?\s*(\d{2,4})\s*(?:元|块)(?:左右|以内|以下|内)?/) ||
+    raw.match(/(?:预算|花费|成本|价格|控制在|不超过|最多|人均|每人)\s*(?:不超过|最多|控制在)?\s*(\d{2,4})(?!\s*(?:分钟|分|min))/i);
   if (range) {
     const amount = Number(range[2]);
     if (amount > 0) {
@@ -259,7 +347,7 @@ function parseFreeText(text) {
     const phrase = m[1];
     for (const token of phrase.split(/和|及|与|\/|、/)) {
       const t = str3(token, 12);
-      if (!t || /辣|油|腻|复杂|麻烦/.test(t)) continue;
+      if (!t || /辣|油|腻|复杂|麻烦|贵|便宜|清淡|太[多不少]|热|凉|甜|咸|酸|苦|份量/.test(t)) continue;
       out.excluded.push(t);
     }
   }
@@ -278,6 +366,16 @@ function parseFreeText(text) {
   if (/(清淡|治愈|不舒服|胃口不好)/.test(raw)) out.moodHints.push("heal");
   if (/(新鲜|没吃过|换换口味)/.test(raw)) out.moodHints.push("new");
   if (/(犒劳|奖励|吃顿好的)/.test(raw)) out.moodHints.push("treat");
+  out.wantsOutsideCatalog = /(图鉴|菜单|菜谱库|站内)(?:里|中|内)?(?:没有|没收录|未收录|之外|以外)|不在图鉴|图鉴外|没收录的菜|想吃点没吃过的|想尝新/.test(raw);
+  const notDishName = /^(点|些|什么|一道|一份|一餐|一点|清淡|辣|热乎|暖|简单|便宜|好吃|素|肉|汤|下饭|开胃|酸的|甜的|元|块|分钟|预算|时间|人数|\d)/;
+  const colonName = raw.match(/[：:]\s*([\u4e00-\u9fa5A-Za-z0-9]{2,10})/);
+  if (colonName && !notDishName.test(colonName[1])) out.requestedDish = colonName[1];
+  if (!out.requestedDish) {
+    const directName = raw.match(/(?:想吃|来一份|来一道|推荐)([\u4e00-\u9fa5]{2,8})(?:[，。；;]|$)/);
+    if (directName && !notDishName.test(directName[1])) {
+      out.requestedDish = directName[1];
+    }
+  }
   return out;
 }
 function normalizeConditions(body = {}) {
@@ -355,7 +453,7 @@ function difficultyMatches(dish, cond) {
 }
 function budgetMatches(dish, cond) {
   const cost = costOf(dish);
-  if (!cond.budgetMax || cond.budgetMax === Infinity) return cost == null ? true : cost >= cond.budgetMin;
+  if (!cond.budgetMax || cond.budgetMax === Infinity) return cost == null ? !cond.budgetMin : cost >= cond.budgetMin;
   if (cost == null) return false;
   return cost >= cond.budgetMin && cost <= cond.budgetMax + 0.5;
 }
@@ -442,17 +540,19 @@ function scoreDish(dish, cond) {
   if (cond.diets.includes("lowsalt") && methods.includes("\u51C9\u62CC")) score += 1;
   return score;
 }
-function candidatePool(cond, excludedIds) {
+function candidatePool(cond, excludedIds, sourceDishes = allSourceDishes()) {
   const excludedSet = excludedIds instanceof Set ? new Set([...excludedIds].map(String)) : new Set((excludedIds || []).map(String));
-  const excludedNames = new Set([...excludedSet].map((id) => nameKey(DISH_BY_ID2.get(id))).filter(Boolean));
+  const allById = new Map(sourceDishes.map((dish) => [dish.id, dish]));
+  const excludedNames = new Set([...excludedSet].map((id) => nameKey(allById.get(id))).filter(Boolean));
   const seenNames = /* @__PURE__ */ new Set();
   const pool = [];
-  for (const dish of DISHES) {
+  for (const dish of sourceDishes) {
     if (excludedSet.has(dish.id)) continue;
-    if (excludedNames.has(nameKey(dish))) continue;
-    if (seenNames.has(nameKey(dish))) continue;
+    const key = nameKey(dish);
+    if (excludedNames.has(key)) continue;
+    if (seenNames.has(key)) continue;
     if (hardFailure(dish, cond)) continue;
-    seenNames.add(nameKey(dish));
+    seenNames.add(key);
     pool.push({ dish, score: scoreDish(dish, cond) });
   }
   pool.sort((a, b) => b.score - a.score || String(a.dish.name).localeCompare(String(b.dish.name), "zh-Hans-CN"));
@@ -467,6 +567,11 @@ function limitCandidates(pool, max = 32) {
     picked.push(entry);
   };
   pool.slice(0, 24).forEach(add);
+  // 图鉴外的候选可能因为缺少精确价格/时长而分数偏低；每类至少保留若干，
+  // 让最终排序 AI 仍能看到它们，而不是候选池阶段就被图鉴挤掉。
+  for (const type of ["ai_generated", "database", "external"]) {
+    pool.filter((entry) => entry.dish.sourceType === type).slice(0, 4).forEach(add);
+  }
   const cuisines = new Set(picked.map((x) => x.dish.cuisine));
   for (const entry of pool.slice(24)) {
     if (picked.length >= max) break;
@@ -484,7 +589,7 @@ function candidatePayload(dish) {
   return {
     id: dish.id,
     name: dish.name,
-    cuisine: CUISINE_BY_ID[dish.cuisine]?.name || dish.cuisine,
+    cuisine: CUISINE_BY_ID[dish.cuisine]?.name || dish.cuisine || "中国菜",
     flavors: tasteNames(dish),
     costPerPerson: cost == null ? null : Math.round(cost),
     timeMinutes: time,
@@ -493,7 +598,10 @@ function candidatePayload(dish) {
     method: methodsOf(dish).slice(0, 2).join("\u3001"),
     tags: (dish.tags || []).slice(0, 6),
     oneLiner: trunc(dish.oneLiner || dish.intro || "", 60),
-    ingredients: (dish.ingredients || []).slice(0, 8)
+    ingredients: (dish.ingredients || []).slice(0, 8),
+    sourceType: dish.sourceType || "catalog",
+    sourceLabel: sourceLabelOf(dish),
+    verification: sourceVerificationOf(dish).status
   };
 }
 function conditionChips(cond) {
@@ -535,12 +643,13 @@ function conditionPrompt(cond) {
 }
 function whyFor(dish, cond) {
   const why = [];
+  const origin = sourceLabelOf(dish);
   if (dish.oneLiner) {
-    const note = trunc(dish.oneLiner, 42).replace(/[。！？!?；;，,、\s]+$/u, "");
-    why.push(`\u56FE\u9274\u7ED9\u8FD9\u9053\u83DC\u7684\u6CE8\u811A\u662F\u300C${note}\u300D\u3002`);
+    const note = HEALTH_CLAIM_RE.test(dish.oneLiner) || GENERIC_REASON_RE.test(dish.oneLiner) || (minutesOf(dish) <= 0 && /时长|分钟|快手|快速|立刻/.test(dish.oneLiner)) ? "" : trunc(dish.oneLiner, 42).replace(/[。！？!?；;，,、\s]+$/u, "");
+    if (note) why.push(`${origin}给这道菜的注脚是「${note}」。`);
   } else if (dish.signature) {
-    const note = trunc(dish.signature, 42).replace(/[。！？!?；;，,、\s]+$/u, "");
-    why.push(`\u56FE\u9274\u7ED9\u5B83\u7684\u5173\u952E\u8BCD\u662F\u300C${note}\u300D\u3002`);
+    const note = HEALTH_CLAIM_RE.test(dish.signature) || GENERIC_REASON_RE.test(dish.signature) || (minutesOf(dish) <= 0 && /时长|分钟|快手|快速|立刻/.test(dish.signature)) ? "" : trunc(dish.signature, 42).replace(/[。！？!?；;，,、\s]+$/u, "");
+    if (note) why.push(`${origin}给它的关键词是「${note}」。`);
   }
   if ((dish.ingredients || []).length) {
     const methods = methodsOf(dish).slice(0, 2).join("\u3001");
@@ -553,24 +662,29 @@ function whyFor(dish, cond) {
   if (cond.moods.length) why.push(`\u5728\u300C${cond.moods.map((id) => MOOD_BY_ID[id].label).join("\u3001")}\u300D\u7684\u72B6\u6001\u4E0B\uFF0C\u8FD9\u9053\u83DC\u7684\u53E3\u611F\u548C\u505A\u6CD5\u66F4\u8D34\u8FD1\u8FD9\u987F\u996D\u7684\u8282\u594F\u3002`);
   if (cond.budgetMax !== Infinity) {
     const cost = costOf(dish);
-    why.push(cost == null ? "\u56FE\u9274\u6CA1\u6709\u8DB3\u591F\u4EF7\u683C\u5B57\u6BB5\uFF0C\u6210\u672C\u53EA\u80FD\u6807\u4E3A\u5F85\u4F30\u3002" : `\u6309\u56FE\u9274\u53C2\u8003\u4EF7 \xF7 ${dish.servings} \u4EFD\u4F30\u7B97\u7EA6 \xA5${Math.round(cost)}/\u4EBA\uFF0C\u6CA1\u6709\u8D85\u8FC7\u4F60\u8BBE\u5B9A\u7684\u9884\u7B97\u4E0A\u9650\uFF1B\u8FD9\u662F\u9884\u4F30\uFF0C\u4E0D\u662F\u7CBE\u786E\u98DF\u6750\u6210\u672C\u3002`);
+    why.push(cost == null ? "站内资料没有足够的价格字段，成本只能标为待确认。" : `按站内参考价 ÷ ${dish.servings} 份估算约 ¥${Math.round(cost)}/人，没有超过你设定的预算上限；这是预估，不是精确食材成本。`);
   }
-  if (cond.timeLimit) why.push(`\u56FE\u9274\u6807\u6CE8\u51C6\u5907 ${dish.prep || 0} \u5206\u949F + \u70F9\u996A ${dish.cook || 0} \u5206\u949F\uFF0C\u5408\u8BA1\u7EA6 ${minutesOf(dish)} \u5206\u949F\uFF0C\u4E0D\u8D85\u8FC7\u4F60\u7ED9\u7684\u65F6\u95F4\u3002`);
-  if (cond.peopleCount) why.push(`\u56FE\u9274\u4EFD\u91CF\u7EA6 ${dish.servings} \u4EBA\u4EFD\uFF0C${cond.peopleCount} \u4EBA\u5403\u65F6\u6309\u5B9E\u9645\u98DF\u91CF\u8C03\u6574\u5373\u53EF\u3002`);
+  if (cond.timeLimit) why.push(`站内资料标注准备 ${dish.prep || 0} 分钟 + 烹饪 ${dish.cook || 0} 分钟，合计约 ${minutesOf(dish)} 分钟，不超过你给的时间。`);
+  if (cond.peopleCount) why.push(`站内资料份量约 ${dish.servings} 人份，${cond.peopleCount} 人吃时按实际食量调整即可。`);
   if (cond.scene) why.push(`\u573A\u666F\u662F\u300C${cond.scene.label}\u300D\uFF0C\u8FD9\u9053\u83DC\u7684\u4EFD\u91CF\u4E0E\u6C14\u8D28\u66F4\u9002\u5408\u8FD9\u6837\u7684\u9910\u684C\u3002`);
-  if (cond.vegetarian || cond.vegan) why.push("\u5DF2\u6309\u56FE\u9274\u914D\u6599\u5B57\u6BB5\u6392\u9664\u52A8\u7269\u6027\u98DF\u6750\uFF1B\u8FD9\u662F\u57FA\u4E8E\u6863\u6848\u7684\u4FDD\u5B88\u7B5B\u9009\uFF0C\u672A\u6838\u9A8C\u9910\u5385\u5B9E\u9645\u505A\u6CD5\u3002");
-  if (cond.noSpicy) why.push("\u5DF2\u6392\u9664\u56FE\u9274\u5473\u578B/\u6807\u7B7E\u4E2D\u5E26\u8FA3\u7684\u83DC\uFF0C\u8FA3\u5EA6\u5224\u65AD\u6765\u81EA\u6863\u6848\u5B57\u6BB5\u3002");
+  if (cond.vegetarian || cond.vegan) why.push("已按站内配料字段排除动物性食材；这是基于资料的保守筛选，未核验餐厅实际做法。");
+  if (cond.noSpicy) why.push("已排除站内味型/标签中带辣的菜，辣度判断来自资料字段。");
   if (cond.parsed.availableIngredients.length) {
     const pantryHit = cond.parsed.availableIngredients.filter((x) => `${dish.name} ${(dish.ingredients || []).join(" ")}`.includes(x));
     if (pantryHit.length) why.push(`\u4F60\u624B\u8FB9\u7684\u300C${pantryHit.slice(0, 3).join("\u3001")}\u300D\u6B63\u597D\u5728\u8FD9\u9053\u83DC\u7684\u914D\u6599\u91CC\u3002`);
   }
   if (cond.freeText) why.push(`\u4E5F\u7167\u987E\u5230\u4F60\u63D0\u5230\u7684\u300C${trunc(cond.freeText, 24)}\u300D\u3002`);
-  if (!why.length) why.push("\u6765\u81EA\u56FE\u9274\u7684\u771F\u5B9E\u83DC\u54C1\uFF0C\u5473\u578B\u3001\u65F6\u957F\u4E0E\u4EFD\u91CF\u90FD\u4E0E\u5F53\u524D\u6761\u4EF6\u76F8\u7B26\u3002");
+  if (!why.length) why.push(`来自${origin}的候选，味型、份量与场景按你当前的条件做了筛选。`);
+  if (dish.verification?.status === "unverified" && dish.sourceType !== "catalog") {
+    why.push("这道菜是本次 AI 扩展候选，尚未逐条完成公开资料核实；食材与做法请以实际准备为准。");
+  }
   return why.slice(0, 8);
 }
 function fallbackReason(dish, cond) {
   const bits = [];
-  const note = trunc(dish.oneLiner || dish.signature || "", 28).replace(/[。！？!?；;，,、\s]+$/u, "");
+  let rawNote = trunc(dish.oneLiner || dish.signature || "", 28).replace(/[。！？!?；;，,、\s]+$/u, "");
+  rawNote = rawNote.replace(new RegExp(`^${String(dish.name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[：: ]*`), "");
+  const note = HEALTH_CLAIM_RE.test(rawNote) || GENERIC_REASON_RE.test(rawNote) || (minutesOf(dish) <= 0 && /时长|分钟|快手|快速|立刻/.test(rawNote)) ? "" : rawNote;
   if (note) bits.push(`「${dish.name}」${note}`);
   if (cond.flavors.length) {
     const names = (dish.tastes || []).filter((t) => cond.flavors.includes(t)).map((t) => TASTE_BY_ID[t]?.name).filter(Boolean);
@@ -579,9 +693,10 @@ function fallbackReason(dish, cond) {
   if (cond.moods.length) bits.push(`\u9002\u5408${cond.moods.map((id) => MOOD_BY_ID[id].label).join("\u3001")}\u7684\u72B6\u6001`);
   if (cond.budgetMax !== Infinity && costOf(dish) != null) bits.push(`\u4EBA\u5747\u7EA6 \xA5${Math.round(costOf(dish))}\uFF0C\u672A\u8D85\u8FC7\u9884\u7B97\u4E0A\u9650`);
   if (cond.timeLimit) bits.push(`\u7EA6 ${minutesOf(dish)} \u5206\u949F\u80FD\u505A\u597D`);
-  if (cond.scene) bits.push(`\u9002\u5408${cond.scene.label}`);
-  if (!bits.length) bits.push(`\u56FE\u9274\u6536\u5F55\u7684${CUISINE_BY_ID[dish.cuisine]?.name || ""}\u83DC\uFF0C\u53E3\u5473\u4E0E\u4EFD\u91CF\u90FD\u548C\u8FD9\u987F\u996D\u5408\u62CD`);
-  return `${bits.slice(0, 3).join("\uFF1B")}\u3002`;
+  if (cond.scene) bits.push(`适合${cond.scene.label}`);
+  if (cond.freeText) bits.push(`照应你提到的「${trunc(cond.freeText, 18)}」`);
+  if (!bits.length) bits.push(`${sourceLabelOf(dish)}里的${CUISINE_BY_ID[dish.cuisine]?.name || "中国"}菜，口味与份量都和这顿饭合拍`);
+  return `${bits.slice(0, 4).join("\uFF1B")}\u3002`;
 }
 function reasonFactsOk(reason, dish) {
   const text = String(reason || "");
@@ -601,11 +716,43 @@ var OTHER_DISH_NAMES = DISHES.map((d) => String(d.name || "")).filter((name) => 
 var HEALTH_CLAIM_RE = /营养|养生|食疗|治疗|治愈|药效|功效|减脂|减肥|低脂|低卡|高蛋白|滋补|调理身体|增强免疫|健康|能量|热量|食欲|消化/;
 var COST_CLAIM_RE = /食材成本|成本[^。；]{0,8}(?:\d{1,4}|[零一二三四五六七八九十百]{1,6})\s*元|[¥￥]\s*\d{1,4}|\d{1,4}\s*元/;
 var SUMMARY_COST_CLAIM_RE = /食材成本|成本[^。；]{0,8}(?:\d{1,4}|[零一二三四五六七八九十百]{1,6})\s*元|售价[^。；]{0,8}\d{1,4}\s*元/;
-function sanitizeReason(raw, dish, cond) {
+var PRICE_CLAIM_RE = /预算|价格|售价|花费|成本|性价比|实惠|便宜|不贵|划算/;
+var GENERIC_REASON_RE = /味道不错|味道很好|很好吃|值得尝试|值得一试|不容错过|强烈推荐|必点/;
+function reasonEchoesInput(reason, dish, cond) {
+  const text = String(reason || "");
+  if (!text) return false;
+  const needles = [];
+  const free = str3(cond.freeText, 300);
+  for (const chunk of free.split(/[，。；、,.;\s]+/).filter(Boolean)) {
+    const han = chunk.match(/[\u4e00-\u9fa5]{2,}/g) || [];
+    for (const part of han) {
+      for (let i = 0; i < part.length - 1; i += 1) needles.push(part.slice(i, i + 2));
+    }
+  }
+  for (const id of cond.moods || []) if (MOOD_BY_ID[id]?.label) needles.push(MOOD_BY_ID[id].label);
+  for (const id of cond.flavors || []) if (TASTE_BY_ID[id]?.name) needles.push(TASTE_BY_ID[id].name);
+  if (cond.scene?.label) needles.push(cond.scene.label);
+  if (cond.budgetLabel) needles.push(cond.budgetLabel);
+  if (cond.timeLimit) needles.push(`${cond.timeLimit} 分钟`, "时长");
+  if (cond.peopleCount) needles.push(`${cond.peopleCount} 人`, "人吃");
+  if (cond.parsed?.wantsSoup) needles.push("汤", "热乎", "暖");
+  if (cond.parsed?.wantsLight) needles.push("清淡", "清鲜");
+  if (cond.parsed?.wantsMeat) needles.push("肉", "荤");
+  const unique = [...new Set(needles.filter((x) => String(x).length >= 2))];
+  return unique.some((needle) => text.includes(needle));
+}
+function hasWrongRegionClaim(reason, dish) {
+  const own = CUISINE_BY_ID[dish.cuisine]?.name || "";
+  return Object.values(CUISINE_BY_ID).some((cuisine) => cuisine?.name && cuisine.name !== own && reason.includes(cuisine.name));
+}
+function sanitizeReason(raw, dish, cond, otherNames = []) {
   let reason = str3(raw, 260).replace(/用户/g, "\u4F60").replace(/您/g, "\u4F60").replace(/^["「]|["」]$/g, "").trim();
-  const mentionsOtherDish = OTHER_DISH_NAMES.some((name) => name !== dish.name && reason.includes(name));
-  if (mentionsOtherDish || HEALTH_CLAIM_RE.test(reason) || COST_CLAIM_RE.test(reason)) reason = "";
-  if (reason.length < 8 || !reasonFactsOk(reason, dish)) reason = fallbackReason(dish, cond);
+  const knownNames = [...new Set([...OTHER_DISH_NAMES, ...otherNames.map((name) => str3(name, 30)).filter(Boolean)])];
+  const mentionsOtherDish = knownNames.some((name) => name !== dish.name && reason.includes(name));
+  if (mentionsOtherDish || hasWrongRegionClaim(reason, dish) || HEALTH_CLAIM_RE.test(reason) || COST_CLAIM_RE.test(reason) || GENERIC_REASON_RE.test(reason) ||
+    (costOf(dish) == null && PRICE_CLAIM_RE.test(reason)) ||
+    (cond.excluded || []).some((item) => reason.includes(item))) reason = "";
+  if (reason.length < 8 || !reasonFactsOk(reason, dish) || !reasonEchoesInput(reason, dish, cond)) reason = fallbackReason(dish, cond);
   if (reason.length < 8) reason = fallbackReason(dish, cond);
   return reason;
 }
@@ -654,7 +801,8 @@ var SYSTEM_PROMPT = `\u4F60\u662F\u300C\u98DF\u6709\u7075 \xB7 \u5BFB\u5473\u63A
 6. reason \u91CC\u4E0D\u8981\u63D0\u5230\u5019\u9009\u4E2D\u7684\u5176\u4ED6\u83DC\u540D\uFF0C\u4E5F\u4E0D\u8981\u5199\u201C\u642D\u914D\u67D0\u9053\u83DC\u201D\u201C\u548C\u53E6\u4E00\u9053\u83DC\u4E92\u8865\u201D\u8FD9\u7C7B\u8DE8\u83DC\u54C1\u63CF\u8FF0\uFF1B\u6BCF\u9053\u83DC\u5404\u81EA\u72EC\u7ACB\u89E3\u91CA\u3002
 7. \u4E0D\u8981\u5199\u533B\u7597\u3001\u517B\u751F\u3001\u6CBB\u7597\u3001\u51CF\u8102\u3001\u8425\u517B\u5747\u8861\u7B49\u5065\u5EB7\u7ED3\u8BBA\uFF1B\u4E0D\u8981\u58F0\u79F0\u7CBE\u786E\u98DF\u6750\u6210\u672C\u6216\u9910\u5385\u5B9E\u9645\u505A\u6CD5\u3002 reason 中不要出现具体金额或分钟数（不要写“20元”“30分钟”），只用“预算内”“时长合适”等定性表达。
 8. \u4E0D\u8981\u590D\u8FF0\u63D0\u793A\u8BCD\uFF0C\u4E0D\u8981\u8F93\u51FA Markdown\uFF0C\u4E0D\u8981\u8F93\u51FA JSON \u4E4B\u5916\u7684\u4EFB\u4F55\u5B57\u7B26\u3002
-9. \u5019\u9009\u4E0D\u8DB3\u65F6\u5B81\u5C11\u52FF\u6EE5\uFF1B\u63A8\u8350\u6570\u91CF 4\u20136 \u9053\uFF08\u5982\u679C\u5019\u9009\u5C11\u4E8E 4 \u9053\uFF0C\u5C31\u6309\u5B9E\u9645\u6570\u91CF\u8FD4\u56DE\uFF09\u3002
+9. 候选不足时宁少勿滥；推荐数量 4–6 道（如果候选少于 4 道，就按实际数量返回）。
+10. 候选可能来自图鉴、站内 AI 补全库或本次 AI 扩展。图鉴外候选必须让用户看出是扩展候选；verification 为 unverified 时，不要把这道菜说成已核实的名店菜或历史名菜，也不要补充候选数据里没有的起源、价格、营养结论。
 
 \u53EA\u8F93\u51FA\u8FD9\u4E2A JSON \u7ED3\u6784\uFF1A
 {"summary":"...","topPick":{"dishId":"...","reason":"...","matchTags":["..."]},"recommendations":[{"dishId":"...","reason":"...","matchTags":["..."]}]}
@@ -664,7 +812,7 @@ function userPrompt(cond, candidates, batchIndex, excludedCount) {
 ${conditionPrompt(cond)}
 
 \u8FD9\u662F\u7B2C ${batchIndex + 1} \u6279\u63A8\u8350${excludedCount ? `\uFF1B\u5DF2\u7ECF\u6392\u9664 ${excludedCount} \u9053\u4E4B\u524D\u770B\u8FC7/\u4E0D\u559C\u6B22\u7684\u83DC` : ""}\u3002
-\u5019\u9009\u83DC\u54C1\uFF08\u53EA\u80FD\u4ECE\u8FD9\u91CC\u9009\uFF0C\u5B57\u6BB5\u90FD\u662F\u56FE\u9274\u771F\u5B9E\u6570\u636E\uFF1BcostPerPerson \u662F\u53C2\u8003\u4EF7\xF7\u4EFD\u91CF\u7684\u9884\u4F30\uFF0C\u4E0D\u662F\u7CBE\u786E\u6210\u672C\uFF09\uFF1A
+候选菜品（只能从这里选，字段来自多个来源（sourceType：catalog=图鉴，database=站内 AI 补全库，ai_generated/external=图鉴外候选）；verification 为 web_verified 时表示有公开网页佐证，unverified 表示仅模型提出、尚未核实；costPerPerson 是参考价÷份量的预估，不是精确成本\uFF09\uFF1A
 ${JSON.stringify(candidates)}
 
 \u8BF7\u8FD4\u56DE JSON\u3002`;
@@ -697,9 +845,10 @@ function buildSuggestions(cond, totalBefore, excludedCount) {
   if (!suggestions.length) suggestions.push("\u51CF\u5C11\u4E00\u4E2A\u6761\u4EF6\uFF0C\u6216\u76F4\u63A5\u70B9\u201C\u6362\u4E00\u6279\u201D\u3002");
   return suggestions.slice(0, 4);
 }
-function buildResponse({ cond, aiConfig, picked, aiData, candidateCount, excludedCount, batchIndex }) {
+function buildResponse({ cond, aiConfig, picked, aiData, candidateCount, excludedCount, batchIndex, sourceCounts = {}, expansionNote = "" }) {
   const topId = aiData.topPick.dishId;
   const topDish = picked.find((x) => x.dish.id === topId)?.dish || picked[0]?.dish;
+  const pickedNames = picked.map((x) => x.dish.name).filter(Boolean);
   const chosen = [];
   const seen = /* @__PURE__ */ new Set([topDish.id]);
   const seenNames = /* @__PURE__ */ new Set([nameKey(topDish)]);
@@ -710,10 +859,13 @@ function buildResponse({ cond, aiConfig, picked, aiData, candidateCount, exclude
     if (!dish || seenNames.has(nameKey(dish))) continue;
     seen.add(item.dishId);
     seenNames.add(nameKey(dish));
-    chosen.push({ dish, reason: sanitizeReason(item.reason, dish, cond), tags: matchTagsFor(dish, cond, item.matchTags) });
+    chosen.push({ dish, reason: sanitizeReason(item.reason, dish, cond, pickedNames), tags: matchTagsFor(dish, cond, item.matchTags) });
   }
-  const topReason = sanitizeReason(aiData.topPick.reason, topDish, cond);
-  const card = (dish, reason, tags) => ({
+  const topReason = sanitizeReason(aiData.topPick.reason, topDish, cond, pickedNames);
+  const card = (dish, reason, tags) => {
+    const cost = costOf(dish);
+    const verification = sourceVerificationOf(dish);
+    return {
     dishId: dish.id,
     name: dish.name,
     nameEn: dish.nameEn || "",
@@ -735,27 +887,37 @@ function buildResponse({ cond, aiConfig, picked, aiData, candidateCount, exclude
     servings: dish.servings,
     methods: methodsOf(dish).slice(0, 3),
     estimatedCost: {
-      amount: costOf(dish),
-      label: costLabel(costOf(dish)),
-      basis: "\u56FE\u9274\u53C2\u8003\u4EF7 \xF7 \u4EFD\u91CF\u63A8\u7B97\uFF0C\u4E0D\u662F\u7CBE\u786E\u98DF\u6750\u6210\u672C",
-      status: costOf(dish) == null ? "unavailable" : "estimated"
+      amount: cost,
+      label: costLabel(cost),
+      basis: cost == null ? "未提供可靠价格，价格待确认" : "站内参考价 ÷ 份量推算，不是精确食材成本",
+      status: cost == null ? "unavailable" : "estimated"
     },
     reason,
     matchTags: tags,
     why: whyFor(dish, cond),
-    source: "\u56FE\u9274"
-  });
+    source: sourceLabelOf(dish),
+    sourceType: dish.sourceType || "catalog",
+    sourceLabel: sourceLabelOf(dish),
+    verification,
+    timeStatus: minutesOf(dish) > 0 ? "known" : "unconfirmed",
+    servingsEstimated: dish.sourceType !== "catalog" && !dish.servingsVerified
+  };
+  };
   const top = card(topDish, topReason, matchTagsFor(topDish, cond, aiData.topPick.matchTags));
   const recommendations = chosen.map((x) => card(x.dish, x.reason, x.tags));
+  const hasExpanded = top.sourceType === "ai_generated" || top.sourceType === "external" ||
+    recommendations.some((x) => x.sourceType === "ai_generated" || x.sourceType === "external");
   const displayedNames = new Set([topDish, ...chosen.map((x) => x.dish)].map((d) => d.name));
+  const knownSummaryNames = [...new Set([...OTHER_DISH_NAMES, ...pickedNames])];
   let summary = str3(aiData.summary, 220).replace(/用户/g, "\u4F60").replace(/您/g, "\u4F60");
-  const summaryMentionsUnknown = OTHER_DISH_NAMES.some((name) => !displayedNames.has(name) && summary.includes(name));
-  if (!summary || HEALTH_CLAIM_RE.test(summary) || SUMMARY_COST_CLAIM_RE.test(summary) || summaryMentionsUnknown) {
-    summary = `\u6309\u4F60\u7684\u6761\u4EF6\uFF0C\u4ECE\u56FE\u9274\u7B5B\u51FA ${candidateCount} \u9053\uFF0C\u518D\u6311\u51FA${chosen.length ? "\u8FD9\u51E0\u9053" : "\u8FD9\u4E00\u9053"}\u3002`;
+  const summaryMentionsUnknown = knownSummaryNames.some((name) => !displayedNames.has(name) && summary.includes(name));
+  const summaryMentionsHard = (cond.excluded || []).some((item) => summary.includes(item));
+  if (!summary || HEALTH_CLAIM_RE.test(summary) || SUMMARY_COST_CLAIM_RE.test(summary) || PRICE_CLAIM_RE.test(summary) || summaryMentionsUnknown || summaryMentionsHard) {
+    summary = `按你的条件，从 ${candidateCount} 道候选（图鉴 ${sourceCounts.catalog || 0}、站内补全 ${sourceCounts.database || 0}、AI 扩展 ${(sourceCounts.ai_generated || 0) + (sourceCounts.external || 0)}）里挑出${chosen.length ? "这几道" : "这一道"}。`;
   }
   return {
     recommendationId: `rec-${crypto8.randomUUID()}`,
-    sourceType: "library",
+    sourceType: "multi_source",
     summary,
     usedConditions: conditionChips(cond),
     topPick: top,
@@ -767,13 +929,25 @@ function buildResponse({ cond, aiConfig, picked, aiData, candidateCount, exclude
       model: aiConfig.model || "",
       candidateCount,
       excludedCount,
+      sourceCounts,
+      expansionNote,
       mode: batchIndex > 0 ? "refresh" : "generate"
     },
     notes: [
-      "\u6210\u672C\u4E3A\u201C\u56FE\u9274\u53C2\u8003\u4EF7 \xF7 \u4EFD\u91CF\u201D\u7684\u4F30\u7B97\uFF0C\u4E0D\u662F\u7CBE\u786E\u98DF\u6750\u6210\u672C\uFF0C\u4E5F\u4E0D\u4EE3\u8868\u9910\u5385\u552E\u4EF7\u3002",
-      "\u65F6\u957F\u6765\u81EA\u56FE\u9274\u7684\u51C6\u5907+\u70F9\u996A\u5B57\u6BB5\uFF1B\u5B9E\u9645\u706B\u5019\u3001\u8BBE\u5907\u548C\u719F\u7EC3\u5EA6\u90FD\u4F1A\u5F71\u54CD\u7528\u65F6\u3002",
-      ...cond.vegetarian || cond.vegan ? ["\u7D20\u98DF\u5224\u65AD\u53EA\u57FA\u4E8E\u83DC\u54C1\u6863\u6848\u7684\u914D\u6599\u5B57\u6BB5\uFF0C\u672A\u9010\u9879\u6838\u9A8C\u9910\u5385\u5B9E\u9645\u505A\u6CD5\u3002"] : [],
-      ...cond.noSpicy ? ["\u4E0D\u5403\u8FA3\u6309\u56FE\u9274\u5473\u578B\u3001\u6807\u7B7E\u4E0E\u914D\u6599\u5B57\u6BB5\u4FDD\u5B88\u8FC7\u6EE4\u3002"] : []
+      "成本为“站内参考价 ÷ 份量”的估算，不是精确食材成本，也不代表餐厅售价；没有可靠价格时统一标为“价格待确认”。",
+      "时长来自站内资料的准备+烹饪字段；图鉴外候选没有可靠时长时不硬填，实际火候、设备和熟练度都会影响用时。",
+      ...cond.vegetarian || cond.vegan ? ["素食判断只基于菜品资料的配料字段，未逐项核验餐厅实际做法。"] : [],
+      ...cond.noSpicy ? ["不吃辣按站内味型、标签与配料字段保守过滤。"] : [],
+      ...(hasExpanded
+        ? ["带“AI 扩展”标记的菜不在原图鉴里，是系统按真实需求扩展的候选（可能来自本轮，也可能来自此前保存的资料）；带“公开资料佐证”的也只代表能检索到相关网页，不代表逐项核验。"]
+        : []),
+      ...((cond.excluded.length || cond.diets.length) && hasExpanded
+        ? ["图鉴外候选的配料由 AI 整理，可能不完整；严重过敏或严格忌口时，请在下厨/点单前向商家或包装确认，不能只依赖本页结论。"]
+        : []),
+      ...(top.verification?.status === "unverified" || recommendations.some((x) => x.verification?.status === "unverified")
+        ? ["标为“待核验”的菜只有名称与基本资料，食材、做法和是否合口味请以实际准备为准。"]
+        : []),
+      ...(expansionNote ? [expansionNote] : [])
     ],
     generatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
@@ -782,18 +956,75 @@ async function recommend({ conditions, aiConfig, batchIndex = 0, excludedDishIds
   const cond = conditions;
   const excluded = unique2((excludedDishIds || []).map((x) => str3(x, 80)).filter(Boolean)).slice(0, 120);
   const excludedSet = new Set(excluded);
-  const pool = candidatePool(cond, excludedSet);
+  let sourceDishes = allSourceDishes();
+  let pool = candidatePool(cond, excludedSet, sourceDishes);
+  let expansionNote = "";
+  let expansion = { status: "skipped", records: [] };
+
+  // 图鉴/补全库不足、用户明确想看图鉴外、想吃点新鲜的，或“换一批”时，
+  // 才额外扩展候选；预算/时长是硬条件时，模型没有可靠依据就不硬扩，避免拿猜测凑数。
+  const strictEconomics = cond.budgetMax !== Infinity || Boolean(cond.timeLimit);
+  const requestedName = str3(cond.parsed?.requestedDish, 24);
+  const requestedKnown = requestedName
+    ? sourceDishes.some((dish) => nameKey(dish) === nameKey({ name: requestedName }) || nameKey(dish).includes(nameKey({ name: requestedName })))
+    : true;
+  const wantsOutside = Boolean(cond.parsed?.wantsOutsideCatalog) || (cond.moods || []).includes("new") || (requestedName && !requestedKnown);
+  const shouldExpand = !strictEconomics && (pool.length < 8 || wantsOutside || batchIndex > 0);
+  if (shouldExpand) {
+    const knownNames = [...new Set(sourceDishes.map((dish) => str3(dish.name, 24)).filter(Boolean))];
+    const excludedNames = [...excludedSet]
+      .map((id) => sourceDishes.find((dish) => dish.id === id)?.name)
+      .map((name) => str3(name, 24))
+      .filter(Boolean);
+    try {
+      expansion = await expandRecommendationCandidates({
+        cond,
+        conditionText: conditionPrompt(cond),
+        aiConfig,
+        existingNames: knownNames,
+        excludedNames,
+        batchIndex,
+        requestedDish: cond.parsed?.requestedDish || ''
+      });
+      if (expansion.records?.length) {
+        sourceDishes = allSourceDishes();
+        pool = candidatePool(cond, excludedSet, sourceDishes);
+      }
+    } catch (err) {
+      console.warn("[recommend] 图鉴外候选扩展失败：", trunc(err?.message || err, 180));
+      expansion = { status: "failed", records: [] };
+    }
+    if (expansion.status === "failed") {
+      expansionNote = "AI 扩展候选这次没有成功返回，本次只用站内资料；没有用模型臆造的数据补足数量。";
+    } else if (expansion.status === "unavailable") {
+      expansionNote = wantsOutside || !pool.length ? "当前没有可用的 AI 扩展配置，本次只用站内资料。" : "";
+    } else if (expansion.status === "empty" && (wantsOutside || !pool.length)) {
+      expansionNote = "按你现在的硬条件，没有找到足够可靠的图鉴外候选；没有为了凑数硬加。";
+    }
+  }
+  if (requestedName && !pool.some((entry) => nameKey(entry.dish) === nameKey({ name: requestedName }) || nameKey(entry.dish).includes(nameKey({ name: requestedName })))) {
+    const why = strictEconomics
+      ? "你设了预算/时长硬条件，我不能用没有可靠价格或耗时的资料硬凑"
+      : requestedKnown
+        ? "它在当前硬条件（预算、时长或忌口）下被筛掉了，不能为了点名而违反条件"
+        : "暂时没有整理出可靠的图鉴外资料";
+    expansionNote = `${expansionNote ? `${expansionNote} ` : ""}你点名的「${requestedName}」${why}；下面只推荐已经确认满足条件的其他菜。`;
+  }
+
   if (!pool.length) {
-    const withoutExclusions = candidatePool(cond, /* @__PURE__ */ new Set());
+    const withoutExclusions = candidatePool(cond, /* @__PURE__ */ new Set(), sourceDishes);
     if (excludedSet.size && withoutExclusions.length) {
-      const err = new Error("\u8FD9\u4E00\u6279\u7B26\u5408\u6761\u4EF6\u7684\u83DC\u5DF2\u7ECF\u770B\u5B8C\u4E86\u3002\u53EF\u4EE5\u653E\u5BBD\u4E00\u4E2A\u6761\u4EF6\uFF0C\u6216\u91CD\u65B0\u5F00\u59CB\u672C\u8F6E\u63A8\u8350\u3002");
+      const err = new Error("这一批符合条件、又没被排除的菜已经看完了。可以放宽一个条件，或重新开始本轮推荐。");
       err.code = "exhausted";
       err.status = 409;
       err.details = { candidateCount: 0, excludedCount: excludedSet.size, suggestions: buildSuggestions(cond, withoutExclusions.length, excludedSet.size) };
       throw err;
     }
-    throw poolEmptyError(cond, DISHES.length, excludedSet.size);
+    const empty = poolEmptyError(cond, sourceDishes.length, excludedSet.size);
+    if (expansionNote) empty.details.expansionNote = expansionNote;
+    throw empty;
   }
+
   const picked = limitCandidates(pool, 32);
   const candidates = picked.map((x) => candidatePayload(x.dish));
   const allowedIds = new Set(candidates.map((x) => x.id));
@@ -815,17 +1046,17 @@ async function recommend({ conditions, aiConfig, batchIndex = 0, excludedDishIds
       });
       const parsed = extractJSON(raw);
       const normalized = normalizeAI(parsed);
-      if (!normalized) throw new Error("\u6A21\u578B\u6CA1\u6709\u8FD4\u56DE\u53EF\u89E3\u6790\u7684 JSON");
+      if (!normalized) throw new Error("模型没有返回可解析的 JSON");
       if (!normalized.topPick.dishId && normalized.recommendations[0]) {
         normalized.topPick = normalized.recommendations[0];
       }
       const schema = AISchema.safeParse(normalized);
       if (!schema.success) {
-        throw new Error(schema.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).slice(0, 3).join("\uFF1B"));
+        throw new Error(schema.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).slice(0, 3).join("；"));
       }
       const data = schema.data;
       const topId = data.topPick.dishId;
-      if (!allowedIds.has(topId)) throw new Error(`topPick \u4E0D\u5728\u5019\u9009\u5185\uFF1A${topId || "(\u7A7A)"}`);
+      if (!allowedIds.has(topId)) throw new Error(`topPick 不在候选内：${topId || "(空)"}`);
       const cleanRecs = [];
       const seen = /* @__PURE__ */ new Set([topId]);
       const topEntryForName = candidateById.get(topId);
@@ -841,21 +1072,46 @@ async function recommend({ conditions, aiConfig, batchIndex = 0, excludedDishIds
         cleanRecs.push(item);
       }
       const topEntry = candidateById.get(topId);
-      if (!topEntry || hardFailure(topEntry.dish, cond)) throw new Error("topPick \u4E0D\u6EE1\u8DB3\u786C\u9650\u5236");
+      if (!topEntry || hardFailure(topEntry.dish, cond)) throw new Error("topPick 不满足硬限制");
       aiData = { summary: data.summary, topPick: data.topPick, recommendations: cleanRecs };
       break;
     } catch (err) {
       lastError = err;
-      console.warn(`[recommend] attempt ${attempt} \u672A\u901A\u8FC7\uFF1A${trunc(err.message || err, 180)}`);
+      console.warn(`[recommend] attempt ${attempt} 未通过：${trunc(err.message || err, 180)}`);
     }
   }
   if (!aiData) {
-    const err = new Error("\u6A21\u578B\u8FD9\u6B21\u6CA1\u6709\u7ED9\u51FA\u53EF\u7528\u7684\u63A8\u8350\uFF0C\u8BF7\u91CD\u8BD5\u3002");
+    const err = new Error("模型这次没有给出可用的推荐，请重试。");
     err.code = "ai_output_invalid";
     err.status = 502;
-    err.details = { reason: trunc(lastError?.message || "\u6A21\u578B\u8F93\u51FA\u683C\u5F0F\u5F02\u5E38", 160) };
+    err.details = { reason: trunc(lastError?.message || "模型输出格式异常", 160), expansionNote };
     throw err;
   }
+
+  // 用户明确说想看图鉴外，或本轮候选本身就包含图鉴外：排序 AI 若完全没选，
+  // 至少把最合适的一道图鉴外候选补进其余推荐里，保证“范围不再被图鉴封死”。
+  const outside = picked.filter((entry) => entry.dish.sourceType === "ai_generated" || entry.dish.sourceType === "external");
+  const requestedKey = nameKey({ name: cond.parsed?.requestedDish });
+  const requestedEntry = requestedKey
+    ? picked.find((entry) => nameKey(entry.dish) === requestedKey || nameKey(entry.dish).includes(requestedKey))
+    : null;
+  const chosenIds = new Set([aiData.topPick.dishId, ...aiData.recommendations.map((x) => x.dishId)]);
+  if (requestedEntry && !chosenIds.has(requestedEntry.dish.id) && aiData.recommendations.length < 6) {
+    aiData.recommendations.push({ dishId: requestedEntry.dish.id, reason: "", matchTags: [] });
+    chosenIds.add(requestedEntry.dish.id);
+  }
+  if ((wantsOutside || outside.length) && outside.length) {
+    const hasOutside = outside.some((entry) => chosenIds.has(entry.dish.id));
+    if (!hasOutside) {
+      const extra = outside.find((entry) => !chosenIds.has(entry.dish.id));
+      if (extra && aiData.recommendations.length < 6) {
+        aiData.recommendations.push({ dishId: extra.dish.id, reason: "", matchTags: [] });
+        chosenIds.add(extra.dish.id);
+      }
+    }
+  }
+
+  const sourceCounts = sourceCountsOf(pool.map((entry) => entry.dish));
   return buildResponse({
     cond,
     aiConfig,
@@ -863,7 +1119,9 @@ async function recommend({ conditions, aiConfig, batchIndex = 0, excludedDishIds
     aiData,
     candidateCount: pool.length,
     excludedCount: excludedSet.size,
-    batchIndex
+    batchIndex,
+    sourceCounts,
+    expansionNote
   });
 }
 function normalizeFeedbackPayload(body = {}) {
@@ -875,7 +1133,7 @@ function normalizeFeedbackPayload(body = {}) {
     throw err;
   }
   const dishId = str3(body.dishId, 80);
-  if (!dishId || !DISHES.some((d) => d.id === dishId)) {
+  if (!dishId || !findDish(dishId)) {
     const err = new Error("\u83DC\u54C1\u4E0D\u5B58\u5728");
     err.status = 404;
     err.code = "dish_not_found";

@@ -19,7 +19,7 @@ import { h, html, toast } from '../lib/dom.js';
 import { DISHES, DIFFICULTY_LABEL } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
-import { guardImage } from '../lib/placeholder.js';
+import { dishPlaceholder, guardImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from './recipe-nav.js';
 import { openDishChat } from './chat-panel.js';
 import { openDishVideos } from './video-panel.js';
@@ -118,7 +118,7 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
     'figure',
     { class: 'dm-hero' },
     guardImage(
-      h('img', { src: dish.image || '', alt: dish.alt || dish.name, decoding: 'async' }),
+      h('img', { src: dish.image || dishPlaceholder(dish.name, '图片待补'), alt: dish.alt || dish.name, decoding: 'async' }),
       dish.name,
       '菜品图片'
     ),
