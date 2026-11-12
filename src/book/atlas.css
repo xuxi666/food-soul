@@ -197,10 +197,20 @@
   padding: 6px 6px 6px 7px;
 }
 
-.atcat__media {
+/* 图片区域包一层定位容器：切换按钮只跟随图片，不在整张卡片上出现 */
+.atcat__media-wrap {
   position: relative;
   display: block;
   flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+}
+
+.atcat__media {
+  position: relative;
+  display: block;
+  height: 100%;
   min-height: 0;
   width: 100%;
   margin: 0;
@@ -211,6 +221,85 @@
   cursor: pointer;
   background: #ece0c8;
   box-shadow: inset 0 0 0 1px rgba(150, 110, 66, 0.22), inset 0 1px 6px rgba(90, 60, 30, 0.1);
+}
+
+/* 默认完全隐藏；只有指针进入图片区域或键盘聚焦时才出现 */
+.atcat__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(185, 139, 72, 0.48);
+  border-radius: 50%;
+  background: rgba(255, 249, 236, 0.58);
+  color: #7d5a3a;
+  box-shadow: 0 2px 7px rgba(80, 45, 20, 0.16);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scale(0.84);
+  transition: opacity 160ms var(--ease), transform 160ms var(--ease),
+    background-color 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+.atcat__arrow--prev {
+  left: 5px;
+}
+
+.atcat__arrow--next {
+  right: 5px;
+}
+
+.atcat__media-wrap:hover .atcat__arrow,
+.atcat__arrow:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid rgba(194, 69, 45, 0.6);
+  outline-offset: 2px;
+  transform: translateY(-50%) scale(1);
+}
+
+.atcat__arrow:hover {
+  border-color: rgba(166, 115, 53, 0.68);
+  background: rgba(255, 249, 236, 0.9);
+}
+
+.atcat__arrow:active {
+  background: rgba(244, 228, 198, 0.94);
+  transform: translateY(-50%) scale(0.94);
+}
+
+.atcat__arrow svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 触屏没有 hover：保留小尺寸、低存在感的按钮，保证可以点到 */
+@media (hover: none), (pointer: coarse) {
+  .atcat__arrow {
+    width: 20px;
+    height: 20px;
+    opacity: 0.78;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(0.94);
+  }
+
+  .atcat__arrow:active {
+    opacity: 1;
+  }
 }
 
 .atcat__slide {
@@ -982,6 +1071,24 @@
 
   .atcat__dish {
     font-size: 9.5px;
+  }
+
+  .atcat__arrow {
+    width: 19px;
+    height: 19px;
+  }
+
+  .atcat__arrow--prev {
+    left: 3px;
+  }
+
+  .atcat__arrow--next {
+    right: 3px;
+  }
+
+  .atcat__arrow svg {
+    width: 11px;
+    height: 11px;
   }
 
   .atcat__count {

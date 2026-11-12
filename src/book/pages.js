@@ -381,6 +381,8 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     /** 目录页高亮当前章节（与书签同一份章节 id） */
     setChapterActive(chapterId) {
       pages.get('catalog')?.instance?.setActive?.(chapterId);
+      // 图鉴页面常驻在书里，离开章节时暂停它的轮播调度，避免后台空转
+      atlas?.setActive?.(chapterId === 'dishes');
     },
   };
 }

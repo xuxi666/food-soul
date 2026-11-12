@@ -13,13 +13,16 @@
  * 所有内容节点一次建好就常驻：进出详情都不重建卡片，
  * 所以轮播位置、图片缓存、纸面滚动都不会被重置。
  */
-import { h, clear } from '../lib/dom.js';
+import { h, html, clear } from '../lib/dom.js';
 import { DISHES } from '../data/dishes.js';
 import { CUISINES, CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../data/cuisines.js';
 import { guardImage } from '../lib/placeholder.js';
 import { openDishOverlay, closeAllOverlays, overlayCount } from './overlay.js';
 
 const SLIDES_PER_CARD = 5;
+/** 菜系、口味统一使用同一个自动切换周期 */
+const AUTO_MS = 4000;
+const TICK_MS = 100;
 
 const SIDES = {
   left: {
@@ -61,10 +64,42 @@ function dishesOf(kind, id) {
 const metaOf = (kind, id) => (kind === 'cuisine' ? CUISINE_BY_ID[id] : TASTE_BY_ID[id]);
 const accentOf = (kind, id) => metaOf(kind, id)?.accent || metaOf(kind, id)?.color || '#c2452d';
 
+/** 下一张图解码完成后再切，避免淡入时先露一帧空白 */
+async function waitForImage(slide) {
+  const img = slide?.querySelector('img');
+  if (!img) return;
+  img.loading = 'eager';
+  const decode = async () => {
+    try {
+      await img.decode?.();
+    } catch {
+      /* 已加载、SVG 占位图或不支持 decode 时直接展示 */
+    }
+  };
+  if (img.complete) {
+    await decode();
+    return;
+  }
+  await new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      img.removeEventListener('load', done);
+      img.removeEventListener('error', done);
+      resolve();
+    };
+    img.addEventListener('load', done);
+    img.addEventListener('error', done);
+  });
+  await decode();
+}
+
 /* ---------------- 主模块 ---------------- */
 
 export function createAtlas({ onChange, onCategoryNav } = {}) {
   const state = { view: 'board', kind: '', id: '' };
+  let active = true;
   const pages = new Map(); // 'left' / 'right' → { el, board, cat, carousels }
   const live = new Set(); // 正在跑的轮播（只有可见的那一页）
   const listCache = new Map(); // `${kind}:${id}:${side}` → 分类页节点
@@ -79,7 +114,7 @@ export function createAtlas({ onChange, onCategoryNav } = {}) {
     ticker = window.setInterval(() => {
       const now = performance.now();
       for (const c of live) c.tick(now);
-    }, 420);
+    }, TICK_MS);
   }
 
   function stopTicker() {
@@ -93,11 +128,15 @@ export function createAtlas({ onChange, onCategoryNav } = {}) {
    * 逐页判断：左页进详情时，右页的轮播照常继续。
    */
   function syncLive() {
-    const globalOk = state.view === 'board' && !REDUCED() && !document.hidden;
+    const globalOk = active && state.view === 'board' && !REDUCED() && !document.hidden;
     let any = false;
     for (const page of pages.values()) {
       const covered = page.el.dataset.expanded === '1';
       for (const c of page.carousels) {
+        if (!c.enabled) {
+          live.delete(c);
+          continue;
+        }
         if (globalOk && !covered) {
           // 从暂停里回来时重新计时，避免一放开就立刻跳一张
           if (!live.has(c) && c.everTicked) c.resetClock();
@@ -115,7 +154,7 @@ export function createAtlas({ onChange, onCategoryNav } = {}) {
   document.addEventListener('visibilitychange', syncLive);
 
   /* ---------- 五边形书签卡片 ---------- */
-  function buildCard(kind, meta, index) {
+  function buildCard(kind, meta) {
     const name = meta.name;
     const dishes = dishesOf(kind, meta.id);
     const first = dishes[0];
@@ -173,6 +212,32 @@ export function createAtlas({ onChange, onCategoryNav } = {}) {
       dots
     );
 
+    const hasMultiple = slides.length > 1;
+    const arrow = (dir) => {
+      const prev = dir === 'prev';
+      const label = `${prev ? '上一张' : '下一张'}：${name}图片`;
+      return h(
+        'button',
+        {
+          class: `atcat__arrow atcat__arrow--${dir}`,
+          type: 'button',
+          'data-act': prev ? 'carousel-prev' : 'carousel-next',
+          'aria-label': label,
+          title: label,
+        },
+        html`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${prev ? 'M14.8 5.6 8.4 12l6.4 6.4' : 'M9.2 5.6 15.6 12l-6.4 6.4'}"/></svg>`
+      );
+    };
+    const prev = hasMultiple ? arrow('prev') : null;
+    const next = hasMultiple ? arrow('next') : null;
+    const mediaWrap = h(
+      'span',
+      { class: 'atcat__media-wrap' },
+      media,
+      prev,
+      next
+    );
+
     const caption = h('span', { class: 'atcat__dish', text: first.name });
 
     const el = h(
@@ -191,56 +256,94 @@ export function createAtlas({ onChange, onCategoryNav } = {}) {
         h(
           'span',
           { class: 'atcat__box' },
-          media,
+          mediaWrap,
           h('span', { class: 'atcat__meta' }, caption, h('span', { class: 'atcat__count', text: `${dishes.length} 道` }))
         )
       )
     );
 
-    /* 卡片自己的轮播：节奏带固定偏移，16 张不会同时换图 */
+    /* 卡片自己的轮播：独立索引，统一 4 秒周期；单个定时器统一切换 */
     const carousel = {
       el,
+      enabled: hasMultiple,
       order: dishes.slice(0, SLIDES_PER_CARD),
       at: 0,
-      /* 首轮错开：16 张不会在同一帧一起换图 */
-      nextAt: performance.now() + 900 + index * 340 + (kind === 'taste' ? 180 : 0),
-      dwell: 3600 + (index % 5) * 460 + (kind === 'taste' ? 220 : 0),
+      nextAt: performance.now() + AUTO_MS,
+      dwell: AUTO_MS,
       hover: false,
-      show(i) {
+      switching: false,
+      token: 0,
+      everTicked: false,
+      async show(i) {
         const n = slides.length;
+        if (!this.enabled || n < 2) return;
         const next = ((i % n) + n) % n;
-        if (next === this.at || n < 2) return;
-        slides[this.at]?.classList.remove('is-on');
+        if (next === this.at) return;
+        const token = ++this.token;
+        this.switching = true;
+        /* 先把目标图解码，旧图保持可见，避免切换瞬间露出空白 */
+        await waitForImage(slides[next]);
+        if (token !== this.token) return;
+        const prev = this.at;
         slides[next].classList.add('is-on');
-        dots.children[this.at]?.classList.remove('is-on');
+        /* 下一帧再淡出旧图，两层短暂交叠形成平滑交叉淡化 */
+        window.requestAnimationFrame(() => slides[prev]?.classList.remove('is-on'));
+        dots.children[prev]?.classList.remove('is-on');
         dots.children[next]?.classList.add('is-on');
         this.at = next;
         const d = this.order[next];
-        if (!d) return;
-        media.dataset.dish = d.id;
-        el.dataset.dish = d.id;
-        media.setAttribute('aria-label', `查看${d.name}详情`);
-        caption.textContent = d.name;
+        if (d) {
+          media.dataset.dish = d.id;
+          el.dataset.dish = d.id;
+          media.setAttribute('aria-label', `查看${d.name}详情`);
+          caption.textContent = d.name;
+        }
+        this.switching = false;
       },
-      everTicked: false,
+      manual(step) {
+        if (!this.enabled) return;
+        this.everTicked = true;
+        this.resetClock(AUTO_MS);
+        void this.show(this.at + step);
+      },
       tick(now) {
-        if (this.hover) return;
+        if (!this.enabled || this.hover || this.switching) return;
         this.everTicked = true;
         if (now < this.nextAt) return;
         this.nextAt = now + this.dwell;
-        this.show(this.at + 1);
+        void this.show(this.at + 1);
       },
-      resetClock(ms = 900) {
+      resetClock(ms = AUTO_MS) {
         this.nextAt = performance.now() + ms;
       },
     };
-    el.addEventListener('pointerenter', () => {
-      carousel.hover = true;
-    });
-    el.addEventListener('pointerleave', () => {
-      carousel.hover = false;
-      carousel.resetClock();
-    });
+
+    if (hasMultiple) {
+      /* 只在图片区域悬停时暂停并显示按钮；整张卡片悬停不触发 */
+      mediaWrap.addEventListener('pointerenter', (e) => {
+        if (e.pointerType !== 'touch') carousel.hover = true;
+      });
+      mediaWrap.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'touch') return;
+        carousel.hover = false;
+        carousel.resetClock();
+      });
+      mediaWrap.addEventListener('pointercancel', () => {
+        carousel.hover = false;
+        carousel.resetClock();
+      });
+      prev.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        carousel.manual(-1);
+      });
+      next.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        carousel.manual(1);
+      });
+    }
+
     return { el, carousel };
   }
 
@@ -250,8 +353,8 @@ export function createAtlas({ onChange, onCategoryNav } = {}) {
     const list = cfg.list();
     const carousels = [];
     const grid = h('div', { class: `atlas-grid atlas-grid--${side}` });
-    list.forEach((meta, i) => {
-      const built = buildCard(cfg.kind, meta, i);
+    list.forEach((meta) => {
+      const built = buildCard(cfg.kind, meta);
       if (!built) return;
       carousels.push(built.carousel);
       grid.append(built.el);
@@ -523,6 +626,19 @@ function closeAllDetails() {
     /** 图鉴现在是固定的两页十六分类，不再有菜名搜索筛选 */
     get filterLabel() {
       return '十六分类';
+    },
+    /** 离开图鉴章节时停掉全部轮播；回来时重新计时 */
+    setActive(on) {
+      const next = Boolean(on);
+      if (next === active) return;
+      active = next;
+      for (const page of pages.values()) {
+        for (const c of page.carousels) {
+          c.hover = false;
+          if (active) c.resetClock();
+        }
+      }
+      syncLive();
     },
     /**
      * 收起所有页内详情（立即，不做反向动画）：

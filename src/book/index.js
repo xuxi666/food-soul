@@ -1260,6 +1260,8 @@ export function initBook({ root, routerApi = null }) {
     closeDishChat('book');
     closeDishVideo('book', { instant: true });
     closeAllOverlays({ instant: true });
+    // 合书后图鉴可能仍常驻在纸页里，主动停掉轮播，避免离开页面后继续空转
+    book.atlas?.setActive?.(false);
     busy = true;
     try {
       setPhase('SHRINKING');
