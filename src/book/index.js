@@ -22,6 +22,7 @@ import './atlas.css';
 import './dish-page.css';
 import './category.css';
 import './catalog.css';
+import './recommendation.css';
 import './video-panel.css';
 import { closeAllOverlays } from './overlay.js';
 import {
@@ -175,6 +176,9 @@ export function initBook({ root, routerApi = null }) {
   /** 进后台之前的画册位置：退出后台时原样回到这一页 */
   let adminReturn = null;
 
+  /** 右上角账号组件（用户名菜单 / AI 配置） */
+  let account = null;
+
   const titlePage = h(
     'div',
     { class: 'bk-pageface bk-pageface--title' },
@@ -262,58 +266,27 @@ export function initBook({ root, routerApi = null }) {
   marksApi = marks;
   requestAnimationFrame(() => fitMarks());
 
+  /*
+   * 书签位置是画册级的固定导航，不再参与纸张角度 / 当前跨页的计算。
+   * syncMarks 只负责把开合、单页等状态交给书签；翻页动画期间不必逐帧更新书签。
+   */
   function syncMarks() {
     if (!marksApi) return;
-    const onSheet = pageSheetLookup();
-    const current = position.value;
-    // 合上 / 正在开合：所有书签都在右侧书口；只有真正摊开（open/reading）才按纸张分左右
     const spread = marksOpen || bookStateClass === 'bk-book--open' || bookStateClass === 'bk-book--reading';
     const closed = !spread || (mode === 'closed' && !marksOpen);
     marksApi.sync({
       closed,
       single: !!position.single,
       settling: !sheets.busy,
-      /*
-       * 书签的角度 = 它绑定那张纸的角度。
-       * 1) 这一页正压在纸页栈里的某张纸（当前窗口）上 → 直接读那张纸的实时角度，
-       *    翻页动画中每帧都是真值，书签就跟着纸一起转过去；
-       * 2) 这一页已经被翻走、落到左侧的已翻纸堆里 → -180°，书签在左侧；
-       * 3) 这一页还在右侧未翻的纸堆里 → 0°，书签在右侧。
-       */
-      angleFor: (spec) => {
-        const hit = onSheet(spec.anchorPage);
-        if (hit) return hit;
-        if (spec.spread < current) return { angle: -180, slot: 'turned' };
-        if (spec.spread > current) return { angle: 0, slot: 'unread' };
-        return { angle: 0, slot: 'current' };
-      },
     });
   }
 
-  function pageSheetLookup() {
-    const map = new Map();
-    for (const sheet of sheets.all()) {
-      for (const face of [sheet.front, sheet.back]) {
-        const page = Number(face.firstElementChild?.dataset.globalPage || 0);
-        if (page) map.set(page, { angle: sheet.angle, slot: sheet.slot });
-      }
-    }
-    return (page) => map.get(page) || null;
-  }
-
-  /* 翻页每一帧：按纸张的实时角度重排书签（书签的联动杆就是这个角度） */
-  sheets.hooks.onAngle = () => syncMarks();
   syncMarks();
 
   /**
-   * 合上时书签要沿封面右侧那条书口排开：
-   * 书口长度 = 书高（合上时整体缩到 CLOSED_SCALE），书签列的自然高度是固定像素，
-   * 两者一比就知道该放大/缩小多少，保证上端不出书角、下端不落到书外。
-   * 一切都是相对书本体的，窗口变化时 fit() 会重算。
-   */
-  /*
-   * 合书尺寸、封面纵向拉伸、书签基准值都写在 CSS 里（桌面/手机各一套），
-   * 这里只读，不在 JS 里另存一份常数，避免两边数值走散。
+   * 书签是固定右侧导航：这里只按书页高度收字号 / 内边距 / 间距，
+   * 保证整列不越过书页上下沿；不再计算随开合变化的缩放。
+   * 基准值写在 CSS 里（桌面/手机各一套），这里只读，避免两边数值走散。
    */
   function cssNum(name, fallback) {
     const el = shell.book || shell.el;
@@ -326,8 +299,6 @@ export function initBook({ root, routerApi = null }) {
     const layer = marksApi.layer;
     const bookH = lastBox.h;
     if (!bookH) return;
-    const closedScale = cssNum('--closed-scale', 0.585);
-    const stretch = cssNum('--closed-cover-stretch', 1.06);
     // 1) 先按书页高度收字号：书小时书签跟着收，保证整列不越过书页上下沿
     const BASE = cssNum('--mk-base-font', 14.5);
     const basePad = cssNum('--mk-base-pad', 11);
@@ -354,13 +325,7 @@ export function initBook({ root, routerApi = null }) {
       shell.el.style.setProperty('--mk-gap', `${gap}px`);
       h = layer.offsetHeight || h;
     }
-    // 3) 合上时按「封面书口长度」放大：整列正好落在封面右缘那条书口上
-    //    封面在合上时额外纵向拉长 stretch，书口长度也要跟着算进去。
-    const fore = bookH * closedScale * stretch;
-    const native = (layer.offsetHeight || h) * closedScale;
-    const scale = Math.min(2.2, Math.max(0.78, (fore * 0.92) / native));
-    shell.el.style.setProperty('--mk-scale', scale.toFixed(3));
-  }
+    }
 
   const blankPage = () => null;
 
@@ -416,14 +381,16 @@ export function initBook({ root, routerApi = null }) {
   function syncChrome() {
     const list = book.spreads();
     const chapterId = chapterOfPosition();
+    // 菜品详情属于图鉴模块的内页：书签应高亮「图鉴」，而不是一个不存在的 dishDetail 章节。
+    const activeChapter = chapterId === 'dishDetail' ? 'dishes' : chapterId;
     shell.content.dataset.chapter = chapterId;
     currentKey = inner ? innerKind || 'dishDetail' : chapterId;
 
-    shell.setActive(chapterId);
+    shell.setActive(activeChapter);
     // 目录页里高亮的是同一份章节 id：读到哪一章，目录里那一行就是当前章
-    book.setChapterActive?.(chapterId);
+    book.setChapterActive?.(activeChapter);
     // 已经在目录页时不再显示「回到目录」
-    shell.el.classList.toggle('is-on-catalog', chapterId === 'catalog');
+    shell.el.classList.toggle('is-on-catalog', activeChapter === 'catalog');
 
     // 地址跟着书页走：翻到哪一章，地址就是那一章
     const ch = chapterById(chapterId);
@@ -595,6 +562,7 @@ export function initBook({ root, routerApi = null }) {
   async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
     // 聊天 / 视频都是详情页的临时另一半：换路径就不该留着
+    account?.closeMenu?.();
     closeDishChat('nav');
     closeDishVideo('nav');
     // 是不是从「菜品详情」出发的：内页 / 图鉴里展开的详情浮层都算。
@@ -835,6 +803,7 @@ export function initBook({ root, routerApi = null }) {
     const chapter = chapterById(id);
     if (!chapter) return;
     // 书签 / 目录 / 章节切换：临时聊天面板不能跟着漂到别的模块
+    account?.closeMenu?.();
     closeDishChat('nav');
     closeDishVideo('nav');
     if (busy) { pendingChapter = { id, param, opts }; return; }
@@ -1268,6 +1237,7 @@ export function initBook({ root, routerApi = null }) {
   /** 合上：唯一的合书入口（站内页上先把书页挂回来再合） */
   async function shutBook(source = 'button') {
     if (mode !== 'open' || busy) return false;
+    account?.closeMenu?.();
     closeDishVideo('book', { instant: true });
     if (bookDomGone()) {
       parkSitePage(location.pathname + location.search);
@@ -1289,6 +1259,7 @@ export function initBook({ root, routerApi = null }) {
   /* ---------------- 合上 ---------------- */
   async function shut() {
     if (mode !== 'open' || busy) return;
+    account?.closeMenu?.();
     closeDishChat('book');
     closeDishVideo('book', { instant: true });
     closeAllOverlays({ instant: true });
@@ -1322,24 +1293,8 @@ export function initBook({ root, routerApi = null }) {
     void goBookmark({ id: 'catalog' });
   });
 
-  /* ---------------- 印章面板 ---------------- */
-  let panelOpen = false;
-  const setPanel = (next) => {
-    panelOpen = next;
-    shell.sealPanel.classList.toggle('is-open', next);
-    shell.sealBtn.setAttribute('aria-expanded', String(next));
-  };
-  shell.sealBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    setPanel(!panelOpen);
-  });
-  document.addEventListener('click', (e) => {
-    if (panelOpen && !shell.sealPanel.contains(e.target) && e.target !== shell.sealBtn) setPanel(false);
-  });
-  // 印章面板里的入口（如「管理员后台」）点击后先收起面板，再让链接照常跳转
-  window.addEventListener('foodsoul:seal-panel-close', () => setPanel(false));
-
-  mountAccount(shell.sealPanel);
+  /* ---------------- 右上角账号 / AI 入口 ---------------- */
+  account = mountAccount(shell.tools, { variant: 'book' });
 
   /* ---------------- 链接拦截 ---------------- */
   document.addEventListener('click', (e) => {
@@ -1391,7 +1346,7 @@ export function initBook({ root, routerApi = null }) {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (panelOpen) return setPanel(false);
+      if (account?.closeTopOverlay?.()) return;
       if (mode === 'open') return void shutBook('escape');
     }
     if (mode !== 'open') return;

@@ -169,6 +169,21 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_site_ai_profile_single_enabled
     ON site_ai_profiles(enabled) WHERE enabled = 1;
 
+  -- 寻味推荐：只记「明确不喜欢」这一条轻量反馈，不保存自由描述与完整条件
+  CREATE TABLE IF NOT EXISTS recommendation_feedback (
+    id TEXT PRIMARY KEY,
+    recommendation_id TEXT NOT NULL,
+    batch_index INTEGER NOT NULL DEFAULT 0,
+    dish_id TEXT NOT NULL,
+    feedback_type TEXT NOT NULL,
+    user_id TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_recommendation_feedback_dish
+    ON recommendation_feedback(dish_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_recommendation_feedback_user
+    ON recommendation_feedback(user_id, created_at);
+
   -- 管理操作审计
   CREATE TABLE IF NOT EXISTS audit_log (
     id TEXT PRIMARY KEY,
@@ -644,6 +659,32 @@ export function setEnabledSiteProfile(id, by = '') {
 /** 停用指定配置（用于删除前的清理） */
 export function disableSiteProfile(id) {
   db.prepare('UPDATE site_ai_profiles SET enabled = 0, updated_at = ? WHERE id = ?').run(Date.now(), String(id || ''));
+}
+
+/* ---------------- 寻味推荐：轻量反馈 ---------------- */
+
+export function insertRecommendationFeedback({ id, recommendationId, batchIndex, dishId, feedbackType, userId }) {
+  const rowId = id || crypto.randomUUID();
+  db.prepare(
+    `INSERT INTO recommendation_feedback
+      (id, recommendation_id, batch_index, dish_id, feedback_type, user_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    rowId,
+    String(recommendationId || 'unknown'),
+    Number(batchIndex) || 0,
+    String(dishId),
+    String(feedbackType || 'dislike'),
+    userId || null,
+    Date.now()
+  );
+  return rowId;
+}
+
+export function recommendationFeedbackStats() {
+  return db
+    .prepare('SELECT COUNT(*) AS total, COUNT(DISTINCT dish_id) AS dishes, COUNT(DISTINCT recommendation_id) AS batches FROM recommendation_feedback')
+    .get();
 }
 
 /* ---------------- 迁移：epicure_catalog.mcp_ok ---------------- */

@@ -67,11 +67,21 @@ async function jsonFetch(url, options = {}) {
   }
   if (!res.ok) {
     // 服务端有些失败态只给 note（例如「联网检索超时」），同样要展示给用户
-    if (data.error || data.note) throw new Error(data.error || data.note);
-    if (res.status === 413) throw new Error('内容太大（图片过多或过大），请压缩后再试');
-    if (res.status === 502 || res.status === 504) throw new Error('服务暂时不可用，请稍后重试');
-    if (res.status === 401) throw new Error('登录已失效，请重新登录');
-    throw new Error(`请求失败 (${res.status})`);
+    const message =
+      data.error ||
+      data.note ||
+      (res.status === 413
+        ? '内容太大（图片过多或过大），请压缩后再试'
+        : res.status === 502 || res.status === 504
+          ? '服务暂时不可用，请稍后重试'
+          : res.status === 401
+            ? '登录已失效，请重新登录'
+            : `请求失败 (${res.status})`);
+    const error = new Error(message);
+    error.code = data.code || '';
+    error.status = res.status;
+    error.data = data;
+    throw error;
   }
   return data;
 }
@@ -102,6 +112,15 @@ export const api = {
 
   recipe: (payload) =>
     jsonFetch('/api/recipe', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+
+  recommendations: {
+    generate: (payload) =>
+      jsonFetch('/api/recommendations/generate', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    refresh: (payload) =>
+      jsonFetch('/api/recommendations/refresh', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    feedback: (payload) =>
+      jsonFetch('/api/recommendations/feedback', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+  },
 
   /** 对话延伸建议：AI 回答完成后单独调用，不阻塞主回答 */
   suggest: (payload, signal) =>
