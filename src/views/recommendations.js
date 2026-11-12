@@ -163,7 +163,7 @@ function makeState() {
   return {
     mood: new Set(),
     flavors: new Set(),
-    budget: 'unlimited',
+    budget: '',
     people: '',
     scene: '',
     time: '',
@@ -302,25 +302,53 @@ export default {
     }
 
     function buildBudgetGroup() {
-      return h(
-        'div',
-        { class: 'rec-budgets', role: 'radiogroup', 'aria-label': '人均食材预算' },
-        ...BUDGETS.map((budget) => {
-          const chip = chipButton({
-            label: budget.label,
-            className: 'rec-budget',
-          });
-          chip.setAttribute('role', 'radio');
-          chip.dataset.budget = budget.id;
-          chip.addEventListener('click', () => {
-            if (busy) return;
-            state.budget = budget.id;
-            syncForm();
-          });
-          budgetChips.set(budget.id, chip);
-          return chip;
-        })
-      );
+      const group = h('div', {
+        class: 'rec-budgets',
+        role: 'radiogroup',
+        'aria-label': '人均食材预算',
+        'aria-orientation': 'horizontal',
+      });
+
+      const chips = BUDGETS.map((budget, index) => {
+        const chip = chipButton({
+          label: budget.label,
+          className: 'rec-budget',
+        });
+        // 预算是一组受控单选，不使用多选 chips 的 aria-pressed 语义。
+        chip.removeAttribute('aria-pressed');
+        chip.setAttribute('role', 'radio');
+        chip.setAttribute('aria-checked', 'false');
+        chip.tabIndex = index === 0 ? 0 : -1;
+        chip.dataset.budget = budget.id;
+        chip.append(h('span', { class: 'rec-budget__mark', 'aria-hidden': 'true', text: '✓' }));
+        chip.addEventListener('click', () => {
+          if (busy) return;
+          state.budget = budget.id;
+          syncForm();
+        });
+        budgetChips.set(budget.id, chip);
+        return chip;
+      });
+
+      group.append(...chips);
+      group.addEventListener('keydown', (event) => {
+        if (busy) return;
+        const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+        if (!keys.includes(event.key)) return;
+        const current = BUDGETS.findIndex((budget) => budget.id === event.target?.dataset?.budget);
+        if (current < 0) return;
+        event.preventDefault();
+        let next = current;
+        if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = BUDGETS.length - 1;
+        else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + BUDGETS.length) % BUDGETS.length;
+        else next = (current + 1) % BUDGETS.length;
+        state.budget = BUDGETS[next].id;
+        syncForm();
+        budgetChips.get(state.budget)?.focus();
+      });
+
+      return group;
     }
 
     function buildMethodChips() {
@@ -434,7 +462,21 @@ export default {
           'div',
           { class: 'rec-section__head' },
           h('h2', { class: 'rec-section__title' }, h('span', { class: 'rec-section__no', text: '03' }), '人均食材预算'),
-          h('span', { class: 'rec-section__hint', text: '参考价估算' })
+          h('span', { class: 'rec-section__hint', text: '单选 · 参考价估算' }),
+          h(
+            'button',
+            {
+              class: 'rec-clear',
+              type: 'button',
+              'aria-label': '清空预算选择',
+              onclick: () => {
+                if (busy) return;
+                state.budget = '';
+                syncForm();
+              },
+            },
+            '清空'
+          )
         ),
         buildBudgetGroup(),
         h(
@@ -614,7 +656,7 @@ export default {
       return Boolean(
         state.mood.size ||
           state.flavors.size ||
-          state.budget !== 'unlimited' ||
+          Boolean(state.budget) ||
           state.people ||
           state.scene ||
           state.time ||
@@ -653,6 +695,8 @@ export default {
         const on = state.budget === id;
         chip.classList.toggle('is-on', on);
         chip.setAttribute('aria-checked', on ? 'true' : 'false');
+        // 单选组采用 roving tabindex：已选项（或未选时的第一项）可 Tab 进入，方向键切换。
+        chip.tabIndex = on || (!state.budget && id === BUDGETS[0].id) ? 0 : -1;
       }
       for (const [id, chip] of methodChips) {
         const on = state.methods.has(id);

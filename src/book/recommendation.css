@@ -293,18 +293,92 @@
 }
 
 .rec-budgets {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .rec-budget {
-  min-height: 33px;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 76px;
+  min-width: 0;
+  min-height: 36px;
   justify-content: center;
-  padding: 6px 5px;
-  border-radius: 4px;
+  gap: 4px;
+  padding: 7px 9px;
+  border: 1px solid rgba(185, 139, 72, 0.5);
+  border-radius: 8px;
+  background: #fffaf1;
+  color: #543824;
+  font: inherit;
   font-size: 10.5px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
   white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(90, 58, 34, 0.04);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rec-budget:hover:not(.is-on) {
+  border-color: rgba(168, 78, 54, 0.62);
+  background: #fff4e4;
+}
+
+.rec-budget:focus-visible {
+  outline: 2px solid var(--rec-red);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(168, 78, 54, 0.14);
+}
+
+.rec-budget.is-on,
+.rec-budget[aria-checked='true'] {
+  border-color: var(--rec-red);
+  background: var(--rec-red);
+  color: #fffaf4;
+  box-shadow:
+    0 3px 10px rgba(127, 53, 37, 0.2),
+    inset 0 0 0 1px rgba(255, 246, 231, 0.12);
+}
+
+.rec-budget.is-on:hover {
+  border-color: var(--rec-red-deep);
+  background: var(--rec-red-deep);
+}
+
+.rec-budget__mark {
+  display: inline-flex;
+  flex: 0 0 12px;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 250, 244, 0.22);
+  color: #fffaf4;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.rec-budget.is-on .rec-budget__mark {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .rec-fineprint {
@@ -1936,10 +2010,13 @@
   }
 
   .rec-budgets {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .rec-budget {
+    flex-grow: 0;
+    flex-basis: calc((100% - 12px) / 3);
+    padding: 7px 6px;
     font-size: 10px;
   }
 
@@ -1990,6 +2067,12 @@
 
   .rec-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 300px) {
+  .rec-budget {
+    flex-basis: calc((100% - 6px) / 2);
   }
 }
 
