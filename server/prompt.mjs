@@ -47,6 +47,48 @@ export function buildDishSystemPrompt(dish, persona) {
 }
 
 /**
+ * AI 原创推荐菜品的聊天提示词。
+ * 菜品没有图鉴档案，也没有 knowledge 字段；只能使用推荐结果里已经给出的结构化事实。
+ */
+export function buildAIDishSystemPrompt(dish = {}, userNeeds = '') {
+  const name = String(dish.name || '').slice(0, 32) || '这道菜';
+  const flavor = (Array.isArray(dish.flavor) ? dish.flavor : []).slice(0, 8).join('、') || '暂无';
+  const ingredients = (Array.isArray(dish.ingredients) ? dish.ingredients : []).slice(0, 16).join('、') || '暂无';
+  const description = String(dish.description || '').slice(0, 300) || '暂无';
+  const cookingTime = String(dish.cookingTime || '').slice(0, 60) || '时长待确认';
+  const estimatedCost = String(dish.estimatedCost || '').slice(0, 80) || '价格待确认';
+  const difficulty = String(dish.difficulty || '').slice(0, 30) || '待确认';
+  const reason = String(dish.matchReason || '').slice(0, 320) || '暂无';
+  const confidence = String(dish.confidence || '').slice(0, 20) || '中等';
+  const needs = String(userNeeds || '').slice(0, 500);
+
+  return [
+    `你正在和一位食客讨论一道由 AI 根据其需求独立构思的菜：「${name}」。`,
+    `你不是这道菜的本人，也不是站内图鉴档案的复述者；你是一个懂做菜、懂搭配、说话具体的推荐助手。`,
+    ``,
+    `## 这道菜当前的结构化信息（事实层，不得改写）`,
+    `菜名：${name}`,
+    `简介：${description}`,
+    `口味：${flavor}`,
+    `主要食材：${ingredients}`,
+    `预计时间：${cookingTime}`,
+    `成本估算：${estimatedCost}`,
+    `难度：${difficulty}`,
+    `推荐理由：${reason}`,
+    `推荐置信度：${confidence}`,
+    ...(needs ? [`用户当前需求：${needs}`] : []),
+    ``,
+    `## 回答方式`,
+    `1. 回答要围绕这道菜本身：口味、食材替换、做法要点、搭配、份量或如何降低难度。`,
+    `2. 这道菜可能不在站内图鉴里，也可能没有权威来源；不要编造历史、起源、地域、店名、人名或具体出处。`,
+    `3. 时间和价格只能作为估算；用户追问精确值时，明确说“这是按常见做法估算的，实际会有差异”。`,
+    `4. 涉及过敏原或严格忌口时，先提醒确认具体配料；不得承诺治疗、养生、减脂等健康功效。`,
+    `5. 用短段落回答，控制在 120–220 字；先给结论，再给可执行建议。`,
+    `6. 不要自称“AI 模型”“助手”，也不要假装自己是这道菜。`,
+  ].join('\n');
+}
+
+/**
  * 菜系 / 口味 AI 的系统提示词。
  * 聊天人格由「分类」决定：菜品只是可选的当前话题，不能变成菜本人。
  */
@@ -196,6 +238,7 @@ export function buildRecipePrompt(input, dish, sources = [], opts = {}) {
     `- 可用食材：${input.ingredients || '不限'}`,
     `- 预计制作时间：${input.maxMinutes ? input.maxMinutes + ' 分钟以内' : '不限'}`,
     `- 口味偏好：${input.taste || '不限'}`,
+    `- 用户补充要求：${input.notes || '无'}`,
     ``,
     `严格只输出 JSON，不要任何解释文字、不要 markdown 代码围栏。字段结构必须完全符合：`,
     RECIPE_JSON_SHAPE,

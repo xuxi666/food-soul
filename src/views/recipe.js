@@ -248,6 +248,9 @@ export default {
     const presetRaw = search.get('dish') || '';
     // 详情页会同时传 name，用于精确回填输入框（URLSearchParams 已自动解码，中文/空格/特殊字符都安全）
     const presetNameParam = (search.get('name') || '').trim().slice(0, 30);
+    const presetIngredientsParam = (search.get('ingredients') || '').trim().slice(0, 200);
+    const presetTasteParam = (search.get('taste') || '').trim().slice(0, 20);
+    const presetNotesParam = (search.get('notes') || '').trim().slice(0, 600);
 
     let presetDish = DISH_BY_ID[presetRaw] || null;
     let presetName = presetNameParam || presetDish?.name || '';
@@ -297,13 +300,30 @@ export default {
       h('option', { value: 'hard', text: '进阶' })
     );
     const maxMinutes = h('input', { class: 'field__input', type: 'number', min: '0', max: '600', placeholder: '不限', value: '' });
-    const ingredients = h('textarea', { class: 'field__area', placeholder: '冰箱里有什么？例如：豆腐、牛肉末、蒜苗', maxlength: '200' });
+    const ingredients = h('textarea', {
+      class: 'field__area',
+      placeholder: '冰箱里有什么？例如：豆腐、牛肉末、蒜苗',
+      maxlength: '200',
+      value: presetIngredientsParam,
+    });
+    if (presetIngredientsParam) ingredients.value = presetIngredientsParam;
     const taste = h(
       'select',
       { class: 'field__select' },
       h('option', { value: '', text: '不限' }),
       ...TASTES.map((t) => h('option', { value: t.name, text: t.name }))
     );
+    if (presetTasteParam) {
+      const presetTaste = TASTES.find((t) => t.name === presetTasteParam || presetTasteParam.includes(t.name) || t.name.includes(presetTasteParam));
+      if (presetTaste) taste.value = presetTaste.name;
+    }
+    const notes = h('textarea', {
+      class: 'field__area',
+      placeholder: '例如：做给两个人吃、想少油、希望 30 分钟内完成',
+      maxlength: '600',
+      value: presetNotesParam,
+    });
+    if (presetNotesParam) notes.value = presetNotesParam;
 
     const submitBtn = h('button', { class: 'btn btn--solid', type: 'submit', text: '生成菜谱' });
 
@@ -319,6 +339,7 @@ export default {
       h('label', { class: 'field' }, h('span', { text: '预计时间（分钟）' }), maxMinutes),
       h('label', { class: 'field' }, h('span', { text: '可用食材' }), ingredients),
       h('label', { class: 'field' }, h('span', { text: '口味偏好' }), taste),
+      h('label', { class: 'field' }, h('span', { text: '补充要求（可选）' }), notes),
       submitBtn,
       h('p', { class: 'tool-note', text: '图鉴菜品复用站内档案；图鉴没有的菜会真实联网检索，并在结果下方列出资料来源。' })
     );
@@ -355,7 +376,7 @@ export default {
       h('div', { class: 'empty-state' },
         h('p', { text: '输入菜名，生成一份可以直接照着做的菜谱。' }),
         h('p', { text: '菜谱包含食材用量、分步火候、常见失败与补救建议；联网检索的菜会附资料来源。' }),
-        h('p', { text: '需要先在右上角「接入 AI」配置你自己的模型；图鉴查询可正常使用。' }),
+        h('p', { text: '由当前启用的 AI 生成；如果想使用自己的模型，可在右上角「接入 AI」配置。图鉴查询可正常使用。' }),
         starterPicks
       )
     );
@@ -409,6 +430,7 @@ export default {
         ingredients: ingredients.value,
         maxMinutes: Number(maxMinutes.value) || 0,
         taste: taste.value,
+        notes: notes.value.trim(),
       };
     }
 
@@ -761,8 +783,8 @@ export default {
      * ---------------- 菜名自动填充（全站「生成菜谱」统一入口） ----------------
      *
      * 填的是页面上原有的这个 input，不新建字段、不重复加一项。
-     * 只填菜名：口味、菜系、食材、难度这些用户已经调好的参数一律不动。
-     * 填完绝不自动生成——必须用户自己点「生成菜谱」。
+     * AI 原创推荐会通过 recipeContext 一并带上主要食材、口味和用户需求；
+     * 这些只是预填，用户仍可逐项改，填完绝不自动生成。
      */
     let lastPrefillAt = 0;
 
@@ -774,7 +796,22 @@ export default {
       dishInput.dataset.fillSource = 'nav';   // 来自「生成菜谱」那一下
       lastPrefillAt = Date.now();
       fieldError.hidden = true;
-      fieldHint.textContent = `已按「${name}」预填菜名：可继续调整条件，确认后点「生成菜谱」。`;
+      const ctx = task?.recipeContext || null;
+      if (ctx) {
+        if (Array.isArray(ctx.ingredients) && ctx.ingredients.length) {
+          ingredients.value = ctx.ingredients.join('、').slice(0, 200);
+        }
+        const rawTaste = [ctx.taste, ...(ctx.flavors || [])].map((x) => String(x || '').trim()).filter(Boolean);
+        const tasteOpt = rawTaste.map((x) => TASTES.find((t) => t.name === x || x.includes(t.name) || t.name.includes(x))).find(Boolean);
+        if (tasteOpt) taste.value = tasteOpt.name;
+        if (ctx.servings && Number(ctx.servings) >= 1 && Number(ctx.servings) <= 12) servings.value = String(ctx.servings);
+        if (['easy', 'medium', 'hard'].includes(String(ctx.difficulty || ''))) difficulty.value = String(ctx.difficulty);
+        const needs = String(ctx.userNeeds || '').trim();
+        if (needs) notes.value = needs.slice(0, 600);
+        fieldHint.textContent = `已按「${name}」预填菜名、主要食材${needs ? '和你的需求' : ''}：可继续调整条件，确认后点「生成菜谱」。`;
+      } else {
+        fieldHint.textContent = `已按「${name}」预填菜名：可继续调整条件，确认后点「生成菜谱」。`;
+      }
       return true;
     }
 

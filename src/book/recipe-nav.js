@@ -148,6 +148,11 @@ export function recipeHref(payload) {
   if (payload?.dishId) q.set('dish', payload.dishId);
   if (payload?.dishName) q.set('name', payload.dishName);
   if (payload?.sourceType) q.set('from', payload.sourceType);
+  const ctx = payload?.recipeContext || {};
+  if (Array.isArray(ctx.ingredients) && ctx.ingredients.length) q.set('ingredients', ctx.ingredients.join('、').slice(0, 200));
+  if (ctx.taste) q.set('taste', String(ctx.taste).slice(0, 20));
+  if (ctx.userNeeds) q.set('notes', String(ctx.userNeeds).slice(0, 600));
+  if (ctx.servings) q.set('servings', String(ctx.servings));
   const s = q.toString();
   return s ? `${RECIPE_PATH}?${s}` : RECIPE_PATH;
 }

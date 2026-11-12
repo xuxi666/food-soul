@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { DISHES } from '../src/data/dishes.js';
 import { PERSONALITY_BY_ID } from '../src/data/personalities.js';
 import { TASTE_BY_ID, CUISINE_BY_ID, TASTES } from '../src/data/cuisines.js';
-import { buildDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildSuggestionPrompt } from './prompt.mjs';
+import { buildDishSystemPrompt, buildAIDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildSuggestionPrompt } from './prompt.mjs';
 import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
@@ -288,6 +288,27 @@ async function handleAIModels(req, res) {
   return send(res, 200, result);
 }
 
+function normalizeAIDishContext(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const name = String(raw.name || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  if (name.length < 2) return null;
+  const strings = (value, max, len) => (Array.isArray(value) ? value : [])
+    .map((x) => String(x || '').replace(/\s+/g, ' ').trim().slice(0, len))
+    .filter(Boolean)
+    .slice(0, max);
+  return {
+    name,
+    description: String(raw.description || raw.intro || '').replace(/\s+/g, ' ').trim().slice(0, 300),
+    flavor: strings(raw.flavor ?? raw.tasteNames, 8, 24),
+    ingredients: strings(raw.ingredients, 16, 30),
+    cookingTime: String(raw.cookingTime || '').trim().slice(0, 60),
+    estimatedCost: String(raw.estimatedCost || '').trim().slice(0, 80),
+    difficulty: String(raw.difficulty || '').trim().slice(0, 30),
+    matchReason: String(raw.matchReason || raw.reason || '').trim().slice(0, 320),
+    confidence: String(raw.confidence || '').trim().slice(0, 20),
+  };
+}
+
 async function handleChat(req, res) {
   if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
   const ctx = resolveAIForRequest(req, res, 'chat');
@@ -297,7 +318,11 @@ async function handleChat(req, res) {
   const body = await readJson(req);
   const askedKind = body.kind || body.mode;
   const kind = askedKind === 'taste' ? 'taste' : askedKind === 'cuisine' ? 'cuisine' : '';
-  const mode = kind ? 'category' : body.mode === 'mascot' ? 'mascot' : 'dish';
+  const mode = kind ? 'category' : body.mode === 'mascot' ? 'mascot' : body.mode === 'ai_dish' ? 'ai_dish' : 'dish';
+  const aiDish = mode === 'ai_dish' ? normalizeAIDishContext(body.aiDish) : null;
+  if (mode === 'ai_dish' && !aiDish) {
+    return send(res, 400, { error: '缺少 AI 推荐菜品信息', code: 'ai_dish_context_required' });
+  }
   const messages = (Array.isArray(body.messages) ? body.messages : [])
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
     .slice(-12)
@@ -340,21 +365,24 @@ async function handleChat(req, res) {
     model: ai.config.model,
     dishId: dish?.id || null,
     personaId: persona?.id || null,
+    dishName: aiDish?.name || null,
   });
 
   try {
     const system =
       mode === 'mascot'
         ? buildMascotSystemPrompt()
-        : mode === 'category'
-          ? buildCategorySystemPrompt({
-              kind,
-              meta,
-              persona,
-              dishes: categoryDishes,
-              contextDish: dish,
-            })
-          : buildDishSystemPrompt(dish, persona);
+        : mode === 'ai_dish'
+          ? buildAIDishSystemPrompt(aiDish, body.userNeeds)
+          : mode === 'category'
+            ? buildCategorySystemPrompt({
+                kind,
+                meta,
+                persona,
+                dishes: categoryDishes,
+                contextDish: dish,
+              })
+            : buildDishSystemPrompt(dish, persona);
 
     // Epicure 只在用户明确问搭配/相似/菜系/差异时补一段实测数据，失败静默跳过
     let finalSystem = system;
@@ -570,7 +598,8 @@ async function handleSuggest(req, res) {
 }
 
 /* ------------------------------------------------------------------ *
- * 寻味推荐：条件筛选 → 图鉴候选 → 模型排序 → 服务端复核
+ * 寻味推荐：整理完整用户需求 → 当前启用的模型独立构思 → 结构化校验
+ * 主流程不读取图鉴、菜谱库或推荐候选库。
  * ------------------------------------------------------------------ */
 
 async function handleRecommendation(req, res, { refresh = false } = {}) {
@@ -591,6 +620,9 @@ async function handleRecommendation(req, res, { refresh = false } = {}) {
   const excludedDishIds = Array.isArray(body.excludedDishIds)
     ? body.excludedDishIds.map((id) => String(id || '').trim()).filter(Boolean).slice(0, 120)
     : [];
+  const excludedDishNames = Array.isArray(body.excludedDishNames)
+    ? body.excludedDishNames.map((name) => String(name || '').trim()).filter(Boolean).slice(0, 120)
+    : [];
   const batchIndex = refresh ? Math.max(1, Math.min(50, Number(body.batchIndex) || 1)) : 0;
 
   try {
@@ -599,6 +631,7 @@ async function handleRecommendation(req, res, { refresh = false } = {}) {
       aiConfig: ai.config,
       batchIndex,
       excludedDishIds,
+      excludedDishNames,
     });
     noteAIStatus(user, 'ok', null);
     return send(res, 200, { ...payload, model: ai.config.model || '', provider: ai.config.provider || '' });
@@ -624,15 +657,43 @@ async function handleRecommendationFeedback(req, res) {
   if (!rl.ok) return send(res, 429, { error: '反馈过于频繁，请稍后再试', code: 'rate_limited' });
 
   const body = await readJson(req);
-  const payload = normalizeFeedbackPayload(body);
-  const id = insertRecommendationFeedback({
-    recommendationId: payload.recommendationId,
-    batchIndex: payload.batchIndex,
-    dishId: payload.dishId,
-    feedbackType: payload.feedbackType,
-    userId: user?.id || null,
+  try {
+    const payload = normalizeFeedbackPayload(body);
+    const id = insertRecommendationFeedback({
+      recommendationId: payload.recommendationId,
+      batchIndex: payload.batchIndex,
+      dishId: payload.dishId,
+      feedbackType: payload.feedbackType,
+      userId: user?.id || null,
+    });
+    return send(res, 200, { ok: true, id });
+  } catch (err) {
+    return send(res, Number(err?.status) || 400, {
+      error: String(err?.message || '反馈保存失败').slice(0, 160),
+      code: err?.code || 'invalid_feedback',
+    });
+  }
+}
+
+/**
+ * AI 原创菜品配图：只按菜名做公开图片检索，不查图鉴/菜谱库。
+ * 返回空字符串时前端使用按菜名生成的占位图，绝不影响推荐展示。
+ */
+async function handleRecommendationImage(req, res) {
+  const rl = rateLimit(req, 'recommendation-image', 40, 60_000);
+  if (!rl.ok) return send(res, 429, { error: `配图请求过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
+  const url = new URL(req.url, 'http://localhost');
+  const name = String(url.searchParams.get('name') || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (name.length < 2) return send(res, 400, { error: '缺少菜名', code: 'dish_name_required' });
+  const image = await getRecipeImage(name, { budget: 7000, strictOnly: true });
+  return send(res, 200, {
+    image: image?.url || '',
+    alt: `${name}的配图`,
+    match: image?.match || '',
+    source: image?.source || '',
+    provider: image?.provider || '',
+    cached: Boolean(image?.cached),
   });
-  return send(res, 200, { ok: true, id });
 }
 
 /* ------------------------------------------------------------------ *
@@ -884,6 +945,7 @@ async function handleRecipe(req, res) {
     ingredients: String(body.ingredients || '').slice(0, 200),
     maxMinutes: Number(body.maxMinutes) || 0,
     taste: String(body.taste || '').slice(0, 30),
+    notes: String(body.notes || '').slice(0, 600),
     lookupId: String(body.lookupId || '').trim().slice(0, 60),
   };
   if (!input.dishName && !input.dishId) return send(res, 400, { error: '请填写菜品名称' });
@@ -1488,6 +1550,7 @@ export async function handleApi(req, res) {
     if (req.method === 'POST' && path === '/api/recommendations/generate') return await handleRecommendation(req, res);
     if (req.method === 'POST' && path === '/api/recommendations/refresh') return await handleRecommendation(req, res, { refresh: true });
     if (req.method === 'POST' && path === '/api/recommendations/feedback') return await handleRecommendationFeedback(req, res);
+    if (req.method === 'GET' && path === '/api/recommendations/image') return await handleRecommendationImage(req, res);
     if (req.method === 'POST' && path === '/api/recipe/lookup') return await handleRecipeLookup(req, res);
     if (req.method === 'POST' && path === '/api/recipe') return await handleRecipe(req, res);
 

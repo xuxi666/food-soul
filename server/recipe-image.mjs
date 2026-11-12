@@ -58,12 +58,15 @@ function readCached(key) {
     if (!EXT_RE.test(file)) continue;
     const meta = file.replace(EXT_RE, '') + '.json';
     let source = '';
+    let match = '';
     try {
-      source = JSON.parse(fs.readFileSync(path.join(DIR, meta), 'utf8')).source || '';
+      const info = JSON.parse(fs.readFileSync(path.join(DIR, meta), 'utf8'));
+      source = info.source || '';
+      match = info.match || '';
     } catch {
       /* 没有来源文件也不影响使用 */
     }
-    return { url: URL_BASE + file, source, provider: '', cached: true };
+    return { url: URL_BASE + file, source, provider: '', cached: true, match };
   }
   return null;
 }
@@ -79,7 +82,7 @@ function scoreOf(text, name) {
 }
 
 /** 先按「标题越接近菜名越优先」打分；都不沾边时退一步用第一张有标题的图 */
-function pickCandidate(candidates, name) {
+function pickCandidate(candidates, name, { strictOnly = false } = {}) {
   const scored = [];
   for (const c of candidates) {
     const text = `${c.title || ''} ${c.source || ''}`;
@@ -89,6 +92,7 @@ function pickCandidate(candidates, name) {
   }
   const strict = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
   if (strict.length) return { candidate: strict[0].c, match: 'strict' };
+  if (strictOnly) return null;
   const loose = scored.filter((x) => (x.c.title || '').trim().length > 0).map((x) => x.c);
   return loose.length ? { candidate: loose[0], match: 'loose' } : null;
 }
@@ -96,16 +100,20 @@ function pickCandidate(candidates, name) {
 /**
  * 取一道未收录菜品的配图。永远不抛错。
  * @param {string} dishName
- * @param {{budget?:number}} [opts]
- * @returns {Promise<{url:string,source:string,provider:string,cached:boolean}|null>}
+ * @param {{budget?:number, strictOnly?:boolean}} [opts]
+ * @returns {Promise<{url:string,source:string,provider:string,cached:boolean,match:string}|null>}
  */
 export async function getRecipeImage(dishName, opts = {}) {
   const name = normalizeName(dishName);
   if (!name) return null;
   const key = keyOf(name);
+  const strictOnly = opts.strictOnly === true;
 
   const cached = readCached(key);
-  if (cached) return cached;
+  if (cached) {
+    if (strictOnly && cached.match !== 'strict') return null;
+    return cached;
+  }
 
   const budget = Math.max(2000, Number(opts.budget) || BUDGET_MS);
   const deadline = Date.now() + budget;
@@ -120,7 +128,7 @@ export async function getRecipeImage(dishName, opts = {}) {
     }
     if (!candidates.length) return null;
 
-    const picked = pickCandidate(candidates, name);
+    const picked = pickCandidate(candidates, name, { strictOnly });
     if (!picked) return null;
 
     ensureDir(DIR);
@@ -136,7 +144,7 @@ export async function getRecipeImage(dishName, opts = {}) {
     } catch {
       /* 元数据写失败不影响图片 */
     }
-    return { url: URL_BASE + file, source: cleanSource(got.source), provider: got.provider, cached: false };
+    return { url: URL_BASE + file, source: cleanSource(got.source), provider: got.provider, cached: false, match: picked.match };
   })().catch(() => null);
 
   // 超时就让图片这一路放弃，不拖慢菜谱响应

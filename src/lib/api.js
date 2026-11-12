@@ -120,6 +120,8 @@ export const api = {
       jsonFetch('/api/recommendations/refresh', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
     feedback: (payload) =>
       jsonFetch('/api/recommendations/feedback', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
+    image: (name) =>
+      jsonFetch(`/api/recommendations/image?name=${encodeURIComponent(name)}`),
   },
 
   /** 对话延伸建议：AI 回答完成后单独调用，不阻塞主回答 */
@@ -378,12 +380,13 @@ export async function compressImage(file, maxSize = 1600, quality = 0.82, maxCha
 /**
  * 流式聊天。返回 { abort, done }。
  * 菜品人格：{ dishId, messages }
+ * AI 原创推荐菜：{ mode: 'ai_dish', aiDish, userNeeds, messages }
  * 菜系 / 口味 AI：{ mode: 'cuisine'|'taste', categoryId, contextDishId?, messages }
  * 小精灵：{ mode: 'mascot', messages }
  * onMeta / onDelta / onDone / onError 都是可选回调。
  */
 export function chatStream(
-  { dishId, mode = 'dish', kind, categoryId, categoryName, contextDishId, messages },
+  { dishId, mode = 'dish', kind, categoryId, categoryName, contextDishId, aiDish, userNeeds, messages },
   handlers = {}
 ) {
   const controller = new AbortController();
@@ -396,6 +399,10 @@ export function chatStream(
   if (categoryMode) payload.categoryId = categoryId;
   if (categoryMode && categoryName) payload.categoryName = categoryName;
   if (categoryMode && contextDishId) payload.contextDishId = contextDishId;
+  if (mode === 'ai_dish' && aiDish) {
+    payload.aiDish = aiDish;
+    if (userNeeds) payload.userNeeds = userNeeds;
+  }
 
   const done = (async () => {
     try {

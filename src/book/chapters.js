@@ -81,7 +81,7 @@ export const CHAPTERS = [
     id: 'recommendations',
     label: '推荐',
     title: '寻味推荐',
-    desc: '输入心情、口味和预算，让 AI 为你挑选今天最值得尝试的美食。',
+    desc: '输入心情、口味和预算，让 AI 独立构思今天最值得尝试的几道菜。',
     group: 'explore',
     num: '02',
     tint: '#a9573d',
