@@ -5,7 +5,7 @@
  *
  * 一条记录（与验收口径一致）：
  *   moduleId       模块 id（catalog / dishes / cuisines / tastes / recipe /
- *                  kitchen / community / videos / dishDetail / admin / chat / site）
+ *                  kitchen / community / dishDetail / admin / chat / site）
  *   moduleName     模块中文名
  *   route          当时的地址（pathname + search，带分类 id、菜品 id 等）
  *   params         必要的页面参数（章节、跨页、单页模式、分类 id）
@@ -35,7 +35,6 @@ const MODULE_NAMES = {
   recipe: '菜谱',
   kitchen: '厨房',
   community: '社区',
-  videos: '视频',
   dishDetail: '菜品详情',
   admin: '后台',
   notFound: '未找到',

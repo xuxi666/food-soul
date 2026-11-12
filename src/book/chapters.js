@@ -15,7 +15,6 @@ const VIEWS = {
   recipe: () => import('../views/recipe.js'),
   kitchen: () => import('../views/kitchen.js'),
   community: () => import('../views/community.js'),
-  videos: () => import('../views/videos.js'),
   'dish-detail': () => import('../views/dish-detail.js'),
   admin: () => import('../views/admin.js'),
   notfound: () => import('../views/notfound.js'),
@@ -144,19 +143,6 @@ export const CHAPTERS = [
     load: load('community'),
     layout: 'flow',
   },
-  {
-    id: 'videos',
-    label: '视频',
-    title: '影像视频',
-    desc: '与美食有关的短片与影像档案。',
-    group: 'culture',
-    num: '07',
-    tint: '#6e8489',
-    side: 'right',
-    href: '/videos',
-    load: load('videos'),
-    layout: 'flow',
-  },
 ];
 
 export const EXTRA = {
@@ -181,7 +167,8 @@ export function chapterOf(pathname) {
   if (p === '/recipe') return 'recipe';
   if (p === '/kitchen' || p === '/recommend') return 'kitchen';
   if (p === '/community') return 'community';
-  if (p === '/videos') return 'videos';
+  // 独立视频页已删除：旧地址落到美食图鉴，不再有视频章节
+  if (p === '/videos') return 'dishes';
   if (p === '/admin') return 'admin';
   return 'catalog';
 }

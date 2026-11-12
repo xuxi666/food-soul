@@ -15,7 +15,6 @@ import { enableWheelScroll, enableTouchScroll } from '../lib/wheel-scroll.js';
 import { CHAPTERS, EXTRA, chapterById, chapterOf } from './chapters.js';
 import { createAtlas } from './atlas.js';
 import { mountCategory } from './category.js';
-import { mountVideos } from './videos.js';
 import { mountCatalog } from './catalog.js';
 
 /** 把若干节点装进一张纸的纸面 */
@@ -181,20 +180,6 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
       const right = inst.el.querySelector('.catb__page--right');
       const entry = { left: wrapFace(true, [left], 'bk-pageface--cat'), right: wrapFace(true, [right], 'bk-pageface--cat'), instance: inst };
       pages.set(id, entry);
-      return entry;
-    }
-
-    if (id === 'videos') {
-      const inst = mountVideos(staging);
-      const left = inst.el.querySelector('.vid__page--left');
-      const right = inst.el.querySelector('.vid__page--right');
-      const entry = { left: wrapFace(true, [left]), right: wrapFace(true, [right]), instance: inst };
-      pages.set(id, entry);
-      // 桌面：左页自己滚（内层 height:100% + overflow:auto）；
-      // 手机：左页整页交给纸面滚。两种都要把滚轮 / 触摸换算成 scrollTop，
-      // 否则 3D 纸里的原生滚动不生效（内层滚到头就自动让回去，不会双重滚动）
-      enableWheelScroll(entry.left);
-      enableTouchScroll(entry.left);
       return entry;
     }
 
@@ -381,19 +366,6 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     /** 目录页高亮当前章节（与书签同一份章节 id） */
     setChapterActive(chapterId) {
       pages.get('catalog')?.instance?.setActive?.(chapterId);
-    },
-    /**
-     * 视频章的入口关键词（只有菜品详情页跳转才会带）。
-     * 「普通进入」= 空关键词：实例内部会把页面收回初始态，不重复请求。
-     */
-    chapterEnter(chapterId, param) {
-      if (chapterId !== 'videos') return;
-      pages.get('videos')?.instance?.syncQuery?.(param || '');
-    },
-    /** 离开视频章：清掉这一轮的关键词与结果，下次回来是干净的白纸 */
-    chapterLeave(chapterId) {
-      if (chapterId !== 'videos') return;
-      pages.get('videos')?.instance?.resetSearch?.();
     },
   };
 }

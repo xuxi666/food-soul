@@ -575,7 +575,6 @@ body.is-book {
   box-shadow: none;
 }
 
-.bk-pageface--bare .bk-pageface__inner > .vid__page,
 .bk-pageface--bare .bk-pageface__inner > .catb__page {
   height: 100%;
   min-height: 0;

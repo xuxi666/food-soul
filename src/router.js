@@ -8,7 +8,6 @@ import taste from './views/taste.js';
 import dishes from './views/dishes.js';
 import dishDetail from './views/dish-detail.js';
 import community from './views/community.js';
-import videos from './views/videos.js';
 import notFound from './views/notfound.js';
 import admin from './views/admin.js';
 import {
@@ -35,7 +34,6 @@ const ROUTES = [
   { name: 'kitchen', re: /^\/kitchen$/, mod: kitchen },
   // 旧入口 /recommend 统一交给 Epicure 厨房，避免老链接 404
   { name: 'recommendLegacy', re: /^\/recommend$/, mod: kitchen },
-  { name: 'videos', re: /^\/videos$/, mod: videos },
   { name: 'admin', re: /^\/admin$/, mod: admin },
 ];
 
@@ -43,7 +41,10 @@ export function normalize(pathname) {
   // 允许传入完整 href（带 ?query / #hash），路由匹配只看 pathname
   const path = String(pathname || '/').split('#')[0].split('?')[0];
   const p = path.replace(/\/+$/, '');
-  return p === '' ? '/' : p;
+  if (!p) return '/';
+  // 独立视频页已删除；旧链接回收进美食图鉴，不再保留视频路由
+  if (p === '/videos') return '/dishes';
+  return p;
 }
 
 export function matchRoute(path) {

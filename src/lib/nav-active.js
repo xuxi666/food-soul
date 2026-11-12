@@ -10,7 +10,7 @@
  *   /recipe               → 菜谱工作台
  *   /kitchen              → Epicure 厨房
  *   /community            → 美食社区
- *   其他（/cuisines/:id、/tastes/:id、/chat/:id、/videos、/explore、/admin）
+ *   其他（/cuisines/:id、/tastes/:id、/chat/:id、/explore、/admin）
  *   → 不属于任何顶部导航入口，全部不激活，避免归错栏目
  */
 

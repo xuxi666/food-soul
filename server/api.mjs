@@ -16,7 +16,7 @@ import { callTool as epicureCall } from './epicure-client.mjs';
 import { demoGreeting, demoCategoryGreeting } from './demo.mjs';
 import { listComments, addComment, toggleLike, reportComment, deleteComment, commentCountByDish } from './store.mjs';
 import { listPosts, addPost, toggleLike as togglePostLike, addComment as addPostComment, reportPost, removePost, saveImage, postStats, findPost, aiReplyStats, KINDS } from './community.mjs';
-import { searchVideos } from './videos.mjs';
+import { searchDishVideos, searchVideos } from './videos.mjs';
 import { searchDishes, findDish, generatedDishes } from './dish-search.mjs';
 import { lookupDish, lookupLibrary, rememberLookup, takeLookup, attachSourceSupport } from './recipe-lookup.mjs';
 import { personaForCategory, dishesForCategory } from '../src/data/categories.js';
@@ -1546,6 +1546,23 @@ export async function handleApi(req, res) {
       const bundle = await searchVideos({
         q: url.searchParams.get('q') || '',
         limit: url.searchParams.get('limit') || undefined,
+        page: url.searchParams.get('page') || undefined,
+      });
+      return send(res, 200, bundle);
+    }
+    if (req.method === 'GET' && path === '/api/videos/dish') {
+      const bundle = await searchDishVideos({
+        dishId: url.searchParams.get('dishId') || '',
+        dishName: url.searchParams.get('dishName') || '',
+        englishName: url.searchParams.get('englishName') || '',
+        aliases: url.searchParams.get('aliases') || '',
+        cuisineType: url.searchParams.get('cuisineType') || '',
+        flavorType: url.searchParams.get('flavorType') || '',
+        mainIngredients: url.searchParams.get('mainIngredients') || '',
+        cookingMethods: url.searchParams.get('cookingMethods') || '',
+        exclude: url.searchParams.get('exclude') || '',
+        limit: url.searchParams.get('limit') || undefined,
+        page: url.searchParams.get('page') || undefined,
       });
       return send(res, 200, bundle);
     }

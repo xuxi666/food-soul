@@ -15,13 +15,14 @@
  * 所有文字、标签、图片都来自 src/data/dishes.js（以及 /api/dishes/:id 的兜底），
  * 没有的字段就不渲染，不编造：步骤取自 techniques，操作要点取自 knowledge。
  */
-import { h, html } from '../lib/dom.js';
+import { h, html, toast } from '../lib/dom.js';
 import { DISHES, DIFFICULTY_LABEL } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
 import { guardImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from './recipe-nav.js';
 import { openDishChat } from './chat-panel.js';
+import { openDishVideos } from './video-panel.js';
 
 /**
  * 打开站内独立页面（AI 聊天 / 生成菜谱）。
@@ -112,7 +113,6 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
   /* ---------- 二、中部：左图 + 右侧四个入口 ---------- */
   const moreHref = cuisine ? `/cuisines/${dish.cuisine}` : '/dishes';
   const moreLabel = cuisine ? `更多${cuisine.name}` : '更多同类菜';
-  const videosHref = `/videos?q=${encodeURIComponent(dish.name)}`;
 
   const media = h(
     'figure',
@@ -197,12 +197,18 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
       '生成菜谱'
     ),
     pill(
-      'a',
+      'button',
       {
-        href: videosHref,
-        'data-link': '',
+        type: 'button',
         'data-act': 'videos',
-        title: `在站内检索「${dish.name}」的做菜视频`,
+        title: `在另一半书页展开「${dish.name}」的做菜视频`,
+        onclick: (e) => {
+          e.preventDefault();
+          if (!openDishVideos(dish, e.currentTarget)) {
+            // 画册未接管时没有独立的视频页可去；不伪造一个全屏页面。
+            toast('视频会在画册的菜品详情里展开', 'warn');
+          }
+        },
       },
       'video',
       '做菜视频'

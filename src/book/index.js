@@ -22,7 +22,7 @@ import './atlas.css';
 import './dish-page.css';
 import './category.css';
 import './catalog.css';
-import './videos.css';
+import './video-panel.css';
 import { closeAllOverlays } from './overlay.js';
 import {
   RECIPE_NAV_EVENT,
@@ -49,6 +49,14 @@ import {
   openDishChatPanel,
   setDishChatOpener,
 } from './chat-panel.js';
+import {
+  closeDishVideo,
+  dishVideoState,
+  hasOpenDishVideo,
+  openDishVideoDishId,
+  openDishVideoPanel,
+  setDishVideoOpener,
+} from './video-panel.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -408,24 +416,8 @@ export function initBook({ root, routerApi = null }) {
   function syncChrome() {
     const list = book.spreads();
     const chapterId = chapterOfPosition();
-    const prevKey = currentKey;
     shell.content.dataset.chapter = chapterId;
     currentKey = inner ? innerKind || 'dishDetail' : chapterId;
-
-    // 视频章：进出时把「入口关键词」交代给实例——
-    // 从菜品详情页来会带 ?q=菜名（自动检索一次），普通进入是空关键词（回到初始态）
-    if (prevKey !== currentKey) {
-      if (prevKey === 'videos') book.chapterLeave?.('videos');
-      if (currentKey === 'videos') {
-        let q = '';
-        try {
-          q = (new URLSearchParams(location.search).get('q') || '').trim();
-        } catch {
-          q = '';
-        }
-        book.chapterEnter?.('videos', q);
-      }
-    }
 
     shell.setActive(chapterId);
     // 目录页里高亮的是同一份章节 id：读到哪一章，目录里那一行就是当前章
@@ -568,6 +560,8 @@ export function initBook({ root, routerApi = null }) {
   async function openDualChat(subject, originEl) {
     if (!subject?.id || mode !== 'open') return false;
     if (busy) return false;
+    // 同一时刻另一半只放一个主要辅助面板：聊天打开前先收起视频
+    closeDishVideo('chat', { instant: true });
     const host = hostPageOf(originEl);
     if (!host) return false;
     const slot = await otherPageOf(host);
@@ -576,13 +570,33 @@ export function initBook({ root, routerApi = null }) {
     return true;
   }
 
+  /** 菜品详情「做菜视频」：详情留在原页，视频开在另一半页 */
+  async function openDualVideo(dish, originEl) {
+    if (!dish?.id || mode !== 'open') return false;
+    if (busy) return false;
+    const host = hostPageOf(originEl);
+    if (!host) return false;
+    const slot = await otherPageOf(host);
+    if (!slot?.page) return false;
+    // 视频与聊天互斥，先收起聊天；已打开同一个菜品时直接恢复/沿用已有结果
+    closeDishChat('video', { instant: true });
+    await openDishVideoPanel({
+      dish,
+      page: slot.page,
+      side: slot.side,
+      single: slot.single,
+    });
+    return true;
+  }
+
   /* ---------------- 显示某个路径 ---------------- */
   const INNER_KEYS = new Set(['dishDetail', 'admin', 'notFound']);
 
   async function showPath(path, { flip = false } = {}) {
     const info = moduleOf(path);
-    // 聊天是详情页的临时另一半：换路径就不该留着
+    // 聊天 / 视频都是详情页的临时另一半：换路径就不该留着
     closeDishChat('nav');
+    closeDishVideo('nav');
     // 是不是从「菜品详情」出发的：内页 / 图鉴里展开的详情浮层都算。
     // 必须在收起浮层之前判断，收起之后就看不出来了。
     const fromDetail = !!inner || shell.el.classList.contains('is-atlas-expanded');
@@ -822,6 +836,7 @@ export function initBook({ root, routerApi = null }) {
     if (!chapter) return;
     // 书签 / 目录 / 章节切换：临时聊天面板不能跟着漂到别的模块
     closeDishChat('nav');
+    closeDishVideo('nav');
     if (busy) { pendingChapter = { id, param, opts }; return; }
     if (id !== 'dishes') closeAllOverlays({ instant: true });
     // 书签是章节入口：不带分类时回到该分类的默认代表（川菜 / 麻辣鲜香）
@@ -1253,6 +1268,7 @@ export function initBook({ root, routerApi = null }) {
   /** 合上：唯一的合书入口（站内页上先把书页挂回来再合） */
   async function shutBook(source = 'button') {
     if (mode !== 'open' || busy) return false;
+    closeDishVideo('book', { instant: true });
     if (bookDomGone()) {
       parkSitePage(location.pathname + location.search);
       sheets.reattach(shell.content);
@@ -1273,6 +1289,8 @@ export function initBook({ root, routerApi = null }) {
   /* ---------------- 合上 ---------------- */
   async function shut() {
     if (mode !== 'open' || busy) return;
+    closeDishChat('book');
+    closeDishVideo('book', { instant: true });
     closeAllOverlays({ instant: true });
     busy = true;
     try {
@@ -1473,6 +1491,12 @@ export function initBook({ root, routerApi = null }) {
     closeChat: () => closeDishChat('api'),
     openChat: (subject) =>
       openDualChat(subject, document.querySelector('.atlas-detail') || document.querySelector('.catb__ai') || null),
+    video: dishVideoState,
+    videoOpen: () => hasOpenDishVideo(),
+    videoDish: () => openDishVideoDishId(),
+    closeVideo: () => closeDishVideo('api'),
+    openVideo: (dish) =>
+      openDualVideo(dish, document.querySelector('.atlas-detail') || document.querySelector('.catb__ai') || null),
     parkedRoute: () => parkedSite?.route ?? null,
     goModule: (id) => goBookmark({ id }),
     syncMarks,
@@ -1484,6 +1508,11 @@ export function initBook({ root, routerApi = null }) {
   /* 详情页「和某某聊聊」→ 画册把聊天开在另一半页 */
   setDishChatOpener((subject, originEl) => {
     void openDualChat(subject, originEl);
+    return true;
+  });
+  /* 详情页「做菜视频」→ 画册把视频开在另一半页 */
+  setDishVideoOpener((dish, originEl) => {
+    void openDualVideo(dish, originEl);
     return true;
   });
 

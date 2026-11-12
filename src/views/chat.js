@@ -310,7 +310,6 @@ export default {
       ? [h('a', { class: 'btn btn--sm cr-act cr-act--ghost', href: '/dishes', 'data-link': '' }, '逛美食图鉴')]
       : [
           h('a', { class: 'btn btn--sm cr-act cr-act--ghost', href: '/kitchen', 'data-link': '' }, '换个口味'),
-          h('a', { class: 'btn btn--sm cr-act cr-act--ghost', href: `/videos?q=${encodeURIComponent(dish.name)}`, 'data-link': '' }, '做菜视频'),
           h('button', { class: 'btn btn--sm cr-act cr-act--ghost', type: 'button', onclick: () => setPane('comments') }, '食客评论'),
         ];
 
@@ -634,7 +633,8 @@ export default {
       /* 地址也由统一契约拼装：点击仍走统一入口，这里只是中键 / 新窗口的兜底 */
       if (s.actionType === 'recipe') return recipeHref({ dishName: p.dishName, sourceType: 'chat-suggestion' });
       if (s.actionType === 'recommend') return `/kitchen?taste=${encodeURIComponent(p.taste || '')}`;
-      if (s.actionType === 'video') return `/videos?q=${encodeURIComponent(p.query || '')}`;
+      // 独立视频页已删除：视频只在菜品详情的另一半页里出现，聊天建议不再外链
+      if (s.actionType === 'video') return '';
       return '';
     }
 
@@ -664,7 +664,7 @@ export default {
 
       const href = suggestionHref(s);
       if (!href) return null;
-      const label = { recipe: '菜谱', recommend: '厨房', video: '视频' }[s.actionType] || '新窗口';
+      const label = { recipe: '菜谱', recommend: '厨房' }[s.actionType] || '新窗口';
       const link = h(
         'a',
         {

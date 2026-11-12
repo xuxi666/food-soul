@@ -284,6 +284,39 @@ export const api = {
   /** 站内做菜视频搜索（真实检索，服务端清洗与校验） */
   videos: (q, limit = 8) =>
     jsonFetch(`/api/videos/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  /** 菜品详情：只检索与当前菜品直接相关的视频（服务端强制菜品相关性） */
+  dishVideos: ({
+    dishId = '',
+    dishName = '',
+    englishName = '',
+    aliases = [],
+    cuisineType = '',
+    flavorType = '',
+    mainIngredients = [],
+    cookingMethods = [],
+    limit = 9,
+    page = 1,
+    exclude = [],
+  } = {}) => {
+    const q = new URLSearchParams();
+    const put = (key, value, max = 8) => {
+      const text = Array.isArray(value) ? value.filter(Boolean).slice(0, max).join(',') : String(value || '');
+      if (text) q.set(key, text.slice(0, key === 'exclude' ? 3000 : 300));
+    };
+    put('dishId', dishId);
+    put('dishName', dishName);
+    put('englishName', englishName);
+    put('aliases', aliases);
+    put('cuisineType', cuisineType);
+    put('flavorType', flavorType);
+    put('mainIngredients', mainIngredients);
+    put('cookingMethods', cookingMethods);
+    put('exclude', exclude, 60);
+    q.set('limit', String(limit));
+    q.set('page', String(page));
+    return jsonFetch(`/api/videos/dish?${q.toString()}`);
+  },
 };
 
 /**
