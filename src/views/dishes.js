@@ -54,6 +54,7 @@ export default {
       const q = query.toLowerCase();
       return (
         d.name.includes(q) ||
+        (d.aliases || []).some((a) => a.includes(q)) ||
         String(d.nameEn || '').toLowerCase().includes(q) ||
         (d.ingredients || []).some((i) => i.includes(q)) ||
         String(d.signature || '').includes(q) ||

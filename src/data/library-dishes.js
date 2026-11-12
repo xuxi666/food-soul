@@ -5,9 +5,11 @@
  * 字段映射规则见 scripts/import-dishes.mjs 顶部注释；
  * 照片：public/images/photos/<菜名>.jpg → public/dishes/<菜品 id>.jpg（一菜一图）。
  * 生成时间：2026-10-18
- * 条目数：82
+ * 原始条目数：82；其中 14 条已由 dish-merges.js 合并停用，运行时加载 68 条。
  */
-export const LIBRARY_DISHES = [
+import { MERGED_DISHES } from './dish-merges.js';
+
+const LIBRARY_RAW = [
   {
     id: "huiguorou",
     name: "回锅肉",
@@ -1977,3 +1979,6 @@ export const LIBRARY_DISHES = [
     credit: "AI 生成菜品照片（智谱 CogView-3-Flash）· 迁移自参考项目菜品库",
   },
 ];
+
+// 原始记录保留用于审计与回滚；运行时只暴露未合并的菜品。
+export const LIBRARY_DISHES = LIBRARY_RAW.filter((d) => !MERGED_DISHES[d.id]);

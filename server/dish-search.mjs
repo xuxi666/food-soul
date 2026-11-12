@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { DISHES, DISH_BY_ID } from '../src/data/dishes.js';
+import { MERGED_DISHES, mergedDishId } from '../src/data/dish-merges.js';
 import { CUISINE_BY_ID, CUISINES, TASTE_BY_ID, TASTES } from '../src/data/cuisines.js';
 import { isSearchConfigured } from './config.mjs';
 import { extractJSON } from './json-utils.mjs';
@@ -243,6 +244,7 @@ function sanitizeGenerated(list) {
   const targetOf = (d) => (d?.source?.requestedKind === 'taste' ? d.source.categoryId || '' : '');
   return list
     .filter((d) => d && typeof d.id === 'string' && typeof d.name === 'string')
+    .filter((d) => !MERGED_DISHES[d.id])
     .filter((d) => {
       const target = targetOf(d);
       return !target || !nameTasteConflict(d.name, target);
@@ -296,7 +298,14 @@ export function generatedDishes() {
 
 export function findDish(id) {
   if (!id) return null;
-  return DISH_BY_ID[id] || readGenerated().find((d) => d.id === id) || findRecommendationDish(id) || null;
+  // 旧链接、旧收藏或旧菜谱可能仍引用已合并的 id，统一解析到标准菜。
+  const targetId = mergedDishId(String(id));
+  return (
+    DISH_BY_ID[targetId] ||
+    readGenerated().find((d) => d.id === targetId) ||
+    findRecommendationDish(targetId) ||
+    null
+  );
 }
 
 function knownHashes() {
@@ -514,7 +523,10 @@ export async function searchDishes(input = {}) {
 
     try {
       const generated = readGenerated();
-      const existingNames = new Set([...DISHES.map((d) => d.name), ...generated.map((d) => d.name)]);
+      const existingNames = new Set([
+        ...DISHES.flatMap((d) => [d.name, ...(d.aliases || [])]),
+        ...generated.map((d) => d.name),
+      ]);
       const claimed = new Set(knownHashes());
       const proposed = new Set();
       const pool = [];

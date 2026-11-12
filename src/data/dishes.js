@@ -1,6 +1,12 @@
 // 菜品身份配置：菜系、味型、食材、技法、文化背景、人格 ID、专属知识。
 // 菜系 ≠ 人格：人格由 tastes 的主味型决定。
 import { LIBRARY_DISHES } from './library-dishes.js';
+import {
+  DISH_ALIASES,
+  MERGED_DISHES,
+  PERSONALITY_OVERRIDES,
+  TASTE_OVERRIDES,
+} from './dish-merges.js';
 
 // 16 道精选菜（有完整人格与专属知识）
 const CURATED_DISHES = [
@@ -470,14 +476,31 @@ const CURATED_DISHES = [
   },
 ];
 
-// 单一数据源：精选菜 + 迁移菜品库（重复 id 以精选菜为准）
+// 单一数据源：精选菜 + 已去重的迁移菜品库。
+// 原始重复记录仍保留在源文件中，由 dish-merges.js 统一停用，便于回滚和追溯。
 const curatedIds = new Set(CURATED_DISHES.map((d) => d.id));
+
+function withDishMeta(d) {
+  const out = { ...d };
+  if (TASTE_OVERRIDES[d.id]) out.tastes = [...TASTE_OVERRIDES[d.id]];
+  if (PERSONALITY_OVERRIDES[d.id]) out.personality = PERSONALITY_OVERRIDES[d.id];
+  if (DISH_ALIASES[d.id]?.length) out.aliases = [...DISH_ALIASES[d.id]];
+  return out;
+}
+
 export const DISHES = [
   ...CURATED_DISHES,
   ...LIBRARY_DISHES.filter((d) => !curatedIds.has(d.id)).map((d) => ({ nameEn: '', ...d })),
-];
+]
+  .filter((d) => !MERGED_DISHES[d.id])
+  .map(withDishMeta);
 
-export const DISH_BY_ID = Object.fromEntries(DISHES.map((d) => [d.id, d]));
+const byId = Object.fromEntries(DISHES.map((d) => [d.id, d]));
+// 旧链接、旧收藏中的合并 id 仍指向标准菜，但不进入 DISHES 列表和分类计数。
+for (const [oldId, meta] of Object.entries(MERGED_DISHES)) {
+  if (byId[meta.into]) byId[oldId] = byId[meta.into];
+}
+export const DISH_BY_ID = byId;
 
 export const DIFFICULTY_LABEL = { easy: '简单', medium: '中等', hard: '进阶' };
 

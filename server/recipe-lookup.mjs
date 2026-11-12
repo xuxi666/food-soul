@@ -62,6 +62,7 @@ export function publicDish(d) {
   return {
     id: d.id,
     name: d.name,
+    aliases: d.aliases || [],
     cuisine: d.cuisine,
     tastes: d.tastes,
     image: d.image,
@@ -80,9 +81,10 @@ export function lookupLibrary(rawName) {
 
   const all = [...DISHES, ...generatedDishes(), ...readRecommendationDishes()];
   const variants = nameVariants(name);
+  const namesOf = (d) => [d.name, ...(d.aliases || [])].map(normalizeName).filter(Boolean);
 
-  // 精确/别名匹配
-  const exact = dedupeById(all.filter((d) => variants.includes(normalizeName(d.name))));
+  // 精确/别名匹配（aliases 来自 dish-merges.js，不生成独立菜品）
+  const exact = dedupeById(all.filter((d) => namesOf(d).some((n) => variants.includes(n))));
   if (exact.length === 1) return { status: 'found', dish: exact[0], matchedBy: 'exact' };
   if (exact.length > 1) return { status: 'ambiguous', candidates: exact.slice(0, 6) };
 
@@ -90,9 +92,10 @@ export function lookupLibrary(rawName) {
   const targets = variants.filter((v) => v.length >= 2);
   const fuzzy = dedupeById(
     all.filter((d) => {
-      const n = normalizeName(d.name);
-      if (n.length < 2) return false;
-      return targets.some((t) => (n.includes(t) || t.includes(n)) && Math.abs(n.length - t.length) <= 2);
+      return namesOf(d).some((n) => {
+        if (n.length < 2) return false;
+        return targets.some((t) => (n.includes(t) || t.includes(n)) && Math.abs(n.length - t.length) <= 2);
+      });
     })
   );
   if (fuzzy.length === 1) return { status: 'found', dish: fuzzy[0], matchedBy: 'fuzzy' };
