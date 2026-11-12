@@ -92,10 +92,10 @@ body.is-book {
    * 拉伸 6% 会把「食有灵」和画里的器物压扁拉长，宁可不做这点挺拔。
    */
   --closed-cover-stretch: 1;
-  --mark-w: 42px;
-  --mk-base-font: 14.5px;
-  --mk-base-pad: 7px;
-  --mk-base-gap: 5px;
+  --mark-w: 56px;
+  --mk-base-font: 18px;
+  --mk-base-pad: 9px;
+  --mk-base-gap: 7px;
   position: relative;
   width: var(--book-w, 1100px);
   height: var(--book-h, 720px);
@@ -966,26 +966,27 @@ body.is-book {
   pointer-events: none;
 }
 
-/* ---------- 章节书签：画册级固定右侧导航 ----------
- * 这一层挂在 .bk-stage 上，不是 .bk-book / .bk-spread 的子元素：
- *   - 不继承书页的 rotateY、translateX 和翻页 transform；
- *   - 不被书页 overflow 裁切；
- *   - 不随左右页内容变化重新计算；
- *   - 只在窗口尺寸变化时由 fit() 更新 --book-w 后改变左端基准。
+/* ---------- 章节书签：书籍外框右缘导航 ----------
+ * .bk-marks 是 .bk-book 的直接子元素，与 .bk-spread / .bk-cover 同级。
+ *   - 跟随 .bk-book 的整体回正 / 缩放 / 平移 / 旋转；
+ *   - 不进入 .bk-spread，不继承单张纸的 rotateY / translateX / 翻页 transform；
+ *   - 不被书页 overflow 裁切，也不参与左右页内容重排。
  *
- * 左端基准 = 舞台中线 + 书宽的一半 + 4px，也就是画册右缘外侧；
- * 平板 / 手机会在下方媒体查询中改为右侧紧凑栏。
+ * 定位只使用书籍自身宽度：书签内侧压住书缘 4px，其余部分露在书外，
+ * 因此无论书开合、缩放还是旋转，都会像夹在实体书里的标签一样贴合。
  */
 .bk-marks {
-  --mark-w: 42px;
+  --mark-w: 56px;
+  --mark-overlap: 4px;
   position: absolute;
   top: 50%;
-  left: calc(50% + (var(--book-w, 1100px) / 2) + 4px);
-  right: auto;
+  right: calc(var(--mark-overlap) - var(--mark-w, 56px));
+  left: auto;
   z-index: 980;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
+  width: var(--mark-w, 56px);
   gap: var(--mk-gap, 6px);
   transform: translateY(-50%);
   transform-origin: 100% 50%;
@@ -997,7 +998,7 @@ body.is-book {
   position: relative;
   display: flex;
   justify-content: flex-end;
-  width: var(--mark-w, 42px);
+  width: var(--mark-w, 56px);
   transform: none;
   pointer-events: none;
 }
@@ -1007,14 +1008,14 @@ body.is-book {
   position: relative;
   display: block;
   pointer-events: auto;
-  width: var(--mark-w, 42px);
+  width: var(--mark-w, 56px);
   /* 统一靠右对齐：不再用 margin 把单枚书签推进书页，避免整列宽度不一致 */
   margin-right: 0;
-  padding: var(--mk-pad, 7px) 0;
+  padding: var(--mk-pad, 9px) 0;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   /* 字号由 JS 按书页高度收起（--mk-font），小窗口时书签列不会越过书页上下沿 */
-  font-size: var(--mk-font, var(--mk-base-font, 14.5px));
+  font-size: var(--mk-font, var(--mk-base-font, 18px));
   line-height: 1;
   letter-spacing: 0.12em;
   color: #6d4a2c;
@@ -1700,10 +1701,10 @@ body.is-book {
     /* 手机另有自己的合书尺寸，不沿用桌面数值：屏幕窄，书要占更多纵向空间 */
     --closed-scale: 0.64;
     --closed-cover-stretch: 1;
-    --mark-w: 36px;
-    --mk-base-font: 13px;
-    --mk-base-pad: 6px;
-    --mk-base-gap: 4px;
+    --mark-w: 44px;
+    --mk-base-font: 15px;
+    --mk-base-pad: 8px;
+    --mk-base-gap: 6px;
   }
 
   .bk-book--closed {
@@ -1714,21 +1715,19 @@ body.is-book {
     transform: rotateZ(0deg) scale(var(--closed-scale, 0.56));
   }
 
-  /* 单页模式只有一条书口（右侧），书签统一为右侧紧凑栏，仍不随翻页移动 */
+  /* 单页模式只有一条书口（右侧），书签跟随单页书整体缩放与倾斜 */
   .bk-marks {
-    --mark-w: 36px;
-    left: auto;
-    right: calc(env(safe-area-inset-right, 0px) + 2px);
+    --mark-w: 44px;
   }
 
   .bk-mark-rig {
-    width: var(--mark-w, 36px);
+    width: var(--mark-w, 44px);
   }
 
   .bk-mark {
-    width: var(--mark-w, 36px);
-    padding: var(--mk-pad, 6px) 0;
-    font-size: var(--mk-font, var(--mk-base-font, 13px));
+    width: var(--mark-w, 44px);
+    padding: var(--mk-pad, 8px) 0;
+    font-size: var(--mk-font, var(--mk-base-font, 15px));
     letter-spacing: 0.1em;
   }
 

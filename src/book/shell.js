@@ -97,12 +97,12 @@ export function createShell(root) {
 
   const camera = h('div', { class: 'bk-camera' }, shadow, book);
 
-  /* ---------- 书签：画册级固定导航，不进入书页 / 翻页 3D 层 ---------- */
+  /* ---------- 书签：书籍外框导航，跟随整本书的变换 ---------- */
   function attachMarks(api) {
     markApi = api;
-    // 挂在 .bk-stage，而不是 .bk-book：书页的 rotateY / 翻页位移 / overflow 都碰不到它。
-    // 位置由 .bk-marks 相对舞台和 --book-w 计算，见 book.css。
-    stage.append(api.layer);
+    // 挂在 .bk-book：书签和 .bk-spread / .bk-cover 同级，继承整本书的
+    // 回正、缩放、平移与旋转；但不进入纸张叶片，不会跟单页翻页。
+    book.append(api.layer);
   }
 
   /* ---------- 右上角账号 / AI 入口（由 account.js 填充） ---------- */

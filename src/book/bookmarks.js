@@ -1,16 +1,20 @@
 /**
- * 章节书签（画册级固定导航）
+ * 章节书签（书籍外框导航）
  * ------------------------------------------------------------
- * 书签不再绑定某一张会翻转的纸，也不会跟着纸从右书口跑到左书口。
- * 所有有效章节始终按 CHAPTERS 的顺序，在画册最右侧纵向排列；
- * 翻页、跳章、开合、聊天 / 视频面板展开时只更新选中态，不改位置。
+ * 书签是书籍外框的一部分：它跟随整本书的回正、缩放、平移和旋转，
+ * 但和 .bk-spread / .bk-cover 同级，不进入纸张叶片，因此不会被单页翻页带走。
+ * 所有有效章节始终按 CHAPTERS 的顺序，贴在书籍右缘纵向排列；
+ * 翻页、跳章、聊天 / 视频面板展开时只更新选中态，不改位置。
  *
- *   .bk-marks      挂在 .bk-stage 的独立绝对定位层，位置由 book.css 计算
- *     └ .bk-mark-rig
- *         └ .bk-mark
+ *   .bk-book
+ *     ├ .bk-spread（左右页 / 翻页叶片）
+ *     ├ .bk-cover（封面）
+ *     └ .bk-marks（书籍右缘导航，跟随 .bk-book 的整体变换）
+ *         └ .bk-mark-rig
+ *             └ .bk-mark
  *
  * anchorPage / spread 仍保留在 data 属性里，供导航定位章节使用；
- * 它们不再参与书签的屏幕位置计算。
+ * 它们不参与书签的视觉定位。
  */
 import { h } from '../lib/dom.js';
 
@@ -54,7 +58,7 @@ export function createBookmarks({ list, onPick }) {
       onPick(spec);
     });
 
-    // 固定竖列中的一枚：不需要再从书脊伸出的联动杆
+    // 书籍右缘竖列中的一枚：只做定位包装，不参与书页翻页
     const rig = h('div', { class: 'bk-mark-rig' }, tab);
     layer.append(rig);
 
@@ -72,9 +76,8 @@ export function createBookmarks({ list, onPick }) {
   /**
    * 只同步非位置状态。
    *
-   * 书签从章节纸页模型中分离之后，翻页 / 跳章 / 开合都不再参与屏幕位置计算。
-   * 这里刻意不读取 angleFor，也不写 --rig-deg / --mark-flip：
-   * 任何一次写角度都会让「固定右侧」失效。
+   * 书签的屏幕位置完全由祖先 .bk-book 的整体 transform 决定；
+   * 单页翻页 / 跳章不会改变这个 transform，所以这里不写任何几何值。
    *
    * @param {{
    *   closed: boolean,
@@ -94,7 +97,7 @@ export function createBookmarks({ list, onPick }) {
     layer.classList.toggle('is-single', !!single);
   }
 
-  /** 诊断：每枚书签现在绑在哪张纸、哪一侧 */
+  /** 诊断：每枚书签当前所在侧与屏幕位置 */
   function state() {
     return items.map(({ spec, tab, sheet, side }) => ({
       bookmarkId: spec.id,

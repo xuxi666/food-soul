@@ -148,7 +148,7 @@ export function initBook({ root, routerApi = null }) {
   const RECIPE_TURN_MS = Math.round(TURN_MS * 0.7);
   let phase = 'CLOSED_TILTED';
   let bookStateClass = 'bk-book--closed';
-  /* 开书动画进入「页已摊开」阶段后为 true：书签据此落到各自绑定的纸张上 */
+  /* 开书动画进入「页已摊开」阶段后为 true：书签据此更新开合状态 */
   let marksOpen = false;
   function setBookState(cls) {
     bookStateClass = cls;
@@ -156,7 +156,7 @@ export function initBook({ root, routerApi = null }) {
     if (shell.shadow) shell.shadow.className = `bk-shadow ${cls.replace('bk-book--', 'bk-shadow--')}`;
     followShadow();
     shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
-    // 合上 / 打开：书签按纸张归属重排（合上时全部回右侧）
+    // 合上 / 打开：只同步书签状态；位置由 .bk-book 的整体变换带动
     syncMarks();
   }
   function setPhase(next) {
@@ -237,11 +237,9 @@ export function initBook({ root, routerApi = null }) {
   }
 
   /*
-   * 章节书签：一枚书签绑一张真实的纸。
-   * anchorPage 取的是这一章第一跨页的「右页」（2*spread+3）——
-   * 这样读到这一章时，这张纸还在右侧（未翻），书签就在右边；
-   * 继续往后翻，这张纸被翻到左边，书签自然跟着到左侧，符合实物画册。
-   * 书签上不印页码，页码只作为定位数据存在。
+   * 章节书签：统一贴在书籍外框右缘。
+   * anchorPage / spread 只作章节导航定位数据，不再决定书签的视觉位置；
+   * 书签位置由 .bk-book 的整体变换统一带动，不会随单张纸翻到左侧。
    *
    * 书签的名字与色标、目录页的条目与名称，都来自 chapters.js 的同一份 CHAPTERS：
    * 两边只认章节 id，不允许各写一套。
@@ -267,8 +265,8 @@ export function initBook({ root, routerApi = null }) {
   requestAnimationFrame(() => fitMarks());
 
   /*
-   * 书签位置是画册级的固定导航，不再参与纸张角度 / 当前跨页的计算。
-   * syncMarks 只负责把开合、单页等状态交给书签；翻页动画期间不必逐帧更新书签。
+   * 书签是书籍外框导航，屏幕位置由 .bk-book 的整体 transform 自动带动，
+   * 不再参与纸张角度 / 当前跨页的计算。syncMarks 只同步开合、单页状态。
    */
   function syncMarks() {
     if (!marksApi) return;
@@ -284,8 +282,8 @@ export function initBook({ root, routerApi = null }) {
   syncMarks();
 
   /**
-   * 书签是固定右侧导航：这里只按书页高度收字号 / 内边距 / 间距，
-   * 保证整列不越过书页上下沿；不再计算随开合变化的缩放。
+   * 书签贴在书籍右缘：这里只按书籍高度收字号 / 内边距 / 间距，
+   * 保证整列不越过书页上下沿；缩放由 .bk-book 的整体 transform 统一带动。
    * 基准值写在 CSS 里（桌面/手机各一套），这里只读，避免两边数值走散。
    */
   function cssNum(name, fallback) {
@@ -300,9 +298,9 @@ export function initBook({ root, routerApi = null }) {
     const bookH = lastBox.h;
     if (!bookH) return;
     // 1) 先按书页高度收字号：书小时书签跟着收，保证整列不越过书页上下沿
-    const BASE = cssNum('--mk-base-font', 14.5);
-    const basePad = cssNum('--mk-base-pad', 11);
-    const baseGap = cssNum('--mk-base-gap', 6);
+    const BASE = cssNum('--mk-base-font', 18);
+    const basePad = cssNum('--mk-base-pad', 9);
+    const baseGap = cssNum('--mk-base-gap', 7);
     shell.el.style.setProperty('--mk-font', `${BASE}px`);
     shell.el.style.setProperty('--mk-pad', `${basePad}px`);
     shell.el.style.setProperty('--mk-gap', `${baseGap}px`);
@@ -457,9 +455,9 @@ export function initBook({ root, routerApi = null }) {
 
       /*
        * 纸张先全部合回 0°：书合着，全被封面挡着，看不见。
-       * 接着 fan() 在开书动画期间把它们各自旋转到应在的角度 ——
-       * 书签绑在纸上，于是跟着自己的纸从右书口一路转到目的地，
-       * 全程没有「书打开了书签才跳过去」的瞬移。
+       * 接着 fan() 在开书动画期间把它们各自旋转到应在的角度。
+       * 书签在 .bk-book 外框层，整个开书过程只跟随书籍回正 / 放大，
+       * 不会被纸张的角度带着单独旋转。
        */
       sheets.collapse();
 
@@ -706,10 +704,9 @@ export function initBook({ root, routerApi = null }) {
 
   /**
    * 书签点击：
-   * - 书合着 → 先算出这个书签绑定的章节跨页，把它预先摆成纸张内容，再执行「一次」开书动画；
+   * - 书合着 → 先算出目标章节跨页并预摆纸张，再执行「一次」开书动画；
    *   动画结束时书就停在目标章节上，不经过首页，也不再有第二次翻页。
-   * - 书已经打开 → 按真实纸张一页一页翻过去（书签跟着各自的纸张动），
-   *   距离超出纸页栈范围时再落位。
+   * - 书已经打开 → 按真实纸张一页一页翻过去；书签本身始终贴在书籍外框右缘。
    */
   /* 动画途中又点了别的书签：记下最后一个，当前这段动画走完再接着去（不会竞态、不会丢点击） */
   let pendingChapter = null;
@@ -1145,7 +1142,7 @@ export function initBook({ root, routerApi = null }) {
     }
   }
 
-  /** 书签点击：统一入口（书开着翻页；站内页上先挂回纸张再翻） */
+  /** 书签点击：统一入口（书开着翻页；站内页上先恢复画册再翻） */
   async function goBookmark(spec) {
     const chapter = chapterById(spec?.id);
     if (!chapter) return false;
@@ -1428,7 +1425,7 @@ export function initBook({ root, routerApi = null }) {
     /* 目录页：当前高亮的章节（验收用） */
     setChapterActive: (id) => book.setChapterActive?.(id),
     catalogItems: () => [...document.querySelectorAll('.catalog__item')].map((i) => ({ id: i.dataset.chapter, on: i.classList.contains('is-on') })),
-    /* 书签当前绑在哪张纸、在哪一侧（诊断 / 验收用） */
+    /* 书签当前所在侧与屏幕位置（诊断 / 验收用） */
     marks: () => (marksApi ? marksApi.state() : []),
     /* 「生成菜谱」统一导航（验收 / 诊断用；全站入口走 recipe-nav.navigateToRecipeModule） */
     recipeNav: goRecipeModule,
