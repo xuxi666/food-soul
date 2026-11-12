@@ -14,6 +14,8 @@
 
 原始记录没有物理删除：迁移库原始 82 条仍在 [library-dishes.js](../src/data/library-dishes.js) 中，AI 补全 43 条仍在 [generated-dishes.json](../data/generated-dishes.json) 中；[dish-merges.js](../src/data/dish-merges.js) 负责在运行时停用并保留旧 id 的解析。这样既清掉展示重复，也保留审计、菜谱和回滚能力。
 
+> 线上说明：生产环境 `/opt/food-soul/data/` 是独立运行时数据，部署脚本按设计不会覆盖它。线上 AI 原始记录为 36 条，且不包含本次的 4 个合并 id，因此线上 `/api/health` 的 `generated` 为 36；本地开发库为 43→39。线上静态图鉴同样为 83 道。
+
 ## 二、重复分类
 
 | 类型 | 数量 | 处理 |
@@ -127,5 +129,5 @@
 
 - `node --check` 通过：dish-merges.js、dishes.js、library-dishes.js、server/dish-search.mjs、server/recipe-lookup.mjs、src/views/dishes.js。
 - `vite build` 通过；仅有项目原有的 CSS 压缩告警和动态 import 提示，与本次菜品数据清理无关。
-- `/api/health` 返回 `dishes:83, generated:39`；旧 id 查询和“白斩鸡 / 麻辣豆腐 / 清蒸石斑鱼”等别名查询均可解析到标准菜。
+- 本地 `/api/health` 返回 `dishes:83, generated:39`；线上 `http://47.93.33.108/api/health` 返回 `dishes:83, generated:36`（线上数据不含被合并 id）。旧 id 查询和“白斩鸡 / 麻辣豆腐 / 清蒸石斑鱼”等别名查询均可解析到标准菜。
 - 未提交 Git、未推送、未部署。
