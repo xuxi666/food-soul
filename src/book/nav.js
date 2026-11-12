@@ -30,7 +30,6 @@ export const NAV_EVENT = 'foodsoul:book-nav';
 const MODULE_NAMES = {
   catalog: '目录',
   dishes: '图鉴',
-  recommendations: '寻味推荐',
   cuisines: '菜系',
   tastes: '口味',
   recipe: '菜谱',

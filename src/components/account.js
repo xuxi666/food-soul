@@ -44,73 +44,6 @@ function statusInfo(ai, siteAi) {
   return { full: '已保存配置，尚未验证', short: '待验证', tone: 'warn', title: '已保存配置，尚未验证' };
 }
 
-/** 画册右上角：优先显示真正在线（已通过服务端连接测试）的模型 ID。 */
-function bookAiStatus(ai, siteAi) {
-  if (siteAi?.enabled) {
-    const model = String(siteAi.model || '').trim();
-    return {
-      short: model || '在线',
-      tone: 'ok',
-      model,
-      title: model
-        ? `当前在线模型：${model}（全站内置 AI，不是 Epicure 外部 MCP）`
-        : '全站内置 AI 已连接（不是 Epicure 外部 MCP）',
-    };
-  }
-  if (siteAi?.masterEnabled) {
-    if (!siteAi.configured) {
-      return {
-        short: '未配置',
-        tone: 'off',
-        model: '',
-        title: '全站内置 AI 已开启，但还没有配置模型',
-      };
-    }
-    return {
-      short: '连接异常',
-      tone: 'error',
-      model: '',
-      title: '全站内置 AI 的配置未通过连接测试，当前不可用',
-    };
-  }
-  if (!ai?.configured) {
-    return { short: '未配置', tone: 'off', model: '', title: 'AI 未配置，点击接入' };
-  }
-  if (ai.status === 'failed') {
-    return {
-      short: '连接异常',
-      tone: 'error',
-      model: '',
-      title: `AI 连接异常：${ai.lastError || '请检查配置'}`,
-    };
-  }
-  if (ai.status === 'unavailable') {
-    return { short: '暂不可用', tone: 'warn', model: '', title: 'AI 暂时不可用，请稍后重试' };
-  }
-  if (ai.verified) {
-    const model = String(ai.model || '').trim();
-    return {
-      short: model || '在线',
-      tone: 'ok',
-      model,
-      title: model ? `当前在线模型：${model}（个人配置）` : '个人 AI 已连接',
-    };
-  }
-  return {
-    short: '待验证',
-    tone: 'warn',
-    model: '',
-    title: 'AI 配置已保存，尚未通过连接测试',
-  };
-}
-
-const BOOK_SPARK_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-  '<path d="M12 3.5l1.5 4.2 4.2 1.5-4.2 1.5L12 15l-1.5-4.3L6.3 9.2l4.2-1.5L12 3.5z"/>' +
-  '<path d="M18.5 15.2l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8.8-2.1z"/>' +
-  '<path d="M5.2 15.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6.6-1.6z"/>' +
-  '</svg>';
-
 /**
  * 供其他页面唤起登录弹窗（如社区发布前未登录）。
  * mountAccount 时绑定真实实现，未挂载时调用是空操作。
@@ -120,9 +53,8 @@ export function openAuthModal(tab = 'login') {
   openAuthRef?.(tab);
 }
 
-export function mountAccount(root, { variant = 'default' } = {}) {
-  if (!root) return null;
-  const bookMode = variant === 'book';
+export function mountAccount(root) {
+  if (!root) return;
 
   const state = {
     me: null,
@@ -131,12 +63,9 @@ export function mountAccount(root, { variant = 'default' } = {}) {
     modalKeyHandler: null,
     testing: false,
     verifyToken: '',
-    menuOpen: false,
-    userMenu: null,
-    userBtn: null,
   };
 
-  const bar = h('div', { class: bookMode ? 'bk-account' : 'account-bar' });
+  const bar = h('div', { class: 'account-bar' });
   root.append(bar);
 
   /* ---------------- 状态 ---------------- */
@@ -168,12 +97,7 @@ export function mountAccount(root, { variant = 'default' } = {}) {
   }
 
   function renderBar() {
-    if (state.menuOpen) closeUserMenu();
     clear(bar);
-    if (bookMode) {
-      renderBookBar();
-      return;
-    }
     if (state.loading) {
       bar.append(h('span', { class: 'account-status account-status--off', text: '读取 AI 状态…' }));
       return;
@@ -214,6 +138,7 @@ export function mountAccount(root, { variant = 'default' } = {}) {
     if (user) {
       /*
        * 管理后台入口：只有服务端 /api/auth/me 返回 role=admin 时才渲染。
+       * 前端没有任何「假设自己是管理员」的开关；入口本身也只是一枚印章菜单项，
        * 真正的守卫在服务端 requireAdmin（/api/admin/* 全部 401/403）。
        */
       if (user.role === 'admin') {
@@ -221,18 +146,33 @@ export function mountAccount(root, { variant = 'default' } = {}) {
           h(
             'a',
             {
-              class: 'account-btn account-btn--ghost',
+              class: 'seal-entry',
               href: '/admin',
               'data-link': '',
+              'data-seal-entry': 'admin',
               title: '进入管理员后台',
+              onclick: () => {
+                try {
+                  window.dispatchEvent(new CustomEvent('foodsoul:seal-panel-close'));
+                } catch {
+                  /* noop */
+                }
+              },
             },
-            '管理员后台'
+            h('span', { class: 'seal-entry__seal', 'aria-hidden': 'true', text: '印' }),
+            h(
+              'span',
+              { class: 'seal-entry__text' },
+              h('b', { text: '管理员后台' }),
+              h('em', { text: '仅管理员可见 · 画册内页' })
+            ),
+            h('span', { class: 'seal-entry__go', 'aria-hidden': 'true', text: '›' })
           )
         );
       }
       bar.append(
         h('span', { class: 'account-user', text: user.name || user.email, title: user.email }),
-        h('button', { class: 'account-btn account-btn--ghost', type: 'button', onclick: () => logout() }, '退出')
+        h('button', { class: 'account-btn account-btn--ghost', type: 'button', onclick: logout }, '退出')
       );
     } else {
       bar.append(
@@ -249,213 +189,18 @@ export function mountAccount(root, { variant = 'default' } = {}) {
     }
   }
 
-  /* ---------------- 画册右上角：用户名 + 接入 AI ---------------- */
-
-  function closeUserMenu() {
-    const wasOpen = state.menuOpen;
-    if (state.userMenu) {
-      state.userMenu.hidden = true;
-      state.userMenu.classList.remove('is-open');
-    }
-    state.userBtn?.setAttribute('aria-expanded', 'false');
-    state.menuOpen = false;
-    return wasOpen;
-  }
-
-  function toggleUserMenu() {
-    if (!state.userMenu || !state.me?.user) return false;
-    if (state.menuOpen) {
-      closeUserMenu();
-      return true;
-    }
-    closeUserMenu();
-    state.menuOpen = true;
-    state.userMenu.hidden = false;
-    state.userMenu.classList.add('is-open');
-    state.userBtn?.setAttribute('aria-expanded', 'true');
-    return true;
-  }
-
-  function renderBookBar() {
-    if (state.loading) {
-      const userLoading = h(
-        'div',
-        { class: 'bk-user-entry' },
-        h(
-          'button',
-          { class: 'bk-user-btn is-loading', type: 'button', disabled: true },
-          h('span', { class: 'bk-user-btn__avatar', 'aria-hidden': 'true', text: '…' }),
-          h('span', { class: 'bk-user-btn__name', text: '读取账号…' })
-        )
-      );
-      const aiLoading = h(
-        'button',
-        { class: 'bk-ai-btn is-loading', type: 'button', disabled: true },
-        h('span', { class: 'bk-ai-btn__icon', html: BOOK_SPARK_ICON }),
-        h('span', { class: 'bk-ai-btn__label', text: '接入 AI' }),
-        h('span', { class: 'bk-ai-btn__state', text: '读取中…' })
-      );
-      bar.append(aiLoading, userLoading);
-      return;
-    }
-
-    const user = state.me?.user;
-    const displayName = String(user?.name || user?.email || '').trim();
-    const initial = user ? (displayName || user.email || '客').trim().slice(0, 1) : '登';
-    const userBtn = h(
-      'button',
-      {
-        class: 'bk-user-btn',
-        type: 'button',
-        'aria-haspopup': user ? 'menu' : 'dialog',
-        'aria-expanded': 'false',
-        title: user ? `当前账号：${user.email || displayName}` : '登录或注册',
-        onclick: (e) => {
-          e.stopPropagation();
-          if (!user) {
-            closeUserMenu();
-            openAuth('login', false);
-            return;
-          }
-          toggleUserMenu();
-        },
-      },
-      h('span', { class: 'bk-user-btn__avatar', 'aria-hidden': 'true', text: initial }),
-      h('span', {
-        class: 'bk-user-btn__name',
-        text: user ? displayName || user.email : '登录 / 注册',
-      }),
-      h('span', { class: 'bk-user-btn__chev', 'aria-hidden': 'true', text: '⌄' })
-    );
-
-    let menu = null;
-    if (user) {
-      menu = h('div', { class: 'bk-user-menu', role: 'menu', hidden: true });
-      menu.append(
-        h(
-          'div',
-          { class: 'bk-user-menu__head' },
-          h('span', { class: 'bk-user-menu__avatar', 'aria-hidden': 'true', text: initial }),
-          h(
-            'div',
-            { class: 'bk-user-menu__who' },
-            h('span', { class: 'bk-user-menu__eyebrow', text: '当前账号' }),
-            h('strong', { text: displayName || user.email }),
-            h('span', { class: 'bk-user-menu__email', text: user.email || '' })
-          )
-        )
-      );
-
-      if (user.role === 'admin') {
-        menu.append(
-          h(
-            'a',
-            {
-              class: 'bk-user-menu__item bk-user-menu__item--admin',
-              href: '/admin',
-              'data-link': '',
-              role: 'menuitem',
-              title: '进入管理员后台',
-              onclick: () => closeUserMenu(),
-            },
-            h('span', { class: 'bk-user-menu__item-main', text: '管理员后台' }),
-            h('span', { class: 'bk-user-menu__item-note', text: '仅管理员可见' }),
-            h('span', { class: 'bk-user-menu__item-go', 'aria-hidden': 'true', text: '›' })
-          )
-        );
-      }
-
-      menu.append(
-        h(
-          'button',
-          {
-            class: 'bk-user-menu__item bk-user-menu__item--logout',
-            type: 'button',
-            role: 'menuitem',
-            onclick: () => void logout(true),
-          },
-          h('span', { class: 'bk-user-menu__item-main', text: '退出登录' })
-        )
-      );
-    }
-
-    const userEntry = h('div', { class: 'bk-user-entry' }, userBtn, menu);
-    const aiInfo = bookAiStatus(state.me?.ai, state.me?.siteAi);
-    const aiBtn = h(
-      'button',
-      {
-        class: 'bk-ai-btn',
-        type: 'button',
-        title: `${aiInfo.title} · 点击配置`,
-        'aria-label': aiInfo.model
-          ? `接入 AI，当前在线模型 ${aiInfo.model}`
-          : `接入 AI，${aiInfo.title}`,
-        onclick: () => {
-          closeUserMenu();
-          if (!state.me?.user) {
-            try {
-              sessionStorage.setItem('openAiAfterLogin', '1');
-            } catch {
-              /* noop */
-            }
-            openAuth('login', true);
-            return;
-          }
-          openAiModal();
-        },
-      },
-      h('span', { class: 'bk-ai-btn__icon', 'aria-hidden': 'true', html: BOOK_SPARK_ICON }),
-      h('span', { class: 'bk-ai-btn__label', text: '接入 AI' }),
-      h('span', { class: `bk-ai-btn__state is-${aiInfo.tone}`, text: aiInfo.short })
-    );
-
-    state.userBtn = userBtn;
-    state.userMenu = menu;
-    bar.append(aiBtn, userEntry);
-  }
-
-  document.addEventListener('click', (e) => {
-    if (!state.menuOpen) return;
-    if (bar.contains(e.target)) return;
-    closeUserMenu();
-  });
-
-  document.addEventListener(
-    'keydown',
-    (e) => {
-      if (e.key !== 'Escape') return;
-      if (state.modal) {
-        closeModal();
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      if (state.menuOpen) {
-        closeUserMenu();
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    },
-    true
-  );
-
-  async function logout(confirmFirst = false) {
-    if (confirmFirst && !window.confirm('确认退出登录？退出后需要重新登录。')) return false;
-    closeUserMenu();
+  async function logout() {
     try {
       await api.auth.logout();
-    } catch (err) {
-      toast(err?.message || '退出登录失败，请稍后重试', 'err');
-      return false;
+    } catch {
+      /* noop */
     }
     try {
       sessionStorage.removeItem('openAiAfterLogin');
     } catch {
       /* noop */
     }
-    // 退出后回到首页封面：不把未登录用户留在受保护页或内页
-    location.assign('/');
-    return true;
+    location.reload();
   }
 
   /* ---------------- 弹窗 ---------------- */
@@ -469,7 +214,6 @@ export function mountAccount(root, { variant = 'default' } = {}) {
   }
 
   function openModal({ title, subtitle, body, footer }) {
-    closeUserMenu();
     closeModal();
     const card = h('div', { class: 'account-modal', role: 'dialog', 'aria-modal': 'true' });
     const head = h(
@@ -520,7 +264,6 @@ export function mountAccount(root, { variant = 'default' } = {}) {
   /* ---------------- 登录 / 注册 ---------------- */
 
   function openAuth(initialTab = 'login', thenAi = false) {
-    closeUserMenu();
     openAuthRef = openAuth;
     let tab = initialTab;
     const error = h('p', { class: 'account-error', hidden: true });
@@ -615,7 +358,6 @@ export function mountAccount(root, { variant = 'default' } = {}) {
   /* ---------------- 接入 AI ---------------- */
 
   async function openAiModal() {
-    closeUserMenu();
     if (!state.me?.user) {
       try {
         sessionStorage.setItem('openAiAfterLogin', '1');
@@ -833,23 +575,5 @@ export function mountAccount(root, { variant = 'default' } = {}) {
     refresh();
   });
 
-  function closeTopOverlay() {
-    if (state.modal) {
-      closeModal();
-      return true;
-    }
-    if (state.menuOpen) {
-      closeUserMenu();
-      return true;
-    }
-    return false;
-  }
-
   refresh();
-  return {
-    closeMenu: closeUserMenu,
-    closeTopOverlay,
-    hasOverlay: () => Boolean(state.modal || state.menuOpen),
-    refresh,
-  };
 }

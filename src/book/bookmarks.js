@@ -1,16 +1,21 @@
 /**
- * 章节书签（画册级固定导航）
+ * 章节书签（书口索引）
  * ------------------------------------------------------------
- * 书签不再绑定某一张会翻转的纸，也不会跟着纸从右书口跑到左书口。
- * 所有有效章节始终按 CHAPTERS 的顺序，在画册最右侧纵向排列；
- * 翻页、跳章、开合、聊天 / 视频面板展开时只更新选中态，不改位置。
+ * 每一枚书签都绑在一张真实的纸上，而不是固定在书边：
  *
- *   .bk-marks      挂在 .bk-stage 的独立绝对定位层，位置由 book.css 计算
- *     └ .bk-mark-rig
- *         └ .bk-mark
+ *   bookmark.anchorPage  —— 这一章第一跨页的「右页」页码（2*spread+3）
+ *   bookmark.anchorSheet —— 当前正载着这一页的那张纸（每帧从纸页栈查，不缓存）
+ *   bookmark.side        —— 那张纸在右（未翻）还是在左（已翻 -180°）
  *
- * anchorPage / spread 仍保留在 data 属性里，供导航定位章节使用；
- * 它们不再参与书签的屏幕位置计算。
+ * 结构上是一根「联动杆」：
+ *
+ *   .bk-mark-rig   从书脊（50%）开始、宽度 = 一页 + 34px，绕书脊 rotateY(--rig-deg)
+ *     └ .bk-mark   贴在杆的右端，即书页外缘
+ *
+ * 杆的角度 = 它绑定那张纸的角度（同一个值、同一帧、同一个旋转轴）。
+ * 所以纸翻到左边，杆跟着转到左边，书签自然出现在左侧书口；
+ * 纸翻回来，书签也跟着回来。过 90° 时杆和书签正好侧立看不见，
+ * 就在这一刻把标签自身反翻 180°，保证左侧的标签仍然正着读。
  */
 import { h } from '../lib/dom.js';
 
@@ -29,7 +34,7 @@ export function createBookmarks({ list, onPick }) {
 
   const items = [];
 
-  for (const spec of list) {
+  for (const [i, spec] of list.entries()) {
     const tab = h(
       'button',
       {
@@ -47,6 +52,7 @@ export function createBookmarks({ list, onPick }) {
       h('span', { class: 'bk-mark__edge', 'aria-hidden': 'true' })
     );
     tab.style.setProperty('--mark-tint', spec.tint);
+    tab.style.setProperty('--mark-jog', `${(i % 3) * 2}px`);
     /* 书签优先级最高：先吃掉这次点击，绝不让它落到下面的页面内容上 */
     tab.addEventListener('click', (e) => {
       e.preventDefault();
@@ -54,7 +60,7 @@ export function createBookmarks({ list, onPick }) {
       onPick(spec);
     });
 
-    // 固定竖列中的一枚：不需要再从书脊伸出的联动杆
+    // 联动杆：从书脊伸到书页外缘，绕书脊转，角度跟纸张同步
     const rig = h('div', { class: 'bk-mark-rig' }, tab);
     layer.append(rig);
 
@@ -70,25 +76,37 @@ export function createBookmarks({ list, onPick }) {
   }
 
   /**
-   * 只同步非位置状态。
-   *
-   * 书签从章节纸页模型中分离之后，翻页 / 跳章 / 开合都不再参与屏幕位置计算。
-   * 这里刻意不读取 angleFor，也不写 --rig-deg / --mark-flip：
-   * 任何一次写角度都会让「固定右侧」失效。
-   *
+   * 按「这张纸现在什么角度」重排书签。
    * @param {{
+   *   angleFor: (spec: any) => { angle: number, slot: string } | null,
    *   closed: boolean,
    *   single: boolean,
    *   settling: boolean,
    * }} options
    */
-  function sync({ closed, single, settling }) {
+  function sync({ angleFor, closed, single, settling }) {
     layer.classList.toggle('is-settling', !!settling);
     for (const item of items) {
-      item.sheet = null;
-      item.side = 'right';
-      item.tab.classList.remove('is-left');
-      item.tab.classList.add('is-right');
+      let deg = 0;
+      let side = 'right';
+      let sheet = null;
+
+      if (!closed && !single) {
+        sheet = angleFor(item.spec);
+        if (sheet) {
+          deg = sheet.angle || 0;
+          side = deg <= -90 ? 'left' : 'right';
+        }
+      }
+
+      item.sheet = sheet;
+      item.side = side;
+
+      item.rig.style.setProperty('--rig-deg', `${deg.toFixed(2)}deg`);
+      // 过 90° 时标签侧立不可见，在这一刻把标签自身反翻，保证落地后正着读
+      item.tab.style.setProperty('--mark-flip', Math.abs(deg) >= 90 ? '180deg' : '0deg');
+      item.tab.classList.toggle('is-left', side === 'left');
+      item.tab.classList.toggle('is-right', side === 'right');
     }
     layer.classList.toggle('is-closed', !!closed);
     layer.classList.toggle('is-single', !!single);

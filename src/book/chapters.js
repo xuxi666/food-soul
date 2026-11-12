@@ -10,7 +10,6 @@
 
 const VIEWS = {
   dishes: () => import('../views/dishes.js'),
-  recommendations: () => import('../views/recommendations.js'),
   cuisine: () => import('../views/cuisine.js'),
   taste: () => import('../views/taste.js'),
   recipe: () => import('../views/recipe.js'),
@@ -78,25 +77,12 @@ export const CHAPTERS = [
     layout: 'atlas',
   },
   {
-    id: 'recommendations',
-    label: '推荐',
-    title: '寻味推荐',
-    desc: '输入心情、口味和预算，让 AI 为你挑选今天最值得尝试的美食。',
-    group: 'explore',
-    num: '02',
-    tint: '#a9573d',
-    side: 'right',
-    href: '/recommendations',
-    load: load('recommendations'),
-    layout: 'flow',
-  },
-  {
     id: 'cuisines',
     label: '菜系',
     title: '八大菜系',
     desc: '川、粤、苏、浙、闽、湘、徽、鲁，一系一专题。',
     group: 'explore',
-    num: '03',
+    num: '02',
     tint: '#9a7248',
     side: 'right',
     href: '/cuisines/chuan',
@@ -110,7 +96,7 @@ export const CHAPTERS = [
     title: '口味探索',
     desc: '麻辣、清鲜、醇厚……按味觉特征横向发现美食。',
     group: 'explore',
-    num: '04',
+    num: '03',
     tint: '#c0854a',
     side: 'right',
     href: '/tastes/mala',
@@ -124,7 +110,7 @@ export const CHAPTERS = [
     title: '智能食谱',
     desc: '给出条件，生成结构化的菜谱与烹饪建议。',
     group: 'cook',
-    num: '05',
+    num: '04',
     tint: '#b08e4e',
     side: 'right',
     href: '/recipe',
@@ -137,7 +123,7 @@ export const CHAPTERS = [
     title: '食材厨房',
     desc: '食材库与风味图谱，从食材之间的关系推导配方。',
     group: 'cook',
-    num: '06',
+    num: '05',
     tint: '#6f7f5f',
     side: 'right',
     href: '/kitchen',
@@ -150,7 +136,7 @@ export const CHAPTERS = [
     title: '美食社区',
     desc: '发布做菜记录，浏览他人的作品与心得。',
     group: 'culture',
-    num: '07',
+    num: '06',
     tint: '#7a5a40',
     side: 'right',
     href: '/community',
@@ -178,7 +164,6 @@ export function chapterOf(pathname) {
   if (p.startsWith('/cuisines/')) return 'cuisines';
   if (p.startsWith('/tastes/')) return 'tastes';
   if (p === '/dishes' || p.startsWith('/dishes/')) return 'dishes';
-  if (p === '/recommendations') return 'recommendations';
   if (p === '/recipe') return 'recipe';
   if (p === '/kitchen' || p === '/recommend') return 'kitchen';
   if (p === '/community') return 'community';

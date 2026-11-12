@@ -18,13 +18,12 @@ import { listComments, addComment, toggleLike, reportComment, deleteComment, com
 import { listPosts, addPost, toggleLike as togglePostLike, addComment as addPostComment, reportPost, removePost, saveImage, postStats, findPost, aiReplyStats, KINDS } from './community.mjs';
 import { searchDishVideos, searchVideos } from './videos.mjs';
 import { searchDishes, findDish, generatedDishes } from './dish-search.mjs';
-import { recommend, normalizeConditions, normalizeFeedbackPayload } from './recommendations.mjs';
 import { lookupDish, lookupLibrary, rememberLookup, takeLookup, attachSourceSupport } from './recipe-lookup.mjs';
 import { personaForCategory, dishesForCategory } from '../src/data/categories.js';
 import { extractJSON } from './json-utils.mjs';
 import { chatStream, complete } from './ai-adapter.mjs';
 import { getCurrentUser, setSessionCookie, clearSessionCookie, requireUser, requireAdmin, sameOrigin, syncRole } from './auth.mjs';
-import { createUser, findUserByEmail, insertRecommendationFeedback } from './db.mjs';
+import { createUser, findUserByEmail } from './db.mjs';
 import { hashPassword, verifyPassword } from './security.mjs';
 import { getAIStatus, getAIConfig, testUserConfig, saveUserConfig, deleteUserConfig, listUserModels, markAIConfigStatus } from './ai-config.mjs';
 import { resolveAIConfig, getSiteMode, getSiteAIStatus } from './site-ai.mjs';
@@ -567,72 +566,6 @@ async function handleSuggest(req, res) {
     noteAIStatus(user, err?.code || 'network', err?.message || String(err));
     return send(res, 200, { suggestions: [], error: '建议生成失败' });
   }
-}
-
-/* ------------------------------------------------------------------ *
- * 寻味推荐：条件筛选 → 图鉴候选 → 模型排序 → 服务端复核
- * ------------------------------------------------------------------ */
-
-async function handleRecommendation(req, res, { refresh = false } = {}) {
-  if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const ctx = resolveAIForRequest(req, res, 'recommendation');
-  if (!ctx) return;
-  const { user, ai } = ctx;
-
-  const rl = rateLimit(req, `recommendation:${refresh ? 'refresh' : 'generate'}:${actorKey(req, user)}`, refresh ? 10 : 14, 60_000);
-  if (!rl.ok) return send(res, 429, { error: `推荐请求过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
-
-  const body = await readJson(req);
-  const conditions = normalizeConditions(body);
-  if (!conditions.hasInput) {
-    return send(res, 400, { error: '先告诉食灵一点线索：心情、口味、预算或一句描述都可以。', code: 'empty_conditions' });
-  }
-
-  const excludedDishIds = Array.isArray(body.excludedDishIds)
-    ? body.excludedDishIds.map((id) => String(id || '').trim()).filter(Boolean).slice(0, 120)
-    : [];
-  const batchIndex = refresh ? Math.max(1, Math.min(50, Number(body.batchIndex) || 1)) : 0;
-
-  try {
-    const payload = await recommend({
-      conditions,
-      aiConfig: ai.config,
-      batchIndex,
-      excludedDishIds,
-    });
-    noteAIStatus(user, 'ok', null);
-    return send(res, 200, { ...payload, model: ai.config.model || '', provider: ai.config.provider || '' });
-  } catch (err) {
-    const code = err?.code || 'recommendation_failed';
-    if (code === 'ai_output_invalid' || code === 'ai_failed' || code === 'network' || code === 'timeout') {
-      noteAIStatus(user, code, err?.message || String(err));
-    }
-    const status = Number(err?.status) || 500;
-    if (status >= 500) console.warn(`[recommendation] ${code}: ${String(err.message || err).slice(0, 200)}`);
-    return send(res, status, {
-      error: String(err?.message || '推荐生成失败，请稍后重试').slice(0, 220),
-      code,
-      ...(err?.details || {}),
-    });
-  }
-}
-
-async function handleRecommendationFeedback(req, res) {
-  if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源' });
-  const user = getCurrentUser(req);
-  const rl = rateLimit(req, `recommendation-feedback:${actorKey(req, user)}`, 30, 60_000);
-  if (!rl.ok) return send(res, 429, { error: '反馈过于频繁，请稍后再试', code: 'rate_limited' });
-
-  const body = await readJson(req);
-  const payload = normalizeFeedbackPayload(body);
-  const id = insertRecommendationFeedback({
-    recommendationId: payload.recommendationId,
-    batchIndex: payload.batchIndex,
-    dishId: payload.dishId,
-    feedbackType: payload.feedbackType,
-    userId: user?.id || null,
-  });
-  return send(res, 200, { ok: true, id });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1414,7 +1347,6 @@ export async function handleApi(req, res) {
         ai: 'user-config',
         dishes: DISHES.length,
         generated: generatedDishes().length,
-        recommendations: true,
         comments: commentCountByDish(),
         community: postStats(),
       });
@@ -1485,9 +1417,6 @@ export async function handleApi(req, res) {
 
     if (req.method === 'POST' && path === '/api/chat') return await handleChat(req, res);
     if (req.method === 'POST' && path === '/api/suggest') return await handleSuggest(req, res);
-    if (req.method === 'POST' && path === '/api/recommendations/generate') return await handleRecommendation(req, res);
-    if (req.method === 'POST' && path === '/api/recommendations/refresh') return await handleRecommendation(req, res, { refresh: true });
-    if (req.method === 'POST' && path === '/api/recommendations/feedback') return await handleRecommendationFeedback(req, res);
     if (req.method === 'POST' && path === '/api/recipe/lookup') return await handleRecipeLookup(req, res);
     if (req.method === 'POST' && path === '/api/recipe') return await handleRecipe(req, res);
 

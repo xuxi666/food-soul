@@ -111,7 +111,7 @@
 .account-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 300;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -382,10 +382,75 @@ select.account-input {
   color: var(--color-gold-ink);
 }
 
-/* ---------- 账号栏（旧站点页面兼容） ---------- */
+/* ---------- 「印」面板里的管理后台入口（仅服务端 role=admin 渲染） ---------- */
 
 .account-bar {
   flex-wrap: wrap;
+}
+
+.seal-entry {
+  flex: 0 0 100%;
+  order: -1;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border: 1px solid rgba(194, 69, 45, 0.42);
+  border-radius: 10px;
+  background: linear-gradient(160deg, #fdf4e4 0%, #f7e8cf 100%);
+  color: #7a4a2a;
+  text-decoration: none;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.seal-entry:hover {
+  transform: translateY(-1px);
+  border-color: rgba(194, 69, 45, 0.72);
+  box-shadow: 0 6px 16px rgba(120, 82, 56, 0.16);
+}
+
+.seal-entry__seal {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(194, 69, 45, 0.55);
+  border-radius: 4px;
+  background: rgba(255, 253, 246, 0.8);
+  color: #b5452f;
+  font-size: 13px;
+}
+
+.seal-entry__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.seal-entry__text b {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: #8c4a2f;
+}
+
+.seal-entry__text em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: #a9845f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seal-entry__go {
+  color: #b5452f;
+  font-size: 15px;
+  line-height: 1;
 }
 
 /* 内置 AI 开启时的提示条 */
