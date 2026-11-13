@@ -86,32 +86,30 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
 
   const root = h('article', { class: `dm${compact ? ' dm--compact' : ''}`, style: `--accent:${accent}` });
 
-  /* ---------- 一、顶部标题区 ---------- */
-  root.append(
+  /* ---------- 一、标题区（放在图片右侧的信息栏里） ---------- */
+  const head = h(
+    'header',
+    { class: 'dm-head' },
     h(
-      'header',
-      { class: 'dm-head' },
-      h(
-        'p',
-        { class: 'dm-head__kicker' },
-        h('span', { text: cuisine?.name || '中华料理' }),
-        h('i', { 'aria-hidden': 'true', text: '·' }),
-        h('span', { text: tastes.map((t) => t.name).join(' / ') || '风味' })
-      ),
-      h(
-        'h1',
-        { class: 'dm-title' },
-        dish.name,
-        dish.nameEn ? h('span', { class: 'dm-title__en', text: dish.nameEn }) : null
-      ),
-      dish.oneLiner ? h('p', { class: 'dm-line', text: dish.oneLiner }) : null,
-      tags.length
-        ? h('div', { class: 'dm-tags' }, ...tags.map((t) => h('em', { class: 'dm-tag', text: t })))
-        : null
-    )
+      'p',
+      { class: 'dm-head__kicker' },
+      h('span', { text: cuisine?.name || '中华料理' }),
+      h('i', { 'aria-hidden': 'true', text: '·' }),
+      h('span', { text: tastes.map((t) => t.name).join(' / ') || '风味' })
+    ),
+    h(
+      'h1',
+      { class: 'dm-title' },
+      dish.name,
+      dish.nameEn ? h('span', { class: 'dm-title__en', text: dish.nameEn }) : null
+    ),
+    dish.oneLiner ? h('p', { class: 'dm-line', text: dish.oneLiner }) : null,
+    tags.length
+      ? h('div', { class: 'dm-tags' }, ...tags.map((t) => h('em', { class: 'dm-tag', text: t })))
+      : null
   );
 
-  /* ---------- 二、中部：左图 + 右侧四个入口 ---------- */
+  /* ---------- 二、首屏：左图 40% + 右信息 60% ---------- */
   const moreHref = cuisine ? `/cuisines/${dish.cuisine}` : '/dishes';
   const moreLabel = cuisine ? `更多${cuisine.name}` : '更多同类菜';
 
@@ -236,39 +234,20 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
     )
   );
 
-  root.append(h('section', { class: 'dm-top' }, media, acts));
-
-  /* ---------- 三、基础信息条 ---------- */
+  /* ---------- 三、基础信息与营养：放进右侧信息栏 ---------- */
   const facts = [
-    ['难度', DIFFICULTY_LABEL[dish.difficulty] || '—'],
     ['用时', minutes ? `${minutes} 分钟` : '—'],
+    ['难度', DIFFICULTY_LABEL[dish.difficulty] || '—'],
+    ['人均', dish.price ? `¥${dish.price}` : '—'],
     ['份量', dish.servings ? `${dish.servings} 人份` : '—'],
-    ['参考', dish.price ? `¥${dish.price}` : '—'],
   ];
-  root.append(
-    h(
-      'ul',
-      { class: 'dm-facts' },
-      ...facts.map(([k, v]) => h('li', {}, h('b', { text: k }), h('span', { text: v })))
-    )
-  );
-
-  /* ---------- 四、资料区：紧凑信息块 ---------- */
-  if (dish.intro) {
-    root.append(sec('intro', kick('01', '这道菜'), h('p', { class: 'dm-lead', text: dish.intro })));
-  }
-
-  const tokens = flavorWords;
-  if (tokens.length) {
-    root.append(
-      sec('flavor', kick('02', '风味特点'), h('div', { class: 'dm-flavor' }, ...tokens.map((t) => h('em', { text: t }))))
-    );
-  }
 
   const ings = dish.ingredients || [];
+  const tokens = flavorWords;
+  let nutrition = null;
   if (ings.length) {
     // 画册页空间有限：营养入口默认折叠，只占一行；展开后才请求营养接口。
-    const nutrition = createNutritionCard(
+    nutrition = createNutritionCard(
       {
         dishName: dish.name,
         sourceModule: 'dish-detail',
@@ -278,38 +257,93 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
       },
       { folded: true, title: '营养成分' }
     );
+  }
+
+  const mainIngs = ings.slice(0, 4);
+  const info = h(
+    'div',
+    { class: 'dm-info' },
+    head,
+    tokens.length || dish.texture
+      ? h(
+          'div',
+          { class: 'dm-info__feature' },
+          h('p', { class: 'dm-info__label', text: '菜品特色' }),
+          tokens.length ? h('div', { class: 'dm-flavor' }, ...tokens.map((t) => h('em', { text: t }))) : null,
+          dish.texture ? h('p', { class: 'dm-info__texture', text: dish.texture }) : null
+        )
+      : null,
+    h(
+      'ul',
+      { class: 'dm-facts' },
+      ...facts.map(([k, v]) => h('li', {}, h('b', { text: k }), h('span', { text: v })))
+    ),
+    mainIngs.length
+      ? h(
+          'div',
+          { class: 'dm-info__ingredients' },
+          h(
+            'p',
+            { class: 'dm-info__label' },
+            '主要食材',
+            ings.length > mainIngs.length ? h('span', { text: `等 ${ings.length} 种` }) : null
+          ),
+          h(
+            'ul',
+            { class: 'dm-ing dm-ing--summary' },
+            ...mainIngs.map((name, i) =>
+              h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: name }))
+            )
+          )
+        )
+      : null,
+    nutrition?.el || null,
+    acts
+  );
+
+  root.append(h('section', { class: 'dm-top' }, media, info));
+
+  /* ---------- 四、图片下方：完整介绍与资料 ---------- */
+  if (dish.intro) {
+    root.append(sec('intro', kick('01', '这道菜'), h('p', { class: 'dm-lead', text: dish.intro })));
+  }
+
+  if (ings.length) {
     root.append(
       sec(
         'ingredients',
-        kick('03', '主要食材'),
+        kick('02', '完整食材'),
         h(
           'ul',
           { class: 'dm-ing' },
           ...ings.map((name, i) =>
             h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: name }))
           )
-        ),
-        nutrition.el
+        )
       )
     );
   }
 
-  if (dish.texture || techniques.length || notes.length) {
+  if (techniques.length) {
     root.append(
       sec(
-        'craft',
-        kick('04', '菜品特色'),
-        // 口感用真实 texture 字段；signature 已经拆成上面的风味标签，这里不重复
-        dish.texture ? h('p', { class: 'dm-body', text: dish.texture }) : null,
-        techniques.length
-          ? h(
-              'ul',
-              { class: 'dm-tech' },
-              ...techniques.map((t, i) => h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: t })))
-            )
-          : null,
-        notes.length ? h('p', { class: 'dm-sub', text: '操作要点' }) : null,
-        notes.length ? h('ul', { class: 'dm-notes' }, ...notes.map((t) => h('li', { text: t }))) : null
+        'steps',
+        kick('03', '制作步骤'),
+        h(
+          'ul',
+          { class: 'dm-tech' },
+          ...techniques.map((t, i) => h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: t })))
+        )
+      )
+    );
+  }
+
+  if (notes.length) {
+    root.append(
+      sec(
+        'tips',
+        kick('04', '烹饪技巧'),
+        h('ul', { class: 'dm-notes' }, ...notes.map((t) => h('li', { text: t })))
       )
     );
   }

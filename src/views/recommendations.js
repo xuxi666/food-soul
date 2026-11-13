@@ -1756,13 +1756,19 @@ function buildAiDetail(entry) {
           { class: 'rec-tags' },
           ...(item.matchTags || []).map((tag) => h('span', { class: 'rec-tag', text: tag }))
         ),
-        metaLine(item),
+        metaLine(item)
+      );
+      // 营养、操作和「为什么推荐」放到首行下方的通栏，避免右栏文字把图片撑高，
+      // 主图与「其他推荐」的 4:3 图片保持同一档实际尺寸。
+      const extra = h(
+        'div',
+        { class: 'rec-top__extra' },
         nutritionSummary.el,
         h('div', { class: 'rec-top__links' }, actionRow(item)),
         whyDetails(item, 'rec-why--top'),
         h('div', { class: 'rec-top__foot' }, dislikeButton(item, card))
       );
-      card.append(media, body);
+      card.append(media, body, extra);
       return card;
     }
 

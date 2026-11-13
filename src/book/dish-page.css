@@ -1,6 +1,7 @@
 /* ============================================================
- * 菜品详情：编辑式紧凑双栏
- *   顶部标题 → 中部（左图 + 右侧 2×2 入口）→ 信息条 → 资料区 → 评论
+ * 菜品详情：左图 + 右信息栏的编辑式首屏
+ *   左 40% 主图；右 60% 菜名 / 特色 / 基础信息 / 主食材 / 营养 / 入口
+ *   下方：完整介绍、完整食材、制作步骤、烹饪技巧、掌故、评论
  * 与书页共用的记号：暖米白 / 浅茶金细线 / 朱红强调 / 宋体标题
  * ============================================================ */
 
@@ -102,19 +103,111 @@
   color: #7d5a34;
 }
 
-/* ---------- 二、中部：左图 + 右侧四个入口 ---------- */
+/* ---------- 二、首屏：左图约 40%，右侧信息约 60% ---------- */
 .dm-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
   margin-top: 13px;
 }
 
-/* 主图：约半页宽、左对齐，统一 4:3 裁切，避免横竖图高度不一致 */
+/* 主图：随栏宽自适应但限制最大尺寸，统一 4:3 裁切，避免横竖图高度不一致 */
 .dm-hero {
   position: relative;
+  width: 100%;
+  max-width: 280px;
   margin: 0;
   min-width: 0;
+  align-self: start;
+}
+
+/* 右侧信息栏：菜名 → 特色 → 基础信息 → 主食材 → 营养 → 四个入口 */
+.dm-info {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.dm-info .dm-head {
+  padding: 0;
+}
+
+.dm-info .dm-title {
+  font-size: 25px;
+  line-height: 1.15;
+}
+
+.dm-info .dm-line {
+  margin-top: 5px;
+  font-size: 11.5px;
+}
+
+.dm-info .dm-tags {
+  margin-top: 6px;
+}
+
+.dm-info__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: #a9793f;
+}
+
+.dm-info__label span {
+  flex: none;
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+  color: #9c815c;
+}
+
+.dm-info__feature {
+  padding-top: 8px;
+  border-top: 1px solid var(--dm-gold-soft);
+}
+
+.dm-info__texture {
+  margin: 5px 0 0;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--dm-ink-2);
+}
+
+.dm-info .dm-flavor em {
+  padding: 1px 7px;
+  font-size: 9.5px;
+}
+
+.dm-info__ingredients {
+  padding-top: 7px;
+  border-top: 1px solid var(--dm-gold-soft);
+}
+
+.dm-ing--summary {
+  gap: 0 10px;
+}
+
+.dm-ing--summary li {
+  padding: 2px 0;
+}
+
+.dm-ing--summary span {
+  overflow: hidden;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-info .nutrition-card,
+.dm-info .nutrition-fold {
+  width: 100%;
 }
 
 .dm-hero__frame {
@@ -144,14 +237,31 @@
   letter-spacing: 0.02em;
 }
 
-/* 四个入口：胶囊按钮（同色系渐变底 + 三层同色涟漪 + 文字上滑），纵向依次排列
+/* 四个入口：胶囊按钮（同色系渐变底 + 三层同色涟漪 + 文字上滑），首屏内 2×2 紧凑排列
    颜色全部由 .dm-act 上的 CSS 变量驱动，四枚按钮共用同一套结构与动效，只换色板 */
 .dm-acts {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
   min-width: 0;
+  margin-top: 1px;
+}
+
+/* 右栏过窄时：聊天按钮占满一行，其余三枚并排，长按钮「与《菜名》聊聊」不被截断 */
+@container (max-width: 300px) {
+  .dm-acts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dm-act--chat {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 210px) {
+  .dm-acts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .dm-act {
@@ -167,18 +277,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 46px;
+  gap: 5px;
+  height: 34px;
   margin: 0;
-  padding: 0 18px;
+  padding: 0 8px;
+  min-width: 0;
   border: 0;
   border-radius: 999px;
   background: none;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 10px;
   font-weight: 500;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: var(--act-ink);
   text-align: center;
   text-decoration: none;
@@ -344,8 +455,8 @@
 }
 
 .dm-act__ico {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
@@ -360,14 +471,19 @@
 .dm-act__label {
   position: relative;
   display: block;
+  min-width: 0;
+  max-width: 100%;
   height: 1.3em;
   overflow: hidden;
 }
 
 .dm-act__txt {
   display: block;
+  max-width: 100%;
   height: 1.3em;
+  overflow: hidden;
   line-height: 1.3;
+  text-overflow: ellipsis;
   white-space: nowrap;
   transition:
     transform 1.4s cubic-bezier(0.19, 1, 0.22, 1),
@@ -429,8 +545,8 @@
 /* ---------- 三、基础信息条 ---------- */
 .dm-facts {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 13px 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--dm-gold);
@@ -441,13 +557,17 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 5px 9px 5px;
+  padding: 4px 8px;
   border-left: 1px solid var(--dm-gold-soft);
 }
 
-.dm-facts li:first-child {
+.dm-facts li:nth-child(odd) {
   border-left: 0;
   padding-left: 2px;
+}
+
+.dm-facts li:nth-child(n + 3) {
+  border-top: 1px solid var(--dm-gold-soft);
 }
 
 .dm-facts b {
@@ -577,6 +697,19 @@
   list-style: none;
 }
 
+/* 制作步骤按顺序竖排，避免和「代表性技法」的横向标签混淆 */
+.dm-sec--steps .dm-tech {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.dm-sec--steps .dm-tech li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .dm-tech li {
   display: inline-flex;
   align-items: baseline;
@@ -641,14 +774,14 @@
   font-size: 12px;
 }
 
-/* ---------- 窄页（手机单页 / 平板竖屏） ---------- */
-@media (max-width: 900px) {
-  .dm {
-    padding: 0 4px 24px;
-  }
-
+/* ---------- 平板：仍保持左右分栏，只收窄主图 ---------- */
+@media (max-width: 1024px) {
   .dm-title {
     font-size: 23px;
+  }
+
+  .dm-info .dm-title {
+    font-size: 22px;
   }
 
   .dm-title__en {
@@ -657,14 +790,33 @@
     font-size: 9.5px;
   }
 
-  /* 单栏：主图在上（仍是视觉重心），四个入口在下方两列 */
+  .dm-top {
+    grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .dm-hero {
+    max-width: 300px;
+  }
+}
+
+/* ---------- 手机：图片在上、信息在下，仍保持 4:3 与两列入 ---------- */
+@media (max-width: 700px) {
+  .dm {
+    padding: 0 4px 24px;
+  }
+
+  .dm-info .dm-title {
+    font-size: 21px;
+  }
+
   .dm-top {
     grid-template-columns: minmax(0, 1fr);
     gap: 11px;
   }
 
-  .dm-hero img {
-    width: 100%;
+  .dm-hero {
+    max-width: none;
   }
 
   .dm-acts {
@@ -672,24 +824,26 @@
   }
 
   .dm-act {
-    height: 44px;
-    font-size: 12px;
-  }
-
-  .dm-facts {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .dm-facts li:nth-child(3) {
-    border-left: 0;
-    padding-left: 2px;
-  }
-
-  .dm-facts li:nth-child(n + 3) {
-    border-top: 1px solid var(--dm-gold-soft);
+    height: 40px;
+    font-size: 11px;
   }
 
   .dm-ing {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 放在媒体查询之后：容器很窄时压小按钮文字，保证四个入口都完整可读 */
+@container (max-width: 300px) {
+  .dm-act {
+    gap: 4px;
+    padding: 0 5px;
+    font-size: 10.5px;
+  }
+}
+
+@container (max-width: 150px) {
+  .dm-acts {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

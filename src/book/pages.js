@@ -60,7 +60,9 @@ const SPLITTERS = {
     // 这样详情永远不会横跨书脊，也不会和聊天抢同一张纸。
     return {
       left: [],
-      right: [root.querySelector('.page-head'), root.querySelector('.dm-head'), root.querySelector('.dm-top'), root.querySelector('.dm-facts'), ...root.querySelectorAll('.cat-block')],
+      // 首屏的标题、基础信息、食材 / 营养都已收进 .dm-top 的右栏，
+      // 不能再单独取出 .dm-head / .dm-facts，否则会把右栏节点拆散。
+      right: [root.querySelector('.page-head'), root.querySelector('.dm-top'), ...root.querySelectorAll('.cat-block')],
     };
   },
   admin(root) {
