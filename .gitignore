@@ -9,6 +9,7 @@ data/recommendation-dishes.json
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/nutrition-cache.json
 public/uploads
 public/dishes/generated
 public/dishes/recommendations

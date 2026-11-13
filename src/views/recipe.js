@@ -1,4 +1,5 @@
 import { h, clear, toast } from '../lib/dom.js';
+import { createNutritionCard } from '../components/nutrition-card.js';
 import { epicurePanel } from '../components/epicure-panel.js';
 import { api } from '../lib/api.js';
 import { copyText } from '../lib/clipboard.js';
@@ -403,6 +404,7 @@ export default {
     let selectedDishId = '';
     let current = null;
     let factor = 1;
+    let activeNutrition = null;
 
     function showError(message) {
       fieldError.textContent = message;
@@ -503,6 +505,8 @@ export default {
     }
 
     function renderRecipe(recipe, meta) {
+      activeNutrition?.destroy();
+      activeNutrition = null;
       current = recipe;
       factor = 1;
       const baseServings = recipe.servings;
@@ -513,13 +517,95 @@ export default {
       const servingsLabel = h('span', { text: `${baseServings} 人份` });
       const ingList = h('ul', { class: 'ing-list' });
 
+      function nutritionPayload() {
+        const rows = [
+          ...recipe.ingredients.map((i) => ({ i, role: 'main' })),
+          ...recipe.seasonings.map((i) => ({ i, role: 'aux' })),
+        ];
+        return {
+          dishName: recipe.dish_name,
+          sourceModule: 'recipe',
+          servings: recipe.servings,
+          ingredients: rows.map(({ i, role }) => ({
+            name: i.name,
+            amount: Number.isFinite(Number(i.amount)) ? Number((Number(i.amount) * factor).toFixed(2)) : null,
+            unit: i.unit || '',
+            role,
+          })),
+        };
+      }
+
+      function refreshNutrition() {
+        activeNutrition?.update(nutritionPayload());
+      }
+
+      function editAmount(item, amountEl) {
+        const oldText = `${fmtAmount(item.amount * factor)} ${item.unit}`;
+        const input = h('input', {
+          class: 'ing__amount-input',
+          type: 'number',
+          min: '0',
+          step: '1',
+          value: String(fmtAmount(item.amount * factor)),
+          'aria-label': `修改${item.name}的用量（${item.unit}）`,
+        });
+        const editor = h('span', { class: 'ing__amount-editor' }, input, h('span', { class: 'ing__amount-unit', text: ` ${item.unit}` }));
+        amountEl.replaceWith(editor);
+        let closed = false;
+        const close = (save) => {
+          if (closed) return;
+          closed = true;
+          if (save) {
+            const next = Number(input.value);
+            if (Number.isFinite(next) && next > 0) {
+              // 用户看到的是按当前人数缩放后的量，写回基础配方时要除回 factor。
+              item.amount = Number((next / factor).toFixed(2));
+            }
+          }
+          paintIngredients();
+          refreshNutrition();
+        };
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            close(true);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            close(false);
+          }
+        });
+        input.addEventListener('blur', () => close(true));
+        requestAnimationFrame(() => {
+          input.focus();
+          input.select();
+        });
+        input.title = `原用量：${oldText}`;
+      }
+
       function paintIngredients() {
         clear(ingList);
-        [...recipe.ingredients, ...recipe.seasonings].forEach((i, idx) => {
+        const rows = [
+          ...recipe.ingredients.map((i) => ({ i, role: 'main' })),
+          ...recipe.seasonings.map((i) => ({ i, role: 'aux' })),
+        ];
+        rows.forEach(({ i }, idx) => {
+          const amountEl = h('span', {
+            class: 'ing__amount ing__amount--editable',
+            role: 'button',
+            tabindex: '0',
+            title: '点击修改用量，营养分析会一起更新',
+            onclick: () => editAmount(i, amountEl),
+            onkeydown: (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                editAmount(i, amountEl);
+              }
+            },
+          }, `${fmtAmount(i.amount * factor)} ${i.unit}`);
           const li = h('li', { class: 'ing' },
             h('input', { type: 'checkbox', 'aria-label': `${i.name} 已备好`, onchange: (e) => li.classList.toggle('is-done', e.target.checked) }),
             h('span', { class: 'ing__name', text: i.name }),
-            h('span', { class: 'ing__amount', text: `${fmtAmount(i.amount * factor)} ${i.unit}` }),
+            amountEl,
             i.optional ? h('span', { class: 'ing__opt', text: '可选' }) : null
           );
           li.dataset.idx = String(idx);
@@ -597,6 +683,8 @@ export default {
       const metaPill = (label, value) =>
         h('span', { class: 'recipe-meta__item' }, h('em', { text: label }), h('b', { text: value }));
 
+      activeNutrition = createNutritionCard(nutritionPayload(), { title: '这道菜的营养成分' });
+
       const card = h(
         'article',
         { class: 'recipe-card' },
@@ -661,6 +749,7 @@ export default {
             )
           )
         ),
+        activeNutrition.el,
         recipe.common_mistakes.length || recipe.safety_notes.length
           ? h('div', { class: 'recipe-duo' },
               recipe.common_mistakes.length
@@ -688,6 +777,7 @@ export default {
         factor = next / baseServings;
         servingsLabel.textContent = `${next} 人份`;
         paintIngredients();
+        refreshNutrition();
       }
 
       paintIngredients();
@@ -864,6 +954,8 @@ export default {
       destroy() {
         window.removeEventListener(RECIPE_NAV_EVENT, onRecipeNav);
         window.removeEventListener('foodsoul:recipe-enter', onPlainEnter);
+        activeNutrition?.destroy();
+        activeNutrition = null;
       },
     };
   },

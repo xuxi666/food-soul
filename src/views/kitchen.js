@@ -1,6 +1,7 @@
 import { h, clear, toast } from '../lib/dom.js';
 import createGraph from '../components/flavour-graph.js';
 import { epicurePanel } from '../components/epicure-panel.js';
+import { createNutritionCard } from '../components/nutrition-card.js';
 
 /**
  * Epicure 厨房
@@ -87,6 +88,7 @@ export default {
     let generating = false;
     let genError = '';
     let result = null;
+    let activeNutrition = null;
     let lastNet = null;
 let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
 
@@ -1099,6 +1101,8 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
     }
 
     function renderResult(data) {
+      activeNutrition?.destroy();
+      activeNutrition = null;
       clear(resultBody);
       const r = data.recipe;
       const a = data.analysis || {};
@@ -1140,6 +1144,21 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
         );
       }
 
+      activeNutrition = createNutritionCard(
+        {
+          dishName: r.dish_name,
+          sourceModule: 'kitchen',
+          servings: Number(r.servings) > 0 ? Number(r.servings) : advanced.servings,
+          ingredients: (r.ingredients || []).map((it) => ({
+            name: it.name,
+            amount: Number(it.amount) > 0 ? Number(it.amount) : null,
+            unit: it.unit || '',
+            role: it.role === 'main' ? 'main' : 'aux',
+          })),
+        },
+        { title: '这道菜的营养成分' }
+      );
+
       resultBody.append(
         h(
           'section',
@@ -1157,6 +1176,7 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
           }),
           h('h3', {}, '食材'),
           ings,
+          activeNutrition.el,
           h('h3', {}, '步骤'),
           steps,
           r.creation_notes ? h('h3', {}, '创作说明') : null,
@@ -1428,6 +1448,8 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
       destroy() {
         window.removeEventListener('resize', onResize);
         stopGenTimer();
+        activeNutrition?.destroy();
+        activeNutrition = null;
         graph.destroy();
       },
     };

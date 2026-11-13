@@ -113,6 +113,17 @@ export const api = {
   recipe: (payload) =>
     jsonFetch('/api/recipe', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
 
+  /** 统一营养分析：厨房 / AI 推荐 / 菜谱 / 菜品详情共用 */
+  nutrition: {
+    analyze: (payload, { signal } = {}) =>
+      jsonFetch('/api/nutrition/analyze', {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(payload),
+        signal,
+      }),
+  },
+
   recommendations: {
     generate: (payload) =>
       jsonFetch('/api/recommendations/generate', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),

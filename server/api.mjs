@@ -29,6 +29,7 @@ import { createUser, findUserByEmail, insertRecommendationFeedback } from './db.
 import { hashPassword, verifyPassword } from './security.mjs';
 import { getAIStatus, getAIConfig, testUserConfig, saveUserConfig, deleteUserConfig, listUserModels, markAIConfigStatus } from './ai-config.mjs';
 import { resolveAIConfig, getSiteMode, getSiteAIStatus } from './site-ai.mjs';
+import { analyzeNutrition, nutritionPublicInfo } from './nutrition-service.mjs';
 import { rateLimit } from './rate-limit.mjs';
 import { handleAdmin, getAssetOverrides, submitReport } from './admin-routes.mjs';
 
@@ -1598,6 +1599,24 @@ export async function handleApi(req, res) {
     }
     if (req.method === 'POST' && path === '/api/recipe/lookup') return await handleRecipeLookup(req, res);
     if (req.method === 'POST' && path === '/api/recipe') return await handleRecipe(req, res);
+
+    /* ---------------- 统一营养分析 ---------------- */
+    if (req.method === 'GET' && path === '/api/nutrition/status') {
+      return send(res, 200, { ok: true, ...nutritionPublicInfo() });
+    }
+    if (req.method === 'POST' && path === '/api/nutrition/analyze') {
+      if (!sameOrigin(req)) return send(res, 403, { error: '非法请求来源', code: 'forbidden' });
+      const rl = rateLimit(req, `nutrition-${actorKey(req, getCurrentUser(req))}`, 60, 60_000);
+      if (!rl.ok) {
+        return send(res, 429, {
+          error: `营养分析请求过于频繁，请 ${rl.retryAfter} 秒后再试`,
+          code: 'rate_limited',
+        });
+      }
+      const body = await readJson(req, 80_000);
+      const result = analyzeNutrition(body);
+      return send(res, result.ok ? 200 : result.status || 400, result);
+    }
 
     /* ---------------- Epicure 厨房 ---------------- */
     if (req.method === 'GET' && path === '/api/epicure/status') {

@@ -14,6 +14,7 @@ import { api, chatStream } from '../lib/api.js';
 import { TASTES } from '../data/cuisines.js';
 import { recommendationPlaceholder, guardRecommendationImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from '../book/recipe-nav.js';
+import { createNutritionCard } from '../components/nutrition-card.js';
 
 const MOODS = [
   { id: 'treat', label: '想犒劳自己', icon: '✦' },
@@ -210,7 +211,27 @@ export default {
     let resultToken = 0;
     let imageBatch = 0;
     let imageAbort = null;
+    let activeNutritionCards = [];
+    let activeDetailNutrition = null;
     const imageInFlight = new Map();
+
+    function disposeNutritionCards() {
+      for (const card of activeNutritionCards) card.destroy();
+      activeNutritionCards = [];
+    }
+
+    function nutritionPayloadFor(item, module = 'recommendation') {
+      const names = (item.ingredients || [])
+        .map((x) => (typeof x === 'string' ? x.trim() : String(x?.name || '').trim()))
+        .filter(Boolean);
+      return {
+        dishName: item.name,
+        sourceModule: module,
+        servings: Number(item.servings) > 0 ? Number(item.servings) : 2,
+        allowTypicalPortions: true,
+        ingredients: names.map((name) => ({ name, amount: null, unit: '', role: 'main' })),
+      };
+    }
 
     /* ---------------- 左页：需求表单 ---------------- */
 
@@ -1081,6 +1102,8 @@ export default {
     function closeActiveOverlay() {
       activeChatStream?.abort?.();
       activeChatStream = null;
+      activeDetailNutrition?.destroy();
+      activeDetailNutrition = null;
       if (activeOverlay) {
         activeOverlay.cleanup?.();
         activeOverlay.overlay.remove();
@@ -1293,6 +1316,10 @@ export default {
           )
         : null;
 
+      activeDetailNutrition = createNutritionCard(nutritionPayloadFor(item), {
+        title: '这道菜的营养成分',
+      });
+
       panel.append(
         closeBtn,
         h(
@@ -1329,7 +1356,8 @@ export default {
             ),
             flavors,
             ingredients,
-            h('p', { class: 'rec-ai-detail__note', text: '价格与时间为 AI 按已有知识做的估算，不是实时市场数据；过敏原和具体配料请以下厨或点单时的实际信息为准。' }),
+            activeDetailNutrition.el,
+            h('p', { class: 'rec-ai-detail__note', text: '价格与时间为 AI 按已有知识做的估算，不是实时市场数据；营养值按食材名称与典型份量估算，具体配料请以下厨或点单时的实际信息为准。' }),
             h(
               'div',
               { class: 'rec-ai-detail__actions' },
@@ -1506,6 +1534,12 @@ export default {
 
     function renderTop(item, data) {
       const card = h('article', { class: 'rec-top', 'data-dish': itemKey(item) });
+      const nutritionSummary = createNutritionCard(nutritionPayloadFor(item), {
+        summaryOnly: true,
+        title: '营养成分',
+      });
+      activeNutritionCards.push(nutritionSummary);
+      nutritionSummary.el.addEventListener('foodsoul:nutrition-open', () => openAiDishDetail(item, data));
       const media = h(
         'div',
         {
@@ -1557,6 +1591,7 @@ export default {
           ...(item.matchTags || []).map((tag) => h('span', { class: 'rec-tag', text: tag }))
         ),
         metaLine(item),
+        nutritionSummary.el,
         h('div', { class: 'rec-top__links' }, actionRow(item)),
         whyDetails(item, 'rec-why--top'),
         h('div', { class: 'rec-top__foot' }, dislikeButton(item, card))
@@ -1567,6 +1602,12 @@ export default {
 
     function renderSmallCard(item, index) {
       const card = h('article', { class: 'rec-card', 'data-dish': itemKey(item), style: `--rec-i:${index}` });
+      const nutritionSummary = createNutritionCard(nutritionPayloadFor(item), {
+        summaryOnly: true,
+        title: '营养成分',
+      });
+      activeNutritionCards.push(nutritionSummary);
+      nutritionSummary.el.addEventListener('foodsoul:nutrition-open', () => openAiDishDetail(item, lastData));
       const media = h(
         'div',
         {
@@ -1609,6 +1650,7 @@ export default {
           ...(item.matchTags || []).slice(0, 3).map((tag) => h('span', { class: 'rec-tag rec-tag--small', text: tag }))
         ),
         metaLine(item),
+        nutritionSummary.el,
         whyDetails(item),
         actionRow(item, { compact: true }),
         h('div', { class: 'rec-card__foot' }, dislikeButton(item, card))
@@ -1618,6 +1660,7 @@ export default {
     }
 
     function renderResult(data) {
+      disposeNutritionCards();
       lastData = data;
       resultToken += 1;
       const items = [data.topPick, ...(data.recommendations || [])].filter(Boolean);
@@ -1945,6 +1988,7 @@ export default {
     return {
       destroy() {
         stopLoading();
+        disposeNutritionCards();
         closeActiveOverlay();
       },
     };

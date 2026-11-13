@@ -6,6 +6,7 @@ import './styles/community.css';
 import './styles/account.css';
 import './styles/admin.css';
 import './styles/kitchen.css';
+import './styles/nutrition.css';
 import './styles/music.css';
 
 import { initBook } from './book/index.js';

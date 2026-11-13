@@ -23,6 +23,7 @@ import { dishPlaceholder, guardImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from './recipe-nav.js';
 import { openDishChat } from './chat-panel.js';
 import { openDishVideos } from './video-panel.js';
+import { createNutritionCard } from '../components/nutrition-card.js';
 
 /**
  * 打开站内独立页面（AI 聊天 / 生成菜谱）。
@@ -117,10 +118,19 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
   const media = h(
     'figure',
     { class: 'dm-hero' },
-    guardImage(
-      h('img', { src: dish.image || dishPlaceholder(dish.name, '图片待补'), alt: dish.alt || dish.name, decoding: 'async' }),
-      dish.name,
-      '菜品图片'
+    // 4:3 容器只包住图片，图注仍留在容器外，避免改变详情页原有信息结构。
+    h(
+      'div',
+      { class: 'dm-hero__frame' },
+      guardImage(
+        h('img', {
+          src: dish.image || dishPlaceholder(dish.name, '图片待补'),
+          alt: dish.alt || dish.name,
+          decoding: 'async',
+        }),
+        dish.name,
+        '菜品图片'
+      )
     ),
     dish.alt ? h('figcaption', { class: 'dm-hero__cap', text: dish.alt }) : null
   );
@@ -257,6 +267,17 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
 
   const ings = dish.ingredients || [];
   if (ings.length) {
+    // 画册页空间有限：营养入口默认折叠，只占一行；展开后才请求营养接口。
+    const nutrition = createNutritionCard(
+      {
+        dishName: dish.name,
+        sourceModule: 'dish-detail',
+        servings: Number(dish.servings) > 0 ? Number(dish.servings) : 2,
+        allowTypicalPortions: true,
+        ingredients: ings.map((name) => ({ name, amount: null, unit: '', role: 'main' })),
+      },
+      { folded: true, title: '营养成分' }
+    );
     root.append(
       sec(
         'ingredients',
@@ -267,7 +288,8 @@ export function buildDishDoc(dish, { accent = '#d8b26a', compact = false, linkRe
           ...ings.map((name, i) =>
             h('li', {}, h('i', { text: String(i + 1).padStart(2, '0') }), h('span', { text: name }))
           )
-        )
+        ),
+        nutrition.el
       )
     );
   }
