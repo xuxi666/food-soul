@@ -12,7 +12,7 @@
 import { h, clear, toast } from '../lib/dom.js';
 import { api, chatStream } from '../lib/api.js';
 import { TASTES } from '../data/cuisines.js';
-import { dishPlaceholder, guardImage } from '../lib/placeholder.js';
+import { recommendationPlaceholder, guardRecommendationImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from '../book/recipe-nav.js';
 
 const MOODS = [
@@ -208,6 +208,9 @@ export default {
     let loadingTimer = 0;
     let statusTimer = 0;
     let resultToken = 0;
+    let imageBatch = 0;
+    let imageAbort = null;
+    const imageInFlight = new Map();
 
     /* ---------------- 左页：需求表单 ---------------- */
 
@@ -1113,32 +1116,129 @@ export default {
       return panel;
     }
 
-    function syncImage(item, key) {
-      const src = item.image;
-      if (!src) return;
-      for (const img of resultPane.querySelectorAll(`img[data-rec-img="${key}"]`)) {
-        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    function imagePayload(item) {
+      const flavor = item?.tasteNames?.length ? item.tasteNames : item?.flavor || [];
+      return {
+        name: item?.name || '',
+        ingredients: item?.ingredients || [],
+        flavor,
+        description: item?.description || item?.intro || '',
+        imageDescription: item?.imageDescription || '',
+      };
+    }
+
+    function setImageState(key, status) {
+      const nodes = resultPane.querySelectorAll(`[data-rec-image-state="${key}"]`);
+      for (const node of nodes) {
+        node.hidden = status !== 'loading';
+        node.textContent = status === 'loading' ? '正在匹配配图…' : '';
       }
-      if (activeOverlay?.imageItem && itemKey(activeOverlay.imageItem) === key) {
-        activeOverlay.imageEl?.setAttribute('src', src);
+      for (const media of resultPane.querySelectorAll(`[data-rec-media="${key}"]`)) {
+        media.classList.toggle('is-loading', status === 'loading');
+        media.classList.toggle('is-fallback', status === 'fallback');
+      }
+      for (const img of resultPane.querySelectorAll(`img[data-rec-img="${key}"]`)) {
+        img.dataset.imageStatus = status;
+        if (status === 'fallback') {
+          img.dataset.imageSource = 'fallback';
+          img.dataset.imageFallback = '1';
+        }
       }
     }
 
-    function hydrateImages(items) {
-      for (const item of items) {
-        if (item.sourceType !== 'ai_generated' || item.image) continue;
-        const key = itemKey(item);
-        api.recommendations
-          .image(item.name)
-          .then((res) => {
-            if (!res?.image) return;
-            item.image = res.image;
+    function syncImage(item, key) {
+      const src = item.image || item.imageUrl;
+      if (!src) {
+        setImageState(key, item.imageStatus === 'fallback' ? 'fallback' : 'loading');
+        return;
+      }
+      const imgs = resultPane.querySelectorAll(`img[data-rec-img="${key}"]`);
+      setImageState(key, 'loading');
+      for (const img of imgs) {
+        img.dataset.placeholder = '0';
+        img.dataset.imageSource = item.imageSource || '';
+        if (img.getAttribute('src') !== src) {
+          img.dataset.imageRetries = '0';
+          delete img.dataset.imageFallback;
+          img.setAttribute('src', src);
+        }
+        if (img.complete && img.naturalWidth > 0) setImageState(key, 'success');
+      }
+      if (activeOverlay?.imageItem && itemKey(activeOverlay.imageItem) === key) {
+        activeOverlay.imageEl.dataset.placeholder = '0';
+        activeOverlay.imageEl.setAttribute('src', src);
+        if (activeOverlay.imageEl.complete && activeOverlay.imageEl.naturalWidth > 0) {
+          setImageState(key, 'success');
+        }
+      }
+    }
+
+    function loadItemImage(item, batch, signal) {
+      if (!item || item.sourceType !== 'ai_generated' || item.image) return;
+      const key = itemKey(item);
+      const running = imageInFlight.get(key);
+      if (running && running.batch === batch) {
+        running.task.then(() => {
+          if (batch === imageBatch) syncImage(item, key);
+        });
+        return;
+      }
+      item.imageStatus = 'loading';
+      setImageState(key, 'loading');
+      const task = api.recommendations
+        .image(imagePayload(item), { signal })
+        .then((res) => {
+          if (batch !== imageBatch) return;
+          if (res?.imageStatus === 'success' && res.imageUrl) {
+            item.image = res.imageUrl;
+            item.imageUrl = res.imageUrl;
+            item.imageSource = res.imageSource || 'search';
+            item.imageStatus = 'success';
+            item.imageDescription = res.imageDescription || item.imageDescription || '';
             item.imageMatched = res.match || '';
             syncImage(item, key);
-          })
-          .catch(() => {
-            /* 配图失败不影响推荐卡片，继续用按菜名生成的占位图 */
-          });
+            return;
+          }
+          item.imageSource = res?.imageSource || 'fallback';
+          item.imageStatus = 'fallback';
+          item.imageDescription = res?.imageDescription || item.imageDescription || '';
+          item.imageFetchReason = res?.reason || 'image_not_found';
+          setImageState(key, 'fallback');
+        })
+        .catch(() => {
+          if (batch !== imageBatch) return;
+          item.imageStatus = 'fallback';
+          item.imageSource = 'fallback';
+          item.imageFetchReason = 'image_request_failed';
+          setImageState(key, 'fallback');
+        });
+      const entry = { batch, task };
+      imageInFlight.set(key, entry);
+      task.finally(() => {
+        if (imageInFlight.get(key) === entry) imageInFlight.delete(key);
+      });
+    }
+
+    function hydrateImages(items) {
+      const batch = ++imageBatch;
+      // 换一批时中止上一批未完成的配图请求，避免旧结果回填到新卡片。
+      if (imageAbort) imageAbort.abort();
+      imageAbort = new AbortController();
+      imageInFlight.clear();
+      const list = (items || []).filter((item) => item?.sourceType === 'ai_generated' && !item.image);
+      if (!list.length) return;
+      // 首推先取图；其余卡片异步、延迟触发，避免连续换一批时堆积请求。
+      loadItemImage(list[0], batch, imageAbort.signal);
+      const rest = list.slice(1);
+      if (!rest.length) return;
+      const run = () => {
+        if (batch !== imageBatch) return;
+        for (const item of rest) loadItemImage(item, batch, imageAbort.signal);
+      };
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(run, { timeout: 600 });
+      } else {
+        window.setTimeout(run, 120);
       }
     }
 
@@ -1157,12 +1257,17 @@ export default {
       const panel = createOverlay('rec-ai-detail', `${item.name}详情`);
       const image = h('img', {
         class: 'rec-ai-detail__img',
-        src: item.image || dishPlaceholder(item.name, '配图待补'),
+        src: item.image || item.imageUrl || recommendationPlaceholder(item.name),
         alt: item.alt || `${item.name}的配图`,
         loading: 'lazy',
         decoding: 'async',
         'data-rec-img': key,
+        'data-placeholder': item.image || item.imageUrl ? '0' : '1',
       });
+      image.addEventListener('load', () => {
+        if (image.dataset.placeholder !== '1') setImageState(key, 'success');
+      });
+      guardRecommendationImage(image, item.name, () => setImageState(key, 'fallback'));
       activeOverlay.imageItem = item;
       activeOverlay.imageEl = image;
       const closeBtn = h(
@@ -1193,7 +1298,7 @@ export default {
         h(
           'div',
           { class: 'rec-ai-detail__grid' },
-          h('div', { class: 'rec-ai-detail__media' }, guardImage(image, item.name, '配图暂不可用')),
+          h('div', { class: 'rec-ai-detail__media' }, image),
           h(
             'div',
             { class: 'rec-ai-detail__body' },
@@ -1375,6 +1480,30 @@ export default {
       input.focus();
     }
 
+    function recImage(item, { eager = false } = {}) {
+      const key = itemKey(item);
+      const src = item.image || item.imageUrl || recommendationPlaceholder(item.name);
+      const img = h('img', {
+        src,
+        alt: item.alt || `${item.name}的配图`,
+        loading: eager ? 'eager' : 'lazy',
+        decoding: 'async',
+        fetchpriority: eager ? 'high' : 'auto',
+        'data-rec-img': key,
+        'data-placeholder': item.image || item.imageUrl ? '0' : '1',
+        'data-image-source': item.imageSource || '',
+        'data-image-status': item.imageStatus || (item.image || item.imageUrl ? 'success' : 'loading'),
+      });
+      img.addEventListener('load', () => {
+        if (img.dataset.placeholder !== '1') setImageState(key, 'success');
+      });
+      return guardRecommendationImage(img, item.name, () => {
+        item.imageStatus = 'fallback';
+        item.imageSource = 'fallback';
+        setImageState(key, 'fallback');
+      });
+    }
+
     function renderTop(item, data) {
       const card = h('article', { class: 'rec-top', 'data-dish': itemKey(item) });
       const media = h(
@@ -1383,21 +1512,18 @@ export default {
           class: 'rec-top__media',
           role: 'button',
           tabindex: '0',
+          'data-rec-media': itemKey(item),
           'aria-label': `查看${item.name}详情`,
           onclick: () => openAiDishDetail(item, data),
           onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAiDishDetail(item, data); } },
         },
-        guardImage(
-          h('img', {
-            src: item.image || dishPlaceholder(item.name, '图片待补'),
-            alt: item.alt || item.name,
-            loading: 'lazy',
-            decoding: 'async',
-            'data-rec-img': itemKey(item),
-          }),
-          item.name,
-          '图片暂不可用'
-        ),
+        recImage(item, { eager: true }),
+        h('span', {
+          class: 'rec-media-state',
+          'data-rec-image-state': itemKey(item),
+          hidden: Boolean(item.image || item.imageUrl),
+          text: '正在匹配配图…',
+        }),
         h('span', { class: 'rec-top__media-label', text: '本餐首选' })
       );
       const body = h(
@@ -1447,21 +1573,18 @@ export default {
           class: 'rec-card__media',
           role: 'button',
           tabindex: '0',
+          'data-rec-media': itemKey(item),
           'aria-label': `查看${item.name}详情`,
           onclick: () => openAiDishDetail(item, lastData),
           onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAiDishDetail(item, lastData); } },
         },
-        guardImage(
-          h('img', {
-            src: item.image || dishPlaceholder(item.name, '图片待补'),
-            alt: item.alt || item.name,
-            loading: 'lazy',
-            decoding: 'async',
-            'data-rec-img': itemKey(item),
-          }),
-          item.name,
-          '图片暂不可用'
-        ),
+        recImage(item),
+        h('span', {
+          class: 'rec-media-state rec-media-state--small',
+          'data-rec-image-state': itemKey(item),
+          hidden: Boolean(item.image || item.imageUrl),
+          text: '正在匹配配图…',
+        }),
         h(
           'span',
           { class: 'rec-card__label' },

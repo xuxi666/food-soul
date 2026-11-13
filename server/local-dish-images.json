@@ -1,0 +1,448 @@
+{
+  "version": 1,
+  "note": "仅用于本地已有菜品图片匹配，不参与推荐生成",
+  "items": [
+    {
+      "name": "麻婆豆腐",
+      "aliases": [
+        "麻辣豆腐"
+      ],
+      "image": "/dishes/mapo-tofu.jpg"
+    },
+    {
+      "name": "水煮鱼",
+      "aliases": [
+        "水煮鱼片"
+      ],
+      "image": "/dishes/shui-zhu-yu.jpg"
+    },
+    {
+      "name": "白切鸡",
+      "aliases": [
+        "白斩鸡"
+      ],
+      "image": "/dishes/bai-qie-ji.jpg"
+    },
+    {
+      "name": "清蒸鱼",
+      "aliases": [
+        "清蒸鲈鱼",
+        "清蒸海鲈鱼",
+        "清蒸石斑鱼"
+      ],
+      "image": "/dishes/qing-zheng-yu.jpg"
+    },
+    {
+      "name": "糖醋鲤鱼",
+      "aliases": [],
+      "image": "/dishes/tang-cu-li-yu.jpg"
+    },
+    {
+      "name": "葱烧海参",
+      "aliases": [],
+      "image": "/dishes/cong-shao-hai-shen.jpg"
+    },
+    {
+      "name": "松鼠鳜鱼",
+      "aliases": [
+        "松鼠桂鱼"
+      ],
+      "image": "/dishes/song-shu-gui-yu.jpg"
+    },
+    {
+      "name": "狮子头",
+      "aliases": [
+        "清炖狮子头"
+      ],
+      "image": "/dishes/shi-zi-tou.jpg"
+    },
+    {
+      "name": "西湖醋鱼",
+      "aliases": [],
+      "image": "/dishes/xi-hu-cu-yu.jpg"
+    },
+    {
+      "name": "龙井虾仁",
+      "aliases": [],
+      "image": "/dishes/long-jing-xia-ren.jpg"
+    },
+    {
+      "name": "佛跳墙",
+      "aliases": [],
+      "image": "/dishes/fo-tiao-qiang.jpg"
+    },
+    {
+      "name": "荔枝肉",
+      "aliases": [],
+      "image": "/dishes/li-zhi-rou.jpg"
+    },
+    {
+      "name": "剁椒鱼头",
+      "aliases": [],
+      "image": "/dishes/duo-jiao-yu-tou.jpg"
+    },
+    {
+      "name": "小炒黄牛肉",
+      "aliases": [],
+      "image": "/dishes/xiao-chao-huang-niu-rou.jpg"
+    },
+    {
+      "name": "臭鳜鱼",
+      "aliases": [
+        "徽州臭鳜鱼"
+      ],
+      "image": "/dishes/chou-gui-yu.jpg"
+    },
+    {
+      "name": "黄山炖鸽",
+      "aliases": [],
+      "image": "/dishes/huang-shan-dun-ge.jpg"
+    },
+    {
+      "name": "回锅肉",
+      "aliases": [],
+      "image": "/dishes/huiguorou.jpg"
+    },
+    {
+      "name": "宫保鸡丁",
+      "aliases": [
+        "宫爆鸡丁"
+      ],
+      "image": "/dishes/gongbaojiding.jpg"
+    },
+    {
+      "name": "鱼香肉丝",
+      "aliases": [],
+      "image": "/dishes/yuxiangrousi.jpg"
+    },
+    {
+      "name": "夫妻肺片",
+      "aliases": [],
+      "image": "/dishes/fupifeipian.jpg"
+    },
+    {
+      "name": "广式烧鹅",
+      "aliases": [],
+      "image": "/dishes/guangshi-shaoe.jpg"
+    },
+    {
+      "name": "老火靓汤",
+      "aliases": [],
+      "image": "/dishes/laohuo-liangtang.jpg"
+    },
+    {
+      "name": "蜜汁叉烧",
+      "aliases": [],
+      "image": "/dishes/mizhi-chashao.jpg"
+    },
+    {
+      "name": "虾饺",
+      "aliases": [],
+      "image": "/dishes/xiajiao.jpg"
+    },
+    {
+      "name": "干炒牛河",
+      "aliases": [],
+      "image": "/dishes/ganchao-hefen.jpg"
+    },
+    {
+      "name": "大煮干丝",
+      "aliases": [],
+      "image": "/dishes/dazhu-gansi.jpg"
+    },
+    {
+      "name": "盐水鸭",
+      "aliases": [
+        "广东咸水鸭"
+      ],
+      "image": "/dishes/yanshuiya.jpg"
+    },
+    {
+      "name": "扬州炒饭",
+      "aliases": [],
+      "image": "/dishes/yangzhou-chaofan.jpg"
+    },
+    {
+      "name": "文思豆腐",
+      "aliases": [],
+      "image": "/dishes/wensi-doufu.jpg"
+    },
+    {
+      "name": "蟹粉狮子头",
+      "aliases": [],
+      "image": "/dishes/xiefen-shizitou.jpg"
+    },
+    {
+      "name": "九转大肠",
+      "aliases": [],
+      "image": "/dishes/jiuzhuan-dachang.jpg"
+    },
+    {
+      "name": "油焖大虾",
+      "aliases": [],
+      "image": "/dishes/youmen-daxia.jpg"
+    },
+    {
+      "name": "德州扒鸡",
+      "aliases": [],
+      "image": "/dishes/dezhou-paji.jpg"
+    },
+    {
+      "name": "奶汤蒲菜",
+      "aliases": [],
+      "image": "/dishes/naitang-pucai.jpg"
+    },
+    {
+      "name": "四喜丸子",
+      "aliases": [],
+      "image": "/dishes/sixi-wanzi.jpg"
+    },
+    {
+      "name": "锅塌豆腐",
+      "aliases": [],
+      "image": "/dishes/guota-doufu.jpg"
+    },
+    {
+      "name": "博山酥锅",
+      "aliases": [],
+      "image": "/dishes/boshan-suguo.jpg"
+    },
+    {
+      "name": "把子肉",
+      "aliases": [],
+      "image": "/dishes/bazi-rou.jpg"
+    },
+    {
+      "name": "农家小炒肉",
+      "aliases": [],
+      "image": "/dishes/nongjia-xiaochaorou.jpg"
+    },
+    {
+      "name": "辣椒炒肉",
+      "aliases": [],
+      "image": "/dishes/lajiao-chaorou.jpg"
+    },
+    {
+      "name": "腊味合蒸",
+      "aliases": [],
+      "image": "/dishes/lawei-hezheng.jpg"
+    },
+    {
+      "name": "东安子鸡",
+      "aliases": [
+        "东安鸡"
+      ],
+      "image": "/dishes/dongan-ziji.jpg"
+    },
+    {
+      "name": "永州血鸭",
+      "aliases": [],
+      "image": "/dishes/yongzhou-xueya.jpg"
+    },
+    {
+      "name": "毛氏红烧肉",
+      "aliases": [],
+      "image": "/dishes/maoshi-hongshaorou.jpg"
+    },
+    {
+      "name": "口味虾",
+      "aliases": [],
+      "image": "/dishes/kouwei-xia.jpg"
+    },
+    {
+      "name": "湘西外婆菜",
+      "aliases": [],
+      "image": "/dishes/xiangxi-waipocai.jpg"
+    },
+    {
+      "name": "醉排骨",
+      "aliases": [],
+      "image": "/dishes/zuipaigu.jpg"
+    },
+    {
+      "name": "红糟鱼",
+      "aliases": [],
+      "image": "/dishes/hongzaoyu.jpg"
+    },
+    {
+      "name": "福建鱼丸",
+      "aliases": [],
+      "image": "/dishes/fujian-yuwan.jpg"
+    },
+    {
+      "name": "海蛎煎",
+      "aliases": [
+        "蚵仔煎",
+        "蚝仔煎"
+      ],
+      "image": "/dishes/haili-jian.jpg"
+    },
+    {
+      "name": "鸡汤汆海蚌",
+      "aliases": [],
+      "image": "/dishes/jitang-cuhaibang.jpg"
+    },
+    {
+      "name": "淡糟香螺片",
+      "aliases": [],
+      "image": "/dishes/danzao-xiangluopian.jpg"
+    },
+    {
+      "name": "太极芋泥",
+      "aliases": [],
+      "image": "/dishes/taiji-yuni.jpg"
+    },
+    {
+      "name": "福州线面",
+      "aliases": [],
+      "image": "/dishes/fuzhou-xianmian.jpg"
+    },
+    {
+      "name": "叫花鸡",
+      "aliases": [],
+      "image": "/dishes/jiaohuaji.jpg"
+    },
+    {
+      "name": "雪菜大汤黄鱼",
+      "aliases": [],
+      "image": "/dishes/xuecai-datanghuangyu.jpg"
+    },
+    {
+      "name": "杭州酱鸭",
+      "aliases": [],
+      "image": "/dishes/hangzhou-jiangya.jpg"
+    },
+    {
+      "name": "干炸响铃",
+      "aliases": [],
+      "image": "/dishes/ganzha-xiangling.jpg"
+    },
+    {
+      "name": "宋嫂鱼羹",
+      "aliases": [],
+      "image": "/dishes/songshao-yugeng.jpg"
+    },
+    {
+      "name": "片儿川",
+      "aliases": [],
+      "image": "/dishes/pianer-chuan.jpg"
+    },
+    {
+      "name": "毛豆腐",
+      "aliases": [],
+      "image": "/dishes/maodoufu.jpg"
+    },
+    {
+      "name": "徽州红烧肉",
+      "aliases": [],
+      "image": "/dishes/huizhou-hongshaorou.jpg"
+    },
+    {
+      "name": "问政山笋",
+      "aliases": [],
+      "image": "/dishes/wenzheng-shansun.jpg"
+    },
+    {
+      "name": "刀板香",
+      "aliases": [],
+      "image": "/dishes/daoban-xiang.jpg"
+    },
+    {
+      "name": "胡适一品锅",
+      "aliases": [],
+      "image": "/dishes/hushi-yipinguo.jpg"
+    },
+    {
+      "name": "徽州圆子",
+      "aliases": [],
+      "image": "/dishes/huizhou-yuanzi.jpg"
+    },
+    {
+      "name": "火腿炖甲鱼",
+      "aliases": [],
+      "image": "/dishes/huotui-dunjiayu.jpg"
+    },
+    {
+      "name": "李鸿章杂烩",
+      "aliases": [
+        "李鸿章大杂烩"
+      ],
+      "image": "/dishes/li-hongzhang-zahui.jpg"
+    },
+    {
+      "name": "重庆火锅",
+      "aliases": [],
+      "image": "/dishes/huoguo.jpg"
+    },
+    {
+      "name": "辣子鸡",
+      "aliases": [],
+      "image": "/dishes/laziji.jpg"
+    },
+    {
+      "name": "酸菜鱼",
+      "aliases": [],
+      "image": "/dishes/suancaiyu.jpg"
+    },
+    {
+      "name": "东坡肉",
+      "aliases": [],
+      "image": "/dishes/dongpo-pork.jpg"
+    },
+    {
+      "name": "葱油拌面",
+      "aliases": [],
+      "image": "/dishes/cong-oil-noodle.jpg"
+    },
+    {
+      "name": "小笼包",
+      "aliases": [],
+      "image": "/dishes/xiaolongbao.jpg"
+    },
+    {
+      "name": "腌笃鲜",
+      "aliases": [],
+      "image": "/dishes/yanduxian.jpg"
+    },
+    {
+      "name": "鱼香茄子",
+      "aliases": [],
+      "image": "/dishes/mapo-qiezi.jpg"
+    },
+    {
+      "name": "臭豆腐",
+      "aliases": [],
+      "image": "/dishes/choudoufu.jpg"
+    },
+    {
+      "name": "酸辣粉",
+      "aliases": [],
+      "image": "/dishes/suancai-fen.jpg"
+    },
+    {
+      "name": "腊味煲仔饭",
+      "aliases": [],
+      "image": "/dishes/lazhi-chaofan.jpg"
+    },
+    {
+      "name": "黑芝麻汤圆",
+      "aliases": [],
+      "image": "/dishes/tangyuan.jpg"
+    },
+    {
+      "name": "双皮奶",
+      "aliases": [],
+      "image": "/dishes/shuangpinai.jpg"
+    },
+    {
+      "name": "红豆沙",
+      "aliases": [],
+      "image": "/dishes/hongdou-shayong.jpg"
+    },
+    {
+      "name": "蒜蓉豆苗",
+      "aliases": [],
+      "image": "/dishes/doumiao-jian.jpg"
+    }
+  ]
+}

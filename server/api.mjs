@@ -6,6 +6,7 @@ import { TASTE_BY_ID, CUISINE_BY_ID, TASTES } from '../src/data/cuisines.js';
 import { buildDishSystemPrompt, buildAIDishSystemPrompt, buildCategorySystemPrompt, buildMascotSystemPrompt, buildRecipePrompt, buildSuggestionPrompt } from './prompt.mjs';
 import { validateRecipe } from './recipe-schema.mjs';
 import { getRecipeImage } from './recipe-image.mjs';
+import { resolveRecommendationImage } from './recommendation-image.mjs';
 import { epicureStatus, toolsPublic } from './epicure-client.mjs';
 import { ingredientLibrary, buildNetwork, pairingOf } from './epicure-service.mjs';
 import { queryCatalog, catalogStats, catalogCategories, syncCatalog, catalogReady, randomStarters } from './epicure-catalog.mjs';
@@ -676,23 +677,65 @@ async function handleRecommendationFeedback(req, res) {
 }
 
 /**
- * AI 原创菜品配图：只按菜名做公开图片检索，不查图鉴/菜谱库。
- * 返回空字符串时前端使用按菜名生成的占位图，绝不影响推荐展示。
+ * AI 原创菜品配图：只负责给已经生成的菜找图，不参与推荐内容决策。
+ * GET 保留旧版单菜名调用；POST 接收完整菜品特征，用于更精确的检索与缓存。
  */
 async function handleRecommendationImage(req, res) {
-  const rl = rateLimit(req, 'recommendation-image', 40, 60_000);
+  const rl = rateLimit(req, 'recommendation-image', 60, 60_000);
   if (!rl.ok) return send(res, 429, { error: `配图请求过于频繁，请 ${rl.retryAfter} 秒后再试`, code: 'rate_limited' });
   const url = new URL(req.url, 'http://localhost');
-  const name = String(url.searchParams.get('name') || '').replace(/\s+/g, ' ').trim().slice(0, 40);
-  if (name.length < 2) return send(res, 400, { error: '缺少菜名', code: 'dish_name_required' });
-  const image = await getRecipeImage(name, { budget: 7000, strictOnly: true });
+  let dish = {
+    name: String(url.searchParams.get('name') || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+    ingredients: String(url.searchParams.get('ingredients') || '')
+      .split(/[、,，;；/\s]+/)
+      .map((x) => x.replace(/\s+/g, '').slice(0, 20))
+      .filter(Boolean)
+      .slice(0, 12),
+    flavor: String(url.searchParams.get('flavor') || '')
+      .split(/[、,，;；/\s]+/)
+      .map((x) => x.replace(/\s+/g, '').slice(0, 16))
+      .filter(Boolean)
+      .slice(0, 6),
+  };
+
+  if (req.method === 'POST') {
+    let body = {};
+    try {
+      body = await readJson(req, 30_000);
+    } catch (err) {
+      return send(res, Number(err?.status) || 400, { error: '配图参数格式不正确', code: 'invalid_image_payload' });
+    }
+    const source = body?.dish && typeof body.dish === 'object' ? body.dish : body;
+    const list = (v, max, len) =>
+      (Array.isArray(v) ? v : [])
+        .map((x) => String(x || '').replace(/\s+/g, ' ').trim().slice(0, len))
+        .filter(Boolean)
+        .slice(0, max);
+    dish = {
+      name: String(source?.name || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+      ingredients: list(source?.ingredients, 12, 20),
+      flavor: list(source?.flavor ?? source?.tasteNames, 6, 16),
+      description: String(source?.description || source?.intro || '').slice(0, 240),
+    };
+  }
+
+  if (dish.name.length < 2) return send(res, 400, { error: '缺少菜名', code: 'dish_name_required' });
+  const image = await resolveRecommendationImage(dish, { budget: 12_000 });
   return send(res, 200, {
+    // 兼容旧前端字段
     image: image?.url || '',
-    alt: `${name}的配图`,
+    // 新字段：推荐结果与图片结果分开处理
+    imageUrl: image?.url || '',
+    imageSource: image?.imageSource || 'fallback',
+    imageStatus: image?.imageStatus || 'fallback',
+    imageDescription: image?.imageDescription || '',
+    imageGeneration: 'unavailable',
+    alt: `${dish.name}的配图`,
     match: image?.match || '',
-    source: image?.source || '',
+    source: image?.sourceUrl || '',
     provider: image?.provider || '',
     cached: Boolean(image?.cached),
+    reason: image?.reason || '',
   });
 }
 
@@ -1550,7 +1593,9 @@ export async function handleApi(req, res) {
     if (req.method === 'POST' && path === '/api/recommendations/generate') return await handleRecommendation(req, res);
     if (req.method === 'POST' && path === '/api/recommendations/refresh') return await handleRecommendation(req, res, { refresh: true });
     if (req.method === 'POST' && path === '/api/recommendations/feedback') return await handleRecommendationFeedback(req, res);
-    if (req.method === 'GET' && path === '/api/recommendations/image') return await handleRecommendationImage(req, res);
+    if ((req.method === 'GET' || req.method === 'POST') && path === '/api/recommendations/image') {
+      return await handleRecommendationImage(req, res);
+    }
     if (req.method === 'POST' && path === '/api/recipe/lookup') return await handleRecipeLookup(req, res);
     if (req.method === 'POST' && path === '/api/recipe') return await handleRecipe(req, res);
 

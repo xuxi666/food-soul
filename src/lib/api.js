@@ -120,8 +120,23 @@ export const api = {
       jsonFetch('/api/recommendations/refresh', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
     feedback: (payload) =>
       jsonFetch('/api/recommendations/feedback', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) }),
-    image: (name) =>
-      jsonFetch(`/api/recommendations/image?name=${encodeURIComponent(name)}`),
+    image: (dish, opts = {}) => {
+      if (typeof dish === 'string') {
+        return jsonFetch(`/api/recommendations/image?name=${encodeURIComponent(dish)}`, {
+          signal: opts.signal,
+        });
+      }
+      return jsonFetch('/api/recommendations/image', {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ dish }),
+        signal:
+          opts.signal ||
+          (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+            ? AbortSignal.timeout(20_000)
+            : undefined),
+      });
+    },
   },
 
   /** 对话延伸建议：AI 回答完成后单独调用，不阻塞主回答 */

@@ -1,0 +1,213 @@
+/* ================= 全站背景音乐按钮 =================
+ * 固定在视口左下角，不进入画册 / 路由视图，因此翻页、开合、缩放和切页都不会影响它。
+ * 按钮本身不承载任何布局，只有一层圆形纸质唱片视觉。
+ */
+.music-toggle-wrap {
+  --music-size: 56px;
+  position: fixed;
+  left: max(16px, calc(env(safe-area-inset-left, 0px) + 12px));
+  bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+  z-index: 1300;
+  width: var(--music-size);
+  height: var(--music-size);
+  pointer-events: none;
+}
+
+.music-toggle {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(157, 108, 54, 0.48);
+  background:
+    radial-gradient(circle at 34% 27%, rgba(255, 255, 255, 0.92), rgba(255, 250, 240, 0) 48%),
+    linear-gradient(145deg, #fffaf0 0%, #f4e4cb 58%, #e8d0ae 100%);
+  color: #9a692e;
+  box-shadow:
+    0 10px 24px rgba(93, 61, 37, 0.18),
+    0 2px 5px rgba(93, 61, 37, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 260ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    box-shadow 260ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    border-color 260ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    opacity 220ms ease;
+}
+
+.music-toggle::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 1px solid rgba(181, 132, 67, 0.24);
+  pointer-events: none;
+}
+
+.music-toggle:hover {
+  transform: translateY(-2px) scale(1.045);
+  border-color: rgba(157, 108, 54, 0.68);
+  box-shadow:
+    0 13px 28px rgba(93, 61, 37, 0.2),
+    0 3px 6px rgba(93, 61, 37, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.music-toggle:active {
+  transform: translateY(0) scale(0.96);
+  transition-duration: 80ms;
+}
+
+.music-toggle:focus-visible {
+  outline: 2px solid var(--color-primary, #d94b32);
+  outline-offset: 4px;
+}
+
+.music-toggle__disc {
+  position: relative;
+  width: calc(100% - 12px);
+  height: calc(100% - 12px);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #8d5d25;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 253, 246, 0.96), rgba(250, 239, 221, 0.86) 62%, rgba(235, 212, 180, 0.72));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  transition: transform 320ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)), opacity 220ms ease;
+}
+
+.music-toggle.is-playing .music-toggle__disc {
+  animation: music-disc-spin 9s linear infinite;
+}
+
+.music-toggle__icon {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55));
+}
+
+.music-toggle__icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 关闭 / 暂停时给音符一道细斜线，比缩小图标更容易读 */
+.music-toggle__disc::after {
+  content: '';
+  position: absolute;
+  width: 23px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.music-toggle:not(.is-playing) .music-toggle__disc::after {
+  opacity: 0.72;
+}
+
+.music-toggle.is-off {
+  opacity: 0.74;
+}
+
+.music-toggle.is-off:hover {
+  opacity: 1;
+}
+
+.music-toggle.is-blocked {
+  border-color: rgba(166, 119, 58, 0.38);
+}
+
+.music-toggle__halo {
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(217, 164, 65, 0.22), rgba(217, 164, 65, 0) 68%);
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+  transition: opacity 320ms ease;
+}
+
+.music-toggle.is-playing .music-toggle__halo {
+  opacity: 1;
+  animation: music-halo-breathe 4.2s ease-in-out infinite;
+}
+
+.music-toggle .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.music-audio {
+  display: none;
+}
+
+@keyframes music-disc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes music-halo-breathe {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .music-toggle-wrap {
+    --music-size: 48px;
+    left: max(12px, calc(env(safe-area-inset-left, 0px) + 10px));
+    bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  }
+
+  .music-toggle__icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .music-toggle__disc::after {
+    width: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .music-toggle.is-playing .music-toggle__disc,
+  .music-toggle.is-playing .music-toggle__halo {
+    animation: none;
+  }
+
+  .music-toggle,
+  .music-toggle__disc {
+    transition-duration: 0.01ms;
+  }
+}

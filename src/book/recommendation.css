@@ -1193,7 +1193,9 @@
   display: block;
   min-height: 100%;
   overflow: hidden;
-  background: #2e2016;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 252, 243, 0.9), transparent 60%),
+    linear-gradient(145deg, #f7eddc, #ead7bd);
 }
 
 .rec-top__media img {
@@ -1637,7 +1639,9 @@
   display: block;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: #2e2016;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 252, 243, 0.9), transparent 60%),
+    linear-gradient(145deg, #f7eddc, #ead7bd);
 }
 
 .rec-card__media img {
@@ -2526,4 +2530,83 @@ body.rec-ai-modal-open {
 .rec-card__media[role='button']:focus-visible {
   outline: 2px solid rgba(168, 78, 54, 0.5);
   outline-offset: 3px;
+}
+
+/* ---------- AI 推荐配图：暖色加载、占位与失败状态 ---------- */
+.rec-top__media,
+.rec-card__media {
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 252, 243, 0.9), transparent 60%),
+    linear-gradient(145deg, #f7eddc, #ead7bd);
+}
+
+.rec-top__media img,
+.rec-card__media img {
+  background: #f3e5cf;
+}
+
+.rec-top__media.is-loading img,
+.rec-card__media.is-loading img {
+  opacity: 0.82;
+  transform: scale(1.012);
+}
+
+.rec-top__media.is-fallback::after,
+.rec-card__media.is-fallback::after {
+  background: linear-gradient(180deg, transparent 55%, rgba(88, 57, 35, 0.16));
+}
+
+.rec-media-state {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background:
+    linear-gradient(115deg, rgba(255, 250, 240, 0.12), rgba(255, 250, 240, 0.52), rgba(255, 250, 240, 0.12));
+  background-size: 220% 100%;
+  color: #8a5a3b;
+  font-family: var(--rec-serif);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  pointer-events: none;
+  animation: rec-media-breathe 2.4s ease-in-out infinite;
+}
+
+.rec-media-state::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b98b48;
+  box-shadow: 0 0 0 3px rgba(185, 139, 72, 0.12);
+}
+
+.rec-media-state--small {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.rec-media-state[hidden] {
+  display: none;
+}
+
+@keyframes rec-media-breathe {
+  0%,
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.82;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-media-state {
+    animation: none;
+  }
 }
