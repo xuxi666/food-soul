@@ -159,8 +159,10 @@
   scrollbar-color: rgba(185, 139, 72, 0.35) transparent;
 }
 
+/* 完整详情：桌面 / 平板保持左图右文，图片不独占整行 */
 .rec-side-detail .rec-ai-detail__grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 37%) minmax(0, 1fr);
+  align-items: start;
   gap: 18px;
   padding: 0;
 }
@@ -174,6 +176,10 @@
 }
 
 .rec-side-detail .rec-ai-detail__media {
+  width: min(100%, 400px);
+  max-width: 420px;
+  max-height: 300px;
+  justify-self: start;
   box-shadow: 0 8px 20px rgba(79, 48, 27, 0.1);
 }
 
@@ -224,6 +230,20 @@
   min-height: 40px;
   max-height: 92px;
   resize: none;
+}
+
+/* 真正放不下左右两栏时才上下堆叠；图片仍限宽，不铺满整屏 */
+@media (max-width: 640px) {
+  .rec-side-detail .rec-ai-detail__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .rec-side-detail .rec-ai-detail__media {
+    width: min(100%, 240px);
+    max-width: 240px;
+    max-height: 300px;
+  }
 }
 
 @media (max-width: 760px) {

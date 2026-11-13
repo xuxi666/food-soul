@@ -2230,7 +2230,13 @@ body.rec-ai-modal-open {
 }
 
 .rec-ai-detail__media {
+  /* 4:3 且高度不超过 300px，因此实际宽度上限为 400px（仍满足 max-width:420px） */
+  width: min(100%, 400px);
+  max-width: 420px;
+  max-height: 300px;
+  aspect-ratio: 4 / 3;
   align-self: start;
+  justify-self: start;
   overflow: hidden;
   border: 1px solid rgba(185, 139, 72, 0.26);
   border-radius: 4px;
@@ -2241,8 +2247,10 @@ body.rec-ai-modal-open {
 .rec-ai-detail__img {
   display: block;
   width: 100%;
+  height: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
+  object-position: center;
 }
 
 .rec-ai-detail__body {
@@ -2530,12 +2538,14 @@ body.rec-ai-modal-open {
   }
 
   .rec-ai-detail__media {
-    max-height: 34vh;
+    width: min(100%, 400px);
+    max-width: 420px;
+    max-height: 300px;
   }
 
   .rec-ai-detail__img {
-    aspect-ratio: 16 / 9;
-    max-height: 34vh;
+    aspect-ratio: 4 / 3;
+    max-height: 300px;
   }
 
   .rec-ai-chat-modal .rec-ai-panel {
