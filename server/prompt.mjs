@@ -55,12 +55,43 @@ export function buildAIDishSystemPrompt(dish = {}, userNeeds = '') {
   const flavor = (Array.isArray(dish.flavor) ? dish.flavor : []).slice(0, 8).join('、') || '暂无';
   const ingredients = (Array.isArray(dish.ingredients) ? dish.ingredients : []).slice(0, 16).join('、') || '暂无';
   const description = String(dish.description || '').slice(0, 300) || '暂无';
+  const cookingMethod = String(dish.cookingMethod || '').slice(0, 40) || '做法待确认';
   const cookingTime = String(dish.cookingTime || '').slice(0, 60) || '时长待确认';
   const estimatedCost = String(dish.estimatedCost || '').slice(0, 80) || '价格待确认';
   const difficulty = String(dish.difficulty || '').slice(0, 30) || '待确认';
   const reason = String(dish.matchReason || '').slice(0, 320) || '暂无';
   const confidence = String(dish.confidence || '').slice(0, 20) || '中等';
   const needs = String(userNeeds || '').slice(0, 500);
+  const ingredientDetails = (Array.isArray(dish.ingredientDetails) ? dish.ingredientDetails : [])
+    .slice(0, 16)
+    .map((row) => {
+      const label = String(row?.name || row?.inputName || '').slice(0, 30);
+      if (!label) return '';
+      const amount = Number.isFinite(Number(row?.amount)) && row.amount !== null
+        ? `${row.amount}${String(row?.unit || 'g').slice(0, 12)}`
+        : '用量暂无';
+      return `${label} ${amount}${row?.estimated ? '（估算）' : ''}`;
+    })
+    .filter(Boolean);
+  const ingredientText = ingredientDetails.length ? ingredientDetails.join('、') : ingredients;
+  const nutrition = dish.nutrition && typeof dish.nutrition === 'object' ? dish.nutrition : null;
+  const perServing = nutrition?.perServing && typeof nutrition.perServing === 'object' ? nutrition.perServing : {};
+  const nutrientLines = [
+    ['能量', 'energyKcal', '千卡'],
+    ['蛋白质', 'proteinG', '克'],
+    ['脂肪', 'fatG', '克'],
+    ['碳水化合物', 'carbsG', '克'],
+    ['膳食纤维', 'fiberG', '克'],
+    ['糖', 'sugarG', '克'],
+    ['钠', 'sodiumMg', '毫克'],
+    ['饱和脂肪', 'saturatedFatG', '克'],
+    ['胆固醇', 'cholesterolMg', '毫克'],
+  ]
+    .filter(([, key]) => perServing[key] !== null && perServing[key] !== undefined && Number.isFinite(Number(perServing[key])))
+    .map(([label, key, unit]) => `${label} ${Math.round(Number(perServing[key]) * 10) / 10}${unit}`);
+  const nutritionText = nutrientLines.length
+    ? `${nutrientLines.join('；')}${nutrition.dataLabel ? `（${String(nutrition.dataLabel).slice(0, 30)}）` : ''}`
+    : '暂无足够数据';
 
   return [
     `你正在和一位食客讨论一道由 AI 根据其需求独立构思的菜：「${name}」。`,
@@ -71,6 +102,9 @@ export function buildAIDishSystemPrompt(dish = {}, userNeeds = '') {
     `简介：${description}`,
     `口味：${flavor}`,
     `主要食材：${ingredients}`,
+    `食材与用量：${ingredientText}`,
+    `烹饪方式：${cookingMethod}`,
+    `营养信息（按份估算）：${nutritionText}`,
     `预计时间：${cookingTime}`,
     `成本估算：${estimatedCost}`,
     `难度：${difficulty}`,
@@ -81,7 +115,7 @@ export function buildAIDishSystemPrompt(dish = {}, userNeeds = '') {
     `## 回答方式`,
     `1. 回答要围绕这道菜本身：口味、食材替换、做法要点、搭配、份量或如何降低难度。`,
     `2. 这道菜可能不在站内图鉴里，也可能没有权威来源；不要编造历史、起源、地域、店名、人名或具体出处。`,
-    `3. 时间和价格只能作为估算；用户追问精确值时，明确说“这是按常见做法估算的，实际会有差异”。`,
+    `3. 时间和价格只能作为估算；营养值只在上面给出的范围内讨论，缺失项不得补成 0；用户追问精确值时，明确说“这是按常见做法估算的，实际会有差异”。`,
     `4. 涉及过敏原或严格忌口时，先提醒确认具体配料；不得承诺治疗、养生、减脂等健康功效。`,
     `5. 用短段落回答，控制在 120–220 字；先给结论，再给可执行建议。`,
     `6. 不要自称“AI 模型”“助手”，也不要假装自己是这道菜。`,

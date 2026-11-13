@@ -1,0 +1,287 @@
+/* 书页对侧辅助面板：推荐详情 / 推荐聊天
+   面板是纸面上的一层，不是浏览器全屏弹窗；纸外的画册、书脊和书签保持原样。 */
+
+.dm-side {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  color: #4c3324;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(201, 166, 107, 0.12), transparent 56%),
+    linear-gradient(180deg, #fffdf7 0%, #fdf7ea 64%, #fbf2e3 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 200ms ease,
+    clip-path 320ms cubic-bezier(0.22, 0.08, 0.2, 1);
+}
+
+.dm-side--left {
+  clip-path: inset(0 0 0 100%);
+}
+
+.dm-side--right {
+  clip-path: inset(0 100% 0 0);
+}
+
+.dm-side--full {
+  clip-path: none;
+  transform: translateY(8px) scale(0.992);
+  transition:
+    opacity 200ms ease,
+    transform 260ms cubic-bezier(0.32, 0.06, 0.22, 1);
+}
+
+.dm-side.is-open {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  pointer-events: auto;
+}
+
+.dm-side--full.is-open {
+  transform: none;
+}
+
+.dm-side.is-closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dm-side.is-closing.dm-side--left {
+  clip-path: inset(0 0 0 100%);
+}
+
+.dm-side.is-closing.dm-side--right {
+  clip-path: inset(0 100% 0 0);
+}
+
+/* 目标纸面在面板打开期间不参与滚动：滚动只发生在面板内部。 */
+.bk-pageface.has-dm-side {
+  overflow: hidden;
+}
+
+.atlas-page.has-dm-side {
+  overflow: hidden;
+}
+
+.dm-side__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px 9px;
+  border-bottom: 1px solid rgba(176, 139, 87, 0.22);
+  background: rgba(255, 252, 245, 0.66);
+}
+
+.dm-side__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dm-side__kicker {
+  color: #a9845f;
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.dm-side__title {
+  overflow: hidden;
+  color: #5b3a24;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-side__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px 0 8px;
+  border: 1px solid rgba(185, 139, 72, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.78);
+  color: #7f5d3c;
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.dm-side__close:hover {
+  border-color: rgba(168, 78, 54, 0.45);
+  color: #a84e36;
+}
+
+.dm-side__close-ico {
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.72;
+}
+
+.dm-side__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dm-side__body > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ------------------------------ 完整详情 ------------------------------ */
+
+.rec-side-detail {
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px 16px 26px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(185, 139, 72, 0.35) transparent;
+}
+
+.rec-side-detail .rec-ai-detail__grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 0;
+}
+
+.rec-side-detail .rec-ai-detail__badges {
+  padding-right: 0;
+}
+
+.rec-side-detail .rec-ai-detail__title {
+  font-size: clamp(24px, 3.2vw, 34px);
+}
+
+.rec-side-detail .rec-ai-detail__media {
+  box-shadow: 0 8px 20px rgba(79, 48, 27, 0.1);
+}
+
+.rec-side-detail .rec-ai-detail__actions {
+  flex-wrap: wrap;
+}
+
+/* ------------------------------ 推荐聊天 ------------------------------ */
+
+.rec-side-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rec-side-chat .rec-ai-chat__head {
+  padding: 13px 15px 10px;
+}
+
+.rec-side-chat .rec-ai-chat__title {
+  font-size: 18px;
+}
+
+.rec-side-chat .rec-ai-chat__sub {
+  font-size: 10px;
+}
+
+.rec-side-chat .rec-ai-chat__list {
+  padding: 13px 15px 8px;
+}
+
+.rec-side-chat .rec-ai-chat__quick {
+  padding: 0 15px 8px;
+}
+
+.rec-side-chat .rec-ai-chat__form {
+  padding: 10px 15px 14px;
+}
+
+/* .rec-action 自带 display，必须显式压住 HTML hidden，停止按钮才会真正消失 */
+.rec-side-chat [hidden] {
+  display: none !important;
+}
+
+.rec-side-chat .rec-ai-chat__input {
+  min-height: 40px;
+  max-height: 92px;
+  resize: none;
+}
+
+@media (max-width: 760px) {
+  .dm-side__bar {
+    padding: 8px 10px 7px;
+  }
+
+  .dm-side__title {
+    font-size: 12px;
+  }
+
+  .dm-side__close {
+    height: 28px;
+    font-size: 10px;
+  }
+
+  .rec-side-detail {
+    padding: 12px 12px 22px;
+  }
+
+  .rec-side-detail .rec-ai-detail__grid {
+    gap: 14px;
+  }
+
+  .rec-side-chat .rec-ai-chat__head {
+    padding: 10px 12px 8px;
+  }
+
+  .rec-side-chat .rec-ai-chat__title {
+    font-size: 16px;
+  }
+
+  .rec-side-chat .rec-ai-chat__list {
+    padding: 10px 12px 6px;
+  }
+
+  .rec-side-chat .rec-ai-chat__quick {
+    padding: 0 12px 7px;
+  }
+
+  .rec-side-chat .rec-ai-chat__form {
+    padding: 8px 12px 10px;
+  }
+
+  .rec-side-chat .rec-ai-chat__input {
+    min-height: 38px;
+  }
+
+  .rec-side-chat .rec-ai-chat__send,
+  .rec-side-chat .rec-ai-chat__stop {
+    height: 38px;
+    padding: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-side,
+  .dm-side--full {
+    transition: none;
+  }
+}

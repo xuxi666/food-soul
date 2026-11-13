@@ -24,6 +24,7 @@ import './category.css';
 import './catalog.css';
 import './recommendation.css';
 import './video-panel.css';
+import './side-panel.css';
 import { closeAllOverlays } from './overlay.js';
 import {
   RECIPE_NAV_EVENT,
@@ -58,6 +59,12 @@ import {
   openDishVideoPanel,
   setDishVideoOpener,
 } from './video-panel.js';
+import {
+  closeSidePanel,
+  hasOpenSidePanel,
+  setSidePanelOpener,
+  sidePanelState,
+} from './side-panel.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -525,8 +532,9 @@ export function initBook({ root, routerApi = null }) {
   async function openDualChat(subject, originEl) {
     if (!subject?.id || mode !== 'open') return false;
     if (busy) return false;
-    // 同一时刻另一半只放一个主要辅助面板：聊天打开前先收起视频
+    // 同一时刻另一半只放一个主要辅助面板：聊天打开前先收起视频 / 推荐侧页
     closeDishVideo('chat', { instant: true });
+    closeSidePanel('chat', { instant: true });
     const host = hostPageOf(originEl);
     if (!host) return false;
     const slot = await otherPageOf(host);
@@ -545,6 +553,7 @@ export function initBook({ root, routerApi = null }) {
     if (!slot?.page) return false;
     // 视频与聊天互斥，先收起聊天；已打开同一个菜品时直接恢复/沿用已有结果
     closeDishChat('video', { instant: true });
+    closeSidePanel('video', { instant: true });
     await openDishVideoPanel({
       dish,
       page: slot.page,
@@ -552,6 +561,22 @@ export function initBook({ root, routerApi = null }) {
       single: slot.single,
     });
     return true;
+  }
+
+  /**
+   * 推荐菜品「查看详情 / 和这道菜聊聊」：不覆盖画册，不打开全屏层，
+   * 把内容交给当前位置的另一张纸。页面左右由 otherPageOf 现场判断。
+   */
+  async function openDualSidePanel({ originEl } = {}) {
+    if (mode !== 'open' || busy) return null;
+    const host = hostPageOf(originEl);
+    if (!host) return null;
+    const slot = await otherPageOf(host);
+    if (!slot?.page) return null;
+    // 与菜品聊天 / 视频互斥，保证对侧只有一块辅助内容
+    closeDishChat('recommendation', { instant: true });
+    closeDishVideo('recommendation', { instant: true });
+    return slot;
   }
 
   /* ---------------- 显示某个路径 ---------------- */
@@ -563,6 +588,7 @@ export function initBook({ root, routerApi = null }) {
     account?.closeMenu?.();
     closeDishChat('nav');
     closeDishVideo('nav');
+    closeSidePanel('nav', { instant: true });
     // 是不是从「菜品详情」出发的：内页 / 图鉴里展开的详情浮层都算。
     // 必须在收起浮层之前判断，收起之后就看不出来了。
     const fromDetail = !!inner || shell.el.classList.contains('is-atlas-expanded');
@@ -685,6 +711,7 @@ export function initBook({ root, routerApi = null }) {
     if (mode !== 'open' || busy || inner) return;
     // 图鉴正在页内展开详情：这一页属于局部动画，整本翻页要等它收起
     if (shell.el.classList.contains('is-atlas-expanded')) return;
+    closeSidePanel('turn', { instant: true });
     const step = dir === 'next' ? 1 : -1;
     const next = position.value + step;
     if (position.single) {
@@ -803,6 +830,7 @@ export function initBook({ root, routerApi = null }) {
     account?.closeMenu?.();
     closeDishChat('nav');
     closeDishVideo('nav');
+    closeSidePanel('nav', { instant: true });
     if (busy) { pendingChapter = { id, param, opts }; return; }
     if (id !== 'dishes') closeAllOverlays({ instant: true });
     // 书签是章节入口：不带分类时回到该分类的默认代表（川菜 / 麻辣鲜香）
@@ -1236,6 +1264,7 @@ export function initBook({ root, routerApi = null }) {
     if (mode !== 'open' || busy) return false;
     account?.closeMenu?.();
     closeDishVideo('book', { instant: true });
+    closeSidePanel('book', { instant: true });
     if (bookDomGone()) {
       parkSitePage(location.pathname + location.search);
       sheets.reattach(shell.content);
@@ -1259,6 +1288,7 @@ export function initBook({ root, routerApi = null }) {
     account?.closeMenu?.();
     closeDishChat('book');
     closeDishVideo('book', { instant: true });
+    closeSidePanel('book', { instant: true });
     closeAllOverlays({ instant: true });
     // 合书后图鉴可能仍常驻在纸页里，主动停掉轮播，避免离开页面后继续空转
     book.atlas?.setActive?.(false);
@@ -1451,6 +1481,10 @@ export function initBook({ root, routerApi = null }) {
     closeVideo: () => closeDishVideo('api'),
     openVideo: (dish) =>
       openDualVideo(dish, document.querySelector('.atlas-detail') || document.querySelector('.catb__ai') || null),
+    /* 推荐菜品对侧详情 / 聊天（验收 / 诊断用） */
+    sidePanel: sidePanelState,
+    sidePanelOpen: () => hasOpenSidePanel(),
+    closeSidePanel: (reason = 'api') => closeSidePanel(reason),
     parkedRoute: () => parkedSite?.route ?? null,
     goModule: (id) => goBookmark({ id }),
     syncMarks,
@@ -1469,6 +1503,8 @@ export function initBook({ root, routerApi = null }) {
     void openDualVideo(dish, originEl);
     return true;
   });
+  /* 推荐菜品详情 / 聊天 → 画册把内容开在当前页的另一半 */
+  setSidePanelOpener(({ originEl }) => openDualSidePanel({ originEl }));
 
   return {
     shell,

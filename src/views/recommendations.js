@@ -14,7 +14,9 @@ import { api, chatStream } from '../lib/api.js';
 import { TASTES } from '../data/cuisines.js';
 import { recommendationPlaceholder, guardRecommendationImage } from '../lib/placeholder.js';
 import { navigateToRecipeModule } from '../book/recipe-nav.js';
+import { openSidePanel, closeSidePanel } from '../book/side-panel.js';
 import { createNutritionCard } from '../components/nutrition-card.js';
+import { analyzeNutrition, NUTRIENT_FIELDS } from '../lib/nutrition.js';
 
 const MOODS = [
   { id: 'treat', label: '想犒劳自己', icon: '✦' },
@@ -165,13 +167,62 @@ function itemKey(item) {
   return `ai:${esc(item.name).toLowerCase()}`;
 }
 
-function dishContext(item) {
+function finiteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 聊天上下文里的食材：优先使用营养分析返回的克数 / 估算用量。 */
+function chatIngredientDetails(item, nutrition) {
+  const rows = Array.isArray(nutrition?.ingredients) ? nutrition.ingredients : [];
+  const detailed = rows
+    .filter((row) => row && (row.inputName || row.standardName))
+    .slice(0, 16)
+    .map((row) => ({
+      name: String(row.standardName || row.inputName || '').slice(0, 30),
+      inputName: String(row.inputName || row.standardName || '').slice(0, 30),
+      amount: finiteNumber(row.grams) ?? finiteNumber(row.amount),
+      unit: finiteNumber(row.grams) !== null ? 'g' : String(row.unit || '').slice(0, 12),
+      estimated: Boolean(row.quantityEstimated),
+      matched: Boolean(row.matched),
+    }));
+  if (detailed.length) return detailed;
+  return (Array.isArray(item?.ingredients) ? item.ingredients : [])
+    .slice(0, 16)
+    .map((name) => ({ name: String(name || '').slice(0, 30), inputName: String(name || '').slice(0, 30), amount: null, unit: '', estimated: false, matched: false }))
+    .filter((row) => row.name);
+}
+
+/** 只把已有的营养结果带进聊天，不用 0 伪造缺失项。 */
+function chatNutrition(nutrition) {
+  if (!nutrition || typeof nutrition !== 'object') return null;
+  const perServing = {
+    energyKcal: finiteNumber(nutrition.perServing?.energyKcal),
+    ...Object.fromEntries(
+      NUTRIENT_FIELDS.map((field) => [field.key, finiteNumber(nutrition.perServing?.[field.key])])
+    ),
+  };
+  if (!Object.values(perServing).some((value) => value !== null)) return null;
+  return {
+    dataLabel: String(nutrition.dataLabel || '').slice(0, 30),
+    dataType: String(nutrition.dataType || '').slice(0, 20),
+    servings: finiteNumber(nutrition.servings),
+    perServing,
+  };
+}
+
+function dishContext(item, nutrition = null, data = null) {
   const ai = item?.ai || {};
+  const methodChip = data?.usedConditions?.find((chip) => chip?.key === 'methods')?.value || '';
   return {
     name: item?.name || ai.name || '',
     description: item?.description || ai.description || item?.intro || '',
     flavor: item?.tasteNames?.length ? item.tasteNames : item?.flavor?.length ? item.flavor : ai.flavor || [],
     ingredients: item?.ingredients?.length ? item.ingredients : ai.ingredients || [],
+    ingredientDetails: chatIngredientDetails(item, nutrition),
+    cookingMethod: item?.cookingMethod || item?.cookingStyle || ai.cookingMethod || methodChip,
+    nutrition: chatNutrition(nutrition),
     cookingTime: ai.cookingTime || item?.cookingTime || '',
     estimatedCost: ai.estimatedCost || item?.estimatedCost?.label || '',
     difficulty: ai.difficulty || item?.difficultyLabel || '',
@@ -212,8 +263,11 @@ export default {
     let imageBatch = 0;
     let imageAbort = null;
     let activeNutritionCards = [];
-    let activeDetailNutrition = null;
     const imageInFlight = new Map();
+    const sideEntries = new Map();
+    const sideNutrition = new Map();
+    let activeSide = null;
+    let sideRequest = 0;
 
     function disposeNutritionCards() {
       for (const card of activeNutritionCards) card.destroy();
@@ -681,6 +735,7 @@ export default {
     }
 
     function showInitial() {
+      closeAiSidePanel('initial', { instant: true });
       clear(resultPane);
       resultPane.classList.remove('is-loading', 'is-result');
       resultPane.setAttribute('aria-busy', 'false');
@@ -1007,7 +1062,7 @@ export default {
       const actionClass = (extra = '') => `rec-action${extra}${compact ? ' rec-action--compact' : ''}`;
       const detail = h(
         'button',
-        { class: actionClass(), type: 'button', onclick: (e) => { e.stopPropagation(); openAiDishDetail(item, lastData); } },
+        { class: actionClass(), type: 'button', onclick: (e) => { e.stopPropagation(); openAiDishDetail(item, lastData, e.currentTarget); } },
         '查看详情'
       );
       const chat = h(
@@ -1017,7 +1072,7 @@ export default {
           type: 'button',
           onclick: (e) => {
             e.stopPropagation();
-            openAiDishChat(item, lastData);
+            openAiDishChat(item, lastData, e.currentTarget);
           },
         },
         '和这道菜聊聊'
@@ -1096,47 +1151,65 @@ export default {
       );
     }
 
-    let activeOverlay = null;
-    let activeChatStream = null;
-
-    function closeActiveOverlay() {
-      activeChatStream?.abort?.();
-      activeChatStream = null;
-      activeDetailNutrition?.destroy();
-      activeDetailNutrition = null;
-      if (activeOverlay) {
-        activeOverlay.cleanup?.();
-        activeOverlay.overlay.remove();
-        activeOverlay = null;
-      }
-      if (!document.querySelector('.rec-ai-overlay')) document.body.classList.remove('rec-ai-modal-open');
+    /*
+     * 推荐详情 / 聊天不再建全屏 dialog。
+     * 每个菜品有一份可复用的对侧页内容缓存：详情 DOM、营养卡、聊天消息和流都留在缓存里，
+     * 收起只把面板从纸上摘下来；再打开同一道菜时原样挂回去。
+     */
+    function closeAiSidePanel(reason = 'api', { instant = false } = {}) {
+      sideRequest += 1;
+      closeSidePanel(reason, { instant });
     }
 
-    function createOverlay(className, label) {
-      closeActiveOverlay();
-      const overlay = h('div', { class: `rec-ai-overlay ${className}`.trim() });
-      const panel = h('section', {
-        class: 'rec-ai-panel',
-        role: 'dialog',
-        'aria-modal': 'true',
-        'aria-label': label,
-      });
-      overlay.append(panel);
-      document.body.append(overlay);
-      document.body.classList.add('rec-ai-modal-open');
-      const onKey = (e) => { if (e.key === 'Escape') closeActiveOverlay(); };
-      const onBackdrop = (e) => { if (e.target === overlay) closeActiveOverlay(); };
-      document.addEventListener('keydown', onKey);
-      overlay.addEventListener('click', onBackdrop);
-      activeOverlay = {
-        overlay,
-        panel,
-        cleanup() {
-          document.removeEventListener('keydown', onKey);
-          overlay.removeEventListener('click', onBackdrop);
-        },
-      };
-      return panel;
+    function trimSideEntries(keepKey) {
+      const limit = 8;
+      if (sideEntries.size <= limit) return;
+      for (const [key, entry] of sideEntries) {
+        if (sideEntries.size <= limit) break;
+        if (key === keepKey || key === activeSide?.entry?.key) continue;
+        entry.detail?.nutrition?.destroy?.();
+        entry.chat?.stream?.abort?.();
+        entry.detail?.el?.remove();
+        entry.chat?.el?.remove();
+        sideNutrition.delete(key);
+        sideEntries.delete(key);
+      }
+    }
+
+    function ensureSideEntry(item, data) {
+      const key = itemKey(item);
+      let entry = sideEntries.get(key);
+      if (!entry) {
+        entry = { key, item, data, detail: null, chat: null, originEl: null, nutrition: null };
+        sideEntries.set(key, entry);
+      } else {
+        entry.item = item;
+        entry.data = data || entry.data;
+      }
+      trimSideEntries(key);
+      return entry;
+    }
+
+    function ensureNutrition(item) {
+      const key = itemKey(item);
+      if (sideNutrition.has(key)) return sideNutrition.get(key);
+      const task = analyzeNutrition(nutritionPayloadFor(item)).catch(() => null);
+      sideNutrition.set(key, task);
+      return task;
+    }
+
+    function disposeSidePanels() {
+      sideRequest += 1;
+      closeSidePanel('destroy', { instant: true });
+      for (const entry of sideEntries.values()) {
+        entry.detail?.nutrition?.destroy?.();
+        entry.chat?.stream?.abort?.();
+        entry.detail?.el?.remove();
+        entry.chat?.el?.remove();
+      }
+      sideEntries.clear();
+      sideNutrition.clear();
+      activeSide = null;
     }
 
     function imagePayload(item) {
@@ -1187,10 +1260,11 @@ export default {
         }
         if (img.complete && img.naturalWidth > 0) setImageState(key, 'success');
       }
-      if (activeOverlay?.imageItem && itemKey(activeOverlay.imageItem) === key) {
-        activeOverlay.imageEl.dataset.placeholder = '0';
-        activeOverlay.imageEl.setAttribute('src', src);
-        if (activeOverlay.imageEl.complete && activeOverlay.imageEl.naturalWidth > 0) {
+      for (const entry of sideEntries.values()) {
+        if (entry.key !== key || !entry.detail?.imageEl) continue;
+        entry.detail.imageEl.dataset.placeholder = '0';
+        entry.detail.imageEl.setAttribute('src', src);
+        if (entry.detail.imageEl.complete && entry.detail.imageEl.naturalWidth > 0) {
           setImageState(key, 'success');
         }
       }
@@ -1274,10 +1348,10 @@ export default {
       );
     }
 
-    function openAiDishDetail(item, data) {
-      if (!item) return;
-      const key = itemKey(item);
-      const panel = createOverlay('rec-ai-detail', `${item.name}详情`);
+function buildAiDetail(entry) {
+      if (entry.detail) return entry.detail;
+      const { item } = entry;
+      const key = entry.key;
       const image = h('img', {
         class: 'rec-ai-detail__img',
         src: item.image || item.imageUrl || recommendationPlaceholder(item.name),
@@ -1291,13 +1365,6 @@ export default {
         if (image.dataset.placeholder !== '1') setImageState(key, 'success');
       });
       guardRecommendationImage(image, item.name, () => setImageState(key, 'fallback'));
-      activeOverlay.imageItem = item;
-      activeOverlay.imageEl = image;
-      const closeBtn = h(
-        'button',
-        { class: 'rec-ai-close', type: 'button', 'aria-label': '关闭详情', onclick: closeActiveOverlay },
-        '×'
-      );
 
       const ingredients = (item.ingredients || []).length
         ? h(
@@ -1316,12 +1383,62 @@ export default {
           )
         : null;
 
-      activeDetailNutrition = createNutritionCard(nutritionPayloadFor(item), {
+      const nutrition = createNutritionCard(nutritionPayloadFor(item), {
         title: '这道菜的营养成分',
       });
 
-      panel.append(
-        closeBtn,
+      const el = h('div', { class: 'rec-side-detail' });
+      const actions = h(
+        'div',
+        { class: 'rec-ai-detail__actions' },
+        h(
+          'button',
+          {
+            class: 'rec-action rec-action--gold',
+            type: 'button',
+            onclick: (e) => {
+              e.stopPropagation();
+              closeAiSidePanel('recipe');
+              const ctx = recipeContext(item);
+              navigateToRecipeModule({
+                dishId: item.sourceType === 'ai_generated' ? undefined : item.dishId || undefined,
+                dishName: item.name,
+                englishName: item.nameEn,
+                sourceType: item.sourceType || 'recommendation',
+                sourcePage: '/recommendations',
+                recipeContext: ctx,
+              });
+            },
+          },
+          '生成菜谱'
+        ),
+        h(
+          'button',
+          {
+            class: 'rec-action',
+            type: 'button',
+            onclick: (e) => {
+              e.stopPropagation();
+              openAiDishChat(item, entry.data, entry.originEl || document.querySelector('.rec-result-pane .rec-top') || document.querySelector('.rec-result-pane'));
+            },
+          },
+          '和这道菜聊聊'
+        ),
+        h(
+          'button',
+          {
+            class: 'rec-action',
+            type: 'button',
+            onclick: (e) => {
+              e.stopPropagation();
+              closeAiSidePanel('detail');
+            },
+          },
+          '收起详情'
+        )
+      );
+
+      el.append(
         h(
           'div',
           { class: 'rec-ai-detail__grid' },
@@ -1352,65 +1469,52 @@ export default {
               detailMetric('预计耗时', item.cookingTime || (item.timeMinutes ? `约 ${item.timeMinutes} 分钟` : '时长待确认')),
               detailMetric('人均成本', item.estimatedCost?.label || '价格待确认'),
               detailMetric('制作难度', item.difficultyLabel || '待确认'),
-              detailMetric('适合人数', item.servings ? `${item.servings} 人` : '按人数调整')
+              detailMetric('适合人数', item.servings ? `${item.servings} 人` : '按人数调整'),
+              detailMetric('烹饪方式', item.cookingMethod || item.ai?.cookingMethod || '做法待确认')
             ),
             flavors,
             ingredients,
-            activeDetailNutrition.el,
-            h('p', { class: 'rec-ai-detail__note', text: '价格与时间为 AI 按已有知识做的估算，不是实时市场数据；营养值按食材名称与典型份量估算，具体配料请以下厨或点单时的实际信息为准。' }),
-            h(
-              'div',
-              { class: 'rec-ai-detail__actions' },
-              h('button', {
-                class: 'rec-action rec-action--gold',
-                type: 'button',
-                onclick: (e) => {
-                  e.stopPropagation();
-                  const ctx = recipeContext(item);
-                  closeActiveOverlay();
-                  navigateToRecipeModule({
-                    dishId: item.sourceType === 'ai_generated' ? undefined : item.dishId || undefined,
-                    dishName: item.name,
-                    englishName: item.nameEn,
-                    sourceType: item.sourceType || 'recommendation',
-                    sourcePage: '/recommendations',
-                    recipeContext: ctx,
-                  });
-                },
-              }, '生成菜谱'),
-              h('button', {
-                class: 'rec-action',
-                type: 'button',
-                onclick: (e) => {
-                  e.stopPropagation();
-                  openAiDishChat(item, data);
-                },
-              }, '和这道菜聊聊'),
-              h('button', { class: 'rec-action', type: 'button', onclick: closeActiveOverlay }, '继续看推荐')
-            )
+            nutrition.el,
+            h('p', {
+              class: 'rec-ai-detail__note',
+              text: '价格与时间为 AI 按已有知识做的估算，不是实时市场数据；营养值按食材名称与典型份量估算，具体配料请以下厨或点单时的实际信息为准。',
+            }),
+            actions
           )
         )
       );
-      panel.querySelector('.rec-ai-close')?.focus();
+
+      entry.detail = { el, imageEl: image, nutrition };
+      return entry.detail;
     }
 
-    function openAiDishChat(item, data) {
-      if (!item) return;
-      const panel = createOverlay('rec-ai-chat-modal', `和${item.name}聊聊`);
+    function buildAiChat(entry) {
+      if (entry.chat) return entry.chat;
+      const { item } = entry;
       const messages = [];
-      let streaming = false;
-      let sendStream = null;
       const list = h('div', { class: 'rec-ai-chat__list', role: 'log', 'aria-live': 'polite' });
       const input = h('textarea', {
         class: 'rec-ai-chat__input',
         rows: '2',
         maxlength: '300',
-        placeholder: `想问「${item.name}」什么？比如：怎么做更简单？`,
+        placeholder: `想问《${item.name}》什么？比如：怎么做更简单？`,
         'aria-label': '输入聊天内容',
       });
       const sendBtn = h('button', { class: 'rec-action rec-action--gold rec-ai-chat__send', type: 'submit' }, '发送');
       const stopBtn = h('button', { class: 'rec-action rec-ai-chat__stop', type: 'button', hidden: '' }, '停止');
       const form = h('form', { class: 'rec-ai-chat__form' }, input, h('div', { class: 'rec-ai-chat__form-actions' }, stopBtn, sendBtn));
+
+      const chat = {
+        messages,
+        streaming: false,
+        stream: null,
+        el: null,
+        list,
+        input,
+        sendBtn,
+        stopBtn,
+        form,
+      };
 
       function bubble(role, text = '') {
         const node = h(
@@ -1425,53 +1529,69 @@ export default {
       }
 
       function setStreaming(next) {
-        streaming = next;
+        chat.streaming = next;
         sendBtn.disabled = next;
         stopBtn.hidden = !next;
       }
 
-      async function send(text) {
-        const content = String(text || '').trim();
-        if (!content || streaming) return;
+      async function send(raw) {
+        const content = String(raw || '').trim();
+        if (!content || chat.streaming) return;
         messages.push({ role: 'user', content });
         bubble('user', content);
         input.value = '';
         const textEl = bubble('assistant', '');
         let buffer = '';
+        chat.stopRequested = false;
         setStreaming(true);
-        const controller = { abort: () => {} };
-        activeChatStream = controller;
-        const stream = chatStream(
-          {
-            mode: 'ai_dish',
-            aiDish: dishContext(item),
-            userNeeds: (data?.usedConditions || []).map((chip) => `${chip.label}：${chip.value}`).join('；'),
-            messages,
-          },
-          {
-            onDelta: (chunk) => {
-              buffer += chunk;
-              textEl.textContent = buffer;
-              list.scrollTop = list.scrollHeight;
-            },
-            onError: (err) => {
-              textEl.classList.add('is-error');
-              textEl.textContent = `生成失败：${err?.message || '请稍后重试'}。`;
-              if (err?.code === 'ai_not_configured' || err?.code === 'ai_disabled' || err?.code === 'ai_config_error') {
-                const tip = h('p', { class: 'rec-ai-msg__hint', text: '当前没有可用的 AI 模型，请先在右上角「接入 AI」配置并启用模型。' });
-                textEl.parentElement?.append(tip);
-              }
-            },
+        // 营养分析也可能耗时：这期间点“停止”只取消后续请求，不让按钮变成摆设。
+        stopBtn.onclick = () => {
+          chat.stopRequested = true;
+          chat.stream?.abort();
+        };
+        try {
+          const nutrition = await ensureNutrition(item);
+          if (chat.stopRequested) {
+            textEl.textContent = '（已停止生成）';
+            return;
           }
-        );
-        sendStream = stream;
-        controller.abort = () => stream.abort();
-        if (stopBtn) stopBtn.onclick = () => stream.abort();
-        await stream.done;
-        if (buffer) messages.push({ role: 'assistant', content: buffer });
-        setStreaming(false);
-        activeChatStream = null;
-        sendStream = null;
+          const stream = chatStream(
+            {
+              mode: 'ai_dish',
+              aiDish: dishContext(item, nutrition, entry.data),
+              userNeeds: (entry.data?.usedConditions || []).map((chip) => `${chip.label}：${chip.value}`).join('；'),
+              messages,
+            },
+            {
+              onDelta: (chunk) => {
+                buffer += chunk;
+                textEl.textContent = buffer;
+                list.scrollTop = list.scrollHeight;
+              },
+              onAbort: () => {
+                if (!buffer) textEl.textContent = '（已停止生成）';
+              },
+              onError: (err) => {
+                textEl.classList.add('is-error');
+                textEl.textContent = `生成失败：${err?.message || '请稍后重试'}。`;
+                if (err?.code === 'ai_not_configured' || err?.code === 'ai_disabled' || err?.code === 'ai_config_error') {
+                  const tip = h('p', { class: 'rec-ai-msg__hint', text: '当前没有可用的 AI 模型，请先在右上角「接入 AI」配置并启用模型。' });
+                  textEl.parentElement?.append(tip);
+                }
+              },
+            }
+          );
+          chat.stream = stream;
+          if (chat.stopRequested) stream.abort();
+          await stream.done;
+        } catch {
+          /* onError / onAbort 已经写入气泡；这里只负责收尾 */
+        } finally {
+          if (buffer) messages.push({ role: 'assistant', content: buffer });
+          setStreaming(false);
+          chat.stream = null;
+          chat.stopRequested = false;
+        }
       }
 
       form.addEventListener('submit', (e) => {
@@ -1493,19 +1613,65 @@ export default {
         )
       );
 
-      panel.append(
+      chat.el = h(
+        'div',
+        { class: 'rec-side-chat' },
         h(
           'header',
           { class: 'rec-ai-chat__head' },
-          h('div', {}, h('h2', { class: 'rec-ai-chat__title', text: `和「${item.name}」聊聊` }), h('p', { class: 'rec-ai-chat__sub', text: 'AI 已拿到这道推荐菜的结构化信息，可以继续问做法、替换和搭配。' })),
-          h('button', { class: 'rec-ai-close', type: 'button', 'aria-label': '关闭聊天', onclick: closeActiveOverlay }, '×')
+          h('div', {}, h('h2', { class: 'rec-ai-chat__title', text: `和《${item.name}》聊聊` }), h('p', { class: 'rec-ai-chat__sub', text: 'AI 已拿到这道推荐菜的结构化信息，可以继续问做法、替换和搭配。' }))
         ),
         list,
         quick,
         form
       );
-      bubble('assistant', `我在。想先聊「${item.name}」的哪一部分？口味、食材替换、做法简化或搭配都可以。`);
-      input.focus();
+      bubble('assistant', `我在。想先聊《${item.name}》的哪一部分？口味、食材替换、做法简化或搭配都可以。`);
+      chat.bubble = bubble;
+      chat.send = send;
+      entry.chat = chat;
+      return chat;
+    }
+
+    async function showAiView(entry, mode, originEl) {
+      if (!entry) return;
+      if (originEl) entry.originEl = originEl;
+      const request = ++sideRequest;
+      const view = mode === 'chat' ? buildAiChat(entry) : buildAiDetail(entry);
+      activeSide = { entry, mode };
+      const origin = entry.originEl?.isConnected ? entry.originEl : document.querySelector('.rec-result-pane');
+      const panel = await openSidePanel({
+        key: entry.key,
+        originEl: origin,
+        kicker: mode === 'chat' ? 'AI 推荐 · 席间对话' : 'AI 推荐 · 完整菜品档案',
+        label: mode === 'chat' ? `和《${entry.item.name}》聊聊` : `${entry.item.name} · 完整详情`,
+        render: () => view.el,
+        onClose: () => {
+          if (activeSide?.entry === entry && activeSide.mode === mode) activeSide = null;
+        },
+      });
+      if (request !== sideRequest) return;
+      if (!panel) {
+        activeSide = null;
+        toast('详情和聊天会在画册的另一页展开，请先打开画册。', 'warn');
+        return;
+      }
+      activeSide = { entry, mode, panel };
+      if (mode === 'chat') entry.chat?.input?.focus({ preventScroll: true });
+      else panel.holder?.querySelector('.dm-side__close')?.focus({ preventScroll: true });
+    }
+
+    function openAiDishDetail(item, data, originEl) {
+      if (!item) return;
+      const entry = ensureSideEntry(item, data);
+      void ensureNutrition(item);
+      void showAiView(entry, 'detail', originEl);
+    }
+
+    function openAiDishChat(item, data, originEl) {
+      if (!item) return;
+      const entry = ensureSideEntry(item, data);
+      void ensureNutrition(item);
+      void showAiView(entry, 'chat', originEl);
     }
 
     function recImage(item, { eager = false } = {}) {
@@ -1539,7 +1705,7 @@ export default {
         title: '营养成分',
       });
       activeNutritionCards.push(nutritionSummary);
-      nutritionSummary.el.addEventListener('foodsoul:nutrition-open', () => openAiDishDetail(item, data));
+      nutritionSummary.el.addEventListener('foodsoul:nutrition-open', () => openAiDishDetail(item, data, nutritionSummary.el));
       const media = h(
         'div',
         {
@@ -1548,8 +1714,8 @@ export default {
           tabindex: '0',
           'data-rec-media': itemKey(item),
           'aria-label': `查看${item.name}详情`,
-          onclick: () => openAiDishDetail(item, data),
-          onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAiDishDetail(item, data); } },
+          onclick: (e) => openAiDishDetail(item, data, e.currentTarget),
+          onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAiDishDetail(item, data, e.currentTarget); } },
         },
         recImage(item, { eager: true }),
         h('span', {
@@ -1607,7 +1773,7 @@ export default {
         title: '营养成分',
       });
       activeNutritionCards.push(nutritionSummary);
-      nutritionSummary.el.addEventListener('foodsoul:nutrition-open', () => openAiDishDetail(item, lastData));
+      nutritionSummary.el.addEventListener('foodsoul:nutrition-open', () => openAiDishDetail(item, lastData, nutritionSummary.el));
       const media = h(
         'div',
         {
@@ -1616,8 +1782,8 @@ export default {
           tabindex: '0',
           'data-rec-media': itemKey(item),
           'aria-label': `查看${item.name}详情`,
-          onclick: () => openAiDishDetail(item, lastData),
-          onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAiDishDetail(item, lastData); } },
+          onclick: (e) => openAiDishDetail(item, lastData, e.currentTarget),
+          onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAiDishDetail(item, lastData, e.currentTarget); } },
         },
         recImage(item),
         h('span', {
@@ -1660,6 +1826,7 @@ export default {
     }
 
     function renderResult(data) {
+      closeAiSidePanel('rerender', { instant: true });
       disposeNutritionCards();
       lastData = data;
       resultToken += 1;
@@ -1857,6 +2024,7 @@ export default {
 
     async function generate({ mode = 'generate', resetSeen = false } = {}) {
       if (busy) return;
+      closeAiSidePanel('generate', { instant: true });
       if (!hasCondition()) {
         showError('先给食灵一点线索：选一个心情、口味，或写一句你现在想吃什么。');
         formPane.closest('.bk-pageface')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1989,7 +2157,7 @@ export default {
       destroy() {
         stopLoading();
         disposeNutritionCards();
-        closeActiveOverlay();
+        disposeSidePanels();
       },
     };
   },

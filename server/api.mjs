@@ -294,20 +294,58 @@ function normalizeAIDishContext(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const name = String(raw.name || '').replace(/\s+/g, ' ').trim().slice(0, 32);
   if (name.length < 2) return null;
+  const text = (value, len) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, len);
   const strings = (value, max, len) => (Array.isArray(value) ? value : [])
-    .map((x) => String(x || '').replace(/\s+/g, ' ').trim().slice(0, len))
+    .map((x) => text(x, len))
     .filter(Boolean)
     .slice(0, max);
+  const number = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const ingredientDetails = (Array.isArray(raw.ingredientDetails) ? raw.ingredientDetails : [])
+    .slice(0, 16)
+    .map((row) => {
+      if (!row || typeof row !== 'object') return null;
+      const label = text(row.name || row.inputName, 30);
+      if (!label) return null;
+      return {
+        name: label,
+        inputName: text(row.inputName || row.name, 30),
+        amount: number(row.amount),
+        unit: text(row.unit, 12),
+        estimated: Boolean(row.estimated),
+        matched: Boolean(row.matched),
+      };
+    })
+    .filter(Boolean);
+  const nutrientKeys = ['energyKcal', 'proteinG', 'fatG', 'carbsG', 'fiberG', 'sugarG', 'sodiumMg', 'saturatedFatG', 'cholesterolMg'];
+  const rawPerServing = raw.nutrition && typeof raw.nutrition === 'object' ? raw.nutrition.perServing : null;
+  const perServing = rawPerServing && typeof rawPerServing === 'object'
+    ? Object.fromEntries(nutrientKeys.map((key) => [key, number(rawPerServing[key])]))
+    : null;
+  const hasNutrition = perServing && Object.values(perServing).some((value) => value !== null);
   return {
     name,
-    description: String(raw.description || raw.intro || '').replace(/\s+/g, ' ').trim().slice(0, 300),
+    description: text(raw.description || raw.intro, 300),
     flavor: strings(raw.flavor ?? raw.tasteNames, 8, 24),
     ingredients: strings(raw.ingredients, 16, 30),
-    cookingTime: String(raw.cookingTime || '').trim().slice(0, 60),
-    estimatedCost: String(raw.estimatedCost || '').trim().slice(0, 80),
-    difficulty: String(raw.difficulty || '').trim().slice(0, 30),
-    matchReason: String(raw.matchReason || raw.reason || '').trim().slice(0, 320),
-    confidence: String(raw.confidence || '').trim().slice(0, 20),
+    ingredientDetails,
+    cookingMethod: text(raw.cookingMethod || raw.cookingStyle, 40),
+    nutrition: hasNutrition
+      ? {
+          dataLabel: text(raw.nutrition.dataLabel, 30),
+          dataType: text(raw.nutrition.dataType, 20),
+          servings: number(raw.nutrition.servings),
+          perServing,
+        }
+      : null,
+    cookingTime: text(raw.cookingTime, 60),
+    estimatedCost: text(raw.estimatedCost, 80),
+    difficulty: text(raw.difficulty, 30),
+    matchReason: text(raw.matchReason || raw.reason, 320),
+    confidence: text(raw.confidence, 20),
   };
 }
 

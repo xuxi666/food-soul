@@ -143,6 +143,7 @@ const OUTPUT_SCHEMA = `{
     "description": "菜品简介",
     "flavor": ["口味特点"],
     "ingredients": ["主要食材"],
+    "cookingMethod": "主要烹饪方式，例如：快炒 / 清蒸 / 炖煮；无法判断写：做法待确认",
     "cookingTime": "预计制作时间，例如：约 30 分钟；无法判断写：时长待确认",
     "estimatedCost": "人均成本估算，例如：人均约 25 元（估算）；无法判断写：价格待确认",
     "difficulty": "简单 / 中等 / 进阶",
@@ -342,7 +343,7 @@ function userPrompt(cond, { batchIndex, excludedDishes }) {
     cond.vegetarian ? '- 素食：不要出现任何肉类、海鲜或骨汤高汤。' : '',
     cond.vegan ? '- 纯素：不要出现任何肉类、海鲜、蛋、奶、蜂蜜或骨汤高汤。' : '',
   ].filter(Boolean).join('\n');
-  return `请根据下面这位用户的完整需求，独立构思并推荐菜品。\n\n${conditionPrompt(cond)}${previous}${batch}\n\n硬性限制（每道菜都要逐条核对，不满足就不要列入，绝不能为了凑数而违反）：\n${hardLines || '- 没有额外硬性限制。'}\n\n请输出 1 道首推 + 另外 4 道候选，共 5 道；这 5 道必须全部满足上面的硬性限制。确实无法凑满 5 道时才少给，并在 summary 里说明。每道菜都必须有独立的 matchReason、flavor、ingredients、cookingTime、estimatedCost、difficulty 和 confidence。\n\n只输出这个 JSON 结构：\n${OUTPUT_SCHEMA}`;
+  return `请根据下面这位用户的完整需求，独立构思并推荐菜品。\n\n${conditionPrompt(cond)}${previous}${batch}\n\n硬性限制（每道菜都要逐条核对，不满足就不要列入，绝不能为了凑数而违反）：\n${hardLines || '- 没有额外硬性限制。'}\n\n请输出 1 道首推 + 另外 4 道候选，共 5 道；这 5 道必须全部满足上面的硬性限制。确实无法凑满 5 道时才少给，并在 summary 里说明。每道菜都必须有独立的 matchReason、flavor、ingredients、cookingMethod、cookingTime、estimatedCost、difficulty 和 confidence。\n\n只输出这个 JSON 结构：\n${OUTPUT_SCHEMA}`;
 }
 
 function asStringList(value, max = 12, maxLength = 30) {
@@ -385,6 +386,7 @@ function normalizeDish(raw, cond) {
     .filter(Boolean);
   if (!flavor.length) flavor.push('家常');
   const ingredients = asStringList(raw.ingredients, 16, 30);
+  const cookingMethod = str(raw.cookingMethod ?? raw.cookingStyle ?? raw.method, 40) || '做法待确认';
   const cookingTime = str(raw.cookingTime ?? raw.time, 50) || '时长待确认';
   const estimatedCost = str(raw.estimatedCost ?? raw.cost, 70) || '价格待确认';
   const difficultyText = str(raw.difficulty, 20) || '中等';
@@ -399,6 +401,7 @@ function normalizeDish(raw, cond) {
     description: description || `${name}，按你的当前需求独立构思的一道菜。`,
     flavor,
     ingredients,
+    cookingMethod,
     cookingTime,
     estimatedCost,
     difficulty: difficultyText,
@@ -424,6 +427,7 @@ function normalizeDish(raw, cond) {
     tasteNames: flavor,
     tastes: [],
     ingredients,
+    cookingMethod,
     cookingTime,
     timeMinutes,
     timeStatus: timeMinutes > 0 ? 'known' : 'unconfirmed',
@@ -458,6 +462,7 @@ function normalizeDish(raw, cond) {
       description: dish.description,
       flavor,
       ingredients,
+      cookingMethod,
       cookingTime,
       estimatedCost,
       difficulty: difficultyText,
