@@ -16,7 +16,14 @@ import { MUSIC_TRACKS } from '../data/music.js';
  * - 用户开关写入 localStorage，下一次访问沿用选择。
  */
 
-const STORAGE_KEY = 'foodsoul.music.enabled';
+/*
+ * v2：背景音乐改为默认打开。
+ * 旧键（foodsoul.music.enabled）里可能还留着上一版的「关闭」选择；
+ * 继续沿用会让老用户上线后仍然没有音乐，所以换新键并清掉旧键。
+ * 用户在新版本里主动关闭，仍会记住，不会每次刷新都被强制打开。
+ */
+const STORAGE_KEY = 'foodsoul.music.enabled.v2';
+const LEGACY_STORAGE_KEY = 'foodsoul.music.enabled';
 const DEFAULT_VOLUME = 0.28;
 const GLOBAL_KEY = '__FOOD_SOUL_MUSIC_PLAYER__';
 const BASE_URL = (import.meta.env?.BASE_URL || '/').replace(/\/?$/, '/');
@@ -34,6 +41,8 @@ const trackUrl = (file) => `${BASE_URL}music/${file}`;
 
 function readEnabled() {
   try {
+    // 旧版本的关闭选择不再继承；新键没有值时默认就是打开。
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     return window.localStorage.getItem(STORAGE_KEY) !== '0';
   } catch {
     return true;
