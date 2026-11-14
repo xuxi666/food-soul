@@ -10,20 +10,15 @@ import { MUSIC_TRACKS } from '../data/music.js';
  * - 用 globalThis 上的键兜住 Vite HMR 或重复 import，避免出现第二个 Audio。
  *
  * 播放策略：
- * - 首次访问默认开启，尝试自动播放；被浏览器拒绝时静默等待第一次用户交互；
+ * - 每次进入或刷新页面都重新初始化并尝试自动播放，不持久化「已关闭」；
+ * - 同一页面会话内用户手动暂停后，路由切换、组件重渲染都不会自动恢复；
+ * - 首次自动播放被浏览器拒绝时记录 blocked，只监听一次性的首次交互，
+ *   用户点画册、点页面或按键盘后立即补播，不要求寻找音乐按钮；
  * - 每轮把 12 首打乱后逐个抽完，轮与轮之间不会紧接着重复上一首；
- * - 播放结束、加载失败都只走一个入口，失败曲目会跳过，不会卡住整个列表；
- * - 用户开关写入 localStorage，下一次访问沿用选择。
+ * - 播放结束、加载失败都只走一个入口，失败曲目会跳过，不会卡住整个列表。
  */
 
-/*
- * v2：背景音乐改为默认打开。
- * 旧键（foodsoul.music.enabled）里可能还留着上一版的「关闭」选择；
- * 继续沿用会让老用户上线后仍然没有音乐，所以换新键并清掉旧键。
- * 用户在新版本里主动关闭，仍会记住，不会每次刷新都被强制打开。
- */
-const STORAGE_KEY = 'foodsoul.music.enabled.v2';
-const LEGACY_STORAGE_KEY = 'foodsoul.music.enabled';
+const STORAGE_KEYS = ['foodsoul.music.enabled', 'foodsoul.music.enabled.v2'];
 const DEFAULT_VOLUME = 0.28;
 const GLOBAL_KEY = '__FOOD_SOUL_MUSIC_PLAYER__';
 const BASE_URL = (import.meta.env?.BASE_URL || '/').replace(/\/?$/, '/');
@@ -39,21 +34,13 @@ const ICON = `
 
 const trackUrl = (file) => `${BASE_URL}music/${file}`;
 
-function readEnabled() {
+function clearStoredPreference() {
   try {
-    // 旧版本的关闭选择不再继承；新键没有值时默认就是打开。
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-    return window.localStorage.getItem(STORAGE_KEY) !== '0';
+    // 旧版本可能留下「关闭」偏好；自动播放策略改为每次会话重新初始化，
+    // 这些键不再参与判断，顺手清掉，避免旧状态继续误导。
+    for (const key of STORAGE_KEYS) window.localStorage.removeItem(key);
   } catch {
-    return true;
-  }
-}
-
-function saveEnabled(enabled) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, enabled ? '1' : '0');
-  } catch {
-    // 隐私模式可能禁用 localStorage：本次会话仍可正常播放，只是不持久化
+    // 隐私模式禁用 localStorage 时忽略
   }
 }
 
@@ -114,7 +101,9 @@ function createMusicPlayer(mount) {
   const wrap = h('div', { class: 'music-toggle-wrap', 'data-music-ui': 'button' }, button, audio);
   mount.append(wrap);
 
-  let enabled = readEnabled();
+  clearStoredPreference();
+  // 每次进入/刷新都从开启状态开始；手动暂停只影响当前页面会话。
+  let enabled = true;
   let currentIndex = -1;
   let pool = shuffled(MUSIC_TRACKS.map((_, index) => index));
   let failed = new Set();
@@ -125,7 +114,7 @@ function createMusicPlayer(mount) {
   let unlockArmed = false;
   let lastUnlockAttempt = 0;
 
-  const unlockEvents = ['pointerdown', 'click', 'keydown'];
+  const unlockEvents = ['pointerdown', 'touchstart', 'wheel', 'click', 'keydown'];
 
   function currentTrack() {
     return currentIndex >= 0 ? MUSIC_TRACKS[currentIndex] : null;
@@ -214,7 +203,12 @@ function createMusicPlayer(mount) {
     if (!pool.length) return -1;
 
     let position = pool.findIndex((index) => index !== avoid);
-    if (position < 0) position = 0;
+    if (position < 0) {
+      // 只剩当前这首或全部失败时宁可停一下，也不立即重复同一首。
+      refillPool(avoid);
+      position = pool.findIndex((index) => index !== avoid);
+      if (position < 0) return -1;
+    }
     return pool.splice(position, 1)[0];
   }
 
@@ -252,6 +246,9 @@ function createMusicPlayer(mount) {
     audio.load();
     blocked = false;
     updateUI();
+    // 在 play() 完成前就先监听首次交互：移动端元数据/解码较慢时，
+    // 用户可能先点了画册，不能等到 NotAllowedError 返回后才开始记录手势。
+    armUnlock();
 
     try {
       await audio.play();
@@ -306,7 +303,6 @@ function createMusicPlayer(mount) {
     blocked = false;
     playing = false;
     attempt += 1;
-    saveEnabled(false);
     disarmUnlock();
     audio.pause();
     updateUI();
@@ -318,7 +314,6 @@ function createMusicPlayer(mount) {
     // 用户主动恢复时允许重新尝试之前失败的曲目。
     failed = new Set();
     pool = [];
-    saveEnabled(true);
     updateUI();
     resumeCurrentOrNext();
   }
