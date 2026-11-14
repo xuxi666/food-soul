@@ -121,6 +121,34 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
    * 单页模式（手机）：一本书一次只显示一张纸，而画册没有「下一页」按钮，
    *   所以把「序 + 目录」并进同一张纸，让读者在一页里往下读就能看到全部条目。
    */
+  /*
+   * 手机横屏的纸页是 3D 子树，原生触摸滚动在菜系 / 推荐 / 菜谱里并不可靠。
+   * 这里给纸面和纸内的滚动容器补上 enableTouchScroll；只在横屏手机类存在时接，
+   * 桌面（含普通触屏笔记本）不额外改变行为。
+   */
+  const TOUCH_SCROLL_SELECTOR = [
+    '.rec-pane',
+    '.catb__scroll',
+    '.ek-craft',
+    '.catalog__page',
+    '.bk-pageface__inner',
+    '.dm-chat__body',
+    '.dm-side',
+    '.dm-video__scroll',
+    '.messages',
+    '.comments__list',
+  ].join(', ');
+
+  function attachPhoneScroll(entry) {
+    if (!entry) return;
+    if (!document.querySelector('.bk-stage')?.classList.contains('is-phone-landscape')) return;
+    for (const face of [entry.left, entry.right]) {
+      if (!face) continue;
+      enableTouchScroll(face);
+      face.querySelectorAll(TOUCH_SCROLL_SELECTOR).forEach((el) => enableTouchScroll(el));
+    }
+  }
+
   function catalogEntryFor(inst) {
     const single = document.querySelector('.bk-stage')?.classList.contains('is-single');
     if (single) {
@@ -178,6 +206,7 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
     if (id === 'catalog') {
       const inst = mountCatalog(staging, { onPick: (chapterId) => onChapterNav?.(chapterId) });
       const entry = catalogEntryFor(inst);
+      attachPhoneScroll(entry);
       pages.set(id, entry);
       return entry;
     }
@@ -190,6 +219,7 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
       const left = inst.el.querySelector('.catb__page--left');
       const right = inst.el.querySelector('.catb__page--right');
       const entry = { left: wrapFace(true, [left], 'bk-pageface--cat'), right: wrapFace(true, [right], 'bk-pageface--cat'), instance: inst };
+      attachPhoneScroll(entry);
       pages.set(id, entry);
       return entry;
     }
@@ -221,6 +251,7 @@ export function createPageBook({ staging, onAtlasChange, onCategoryNav, onChapte
       instance,
       holder,
     };
+    attachPhoneScroll(entry);
     pages.set(id, entry);
     holder.remove();
     // 菜品详情内页 / 社区：两张纸各自滚动，同样需要把滚轮换算成 scrollTop

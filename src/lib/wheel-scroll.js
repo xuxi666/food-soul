@@ -38,6 +38,9 @@ export function enableWheelScroll(container) {
  */
 export function enableTouchScroll(container) {
   if (!container) return () => {};
+  if (container.dataset.touchScroll === '1') return () => {};
+  // 标记：手机横屏的统一触摸滚动代理会跳过已经单独接管的容器，避免双重滚动
+  container.dataset.touchScroll = '1';
   let startY = 0;
   let startTop = 0;
   let tracking = false;

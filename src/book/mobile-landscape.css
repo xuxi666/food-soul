@@ -1,0 +1,2189 @@
+/* ============================================================
+   FOOD SOUL · 手机横屏画册
+   只在 .bk-stage.is-phone-landscape 下生效，桌面与平板不参与。
+   尺寸先由 layout.js 按 visualViewport 算好，这里负责把纸页内部
+   重新分配为「双页 + 可滚动 + 44px 触控」的紧凑版式。
+   ============================================================ */
+
+:root {
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bk-stage.is-phone-landscape {
+  --mobile-page-padding: 12px;
+  --mobile-page-gap: 10px;
+  --mobile-control-height: 44px;
+  --mobile-font-body: 13px;
+  --mobile-font-small: 11px;
+  --mobile-ink: #3f2a18;
+  --mobile-muted: #80664c;
+  --mobile-line: rgba(184, 145, 85, 0.34);
+  --mobile-paper: rgba(255, 252, 245, 0.92);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+/* 书签从书口露出，纸张右移的视觉中心留给书签 */
+.bk-stage.is-phone-landscape .bk-camera {
+  transform: translateX(var(--book-shift, 0px));
+}
+
+/* 合书状态：在手机横屏里收成小书，避免封面高过画册 */
+.bk-stage.is-phone-landscape .bk-book {
+  --closed-scale: 0.53;
+  --mark-w: 44px;
+  --mk-base-font: 13px;
+  --mk-base-pad: 5px;
+  --mk-base-gap: 4px;
+  --page-inner-inset: 5px;
+}
+
+.bk-stage.is-phone-landscape .bk-book--closed,
+.bk-stage.is-phone-landscape .bk-book--straight {
+  transform: translateX(var(--closed-tx)) rotateZ(12deg) scale(var(--closed-scale, 0.53));
+}
+
+.bk-stage.is-phone-landscape .bk-book--straight {
+  transform: translateX(var(--closed-tx)) rotateZ(0deg) scale(var(--closed-scale, 0.53));
+}
+
+/* 双页：中缝略窄，左右等宽 */
+.bk-stage.is-phone-landscape .bk-spread {
+  grid-template-columns: minmax(0, 1fr) 8px minmax(0, 1fr);
+}
+
+/* book.css 的窄屏单页规则把纸设成 100% 并隐藏翻过去的纸；
+   横屏手机仍是双页，必须把每张纸恢复成半幅、翻页后仍可见。 */
+.bk-stage.is-phone-landscape .bk-sheet {
+  width: 50%;
+}
+
+.bk-stage.is-phone-landscape .bk-sheet.is-turned {
+  visibility: visible;
+}
+
+.bk-stage.is-phone-landscape .bk-gutter {
+  display: block;
+}
+
+.bk-stage.is-phone-landscape .bk-gutter {
+  width: 8px;
+}
+
+/* 纸张内边距：比桌面小一半，保证 400px 左右的页宽还能放下正文 */
+.bk-stage.is-phone-landscape .bk-pageface__inner {
+  padding: 12px 14px 22px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--bare .bk-pageface__inner {
+  padding: 8px;
+}
+
+.bk-stage.is-phone-landscape .bk-sheet__face > .atlas-page {
+  padding: 9px 11px 10px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface::-webkit-scrollbar {
+  width: 3px;
+}
+
+/* 页头：缩小标签但保住正文可读性 */
+.bk-stage.is-phone-landscape .bk-content .page-head__title,
+.bk-stage.is-phone-landscape .bk-pageface .page-head__title {
+  font-size: 17px;
+  letter-spacing: 0.08em;
+}
+
+.bk-stage.is-phone-landscape .bk-content .page-head__sub,
+.bk-stage.is-phone-landscape .bk-pageface .page-head__sub {
+  font-size: 10px;
+}
+
+/* 书签：触摸区域 44px 宽，字号由 fitMarks 按书高自动收 */
+.bk-stage.is-phone-landscape .bk-marks {
+  --mark-w: 44px;
+  /* 书签压住书缘 22px，只压装帧边，不压正文；同时保证整列留在屏内 */
+  --mark-overlap: 22px;
+}
+
+.bk-stage.is-phone-landscape .bk-mark-rig,
+.bk-stage.is-phone-landscape .bk-mark {
+  width: var(--mark-w, 44px);
+}
+
+.bk-stage.is-phone-landscape .bk-mark {
+  font-size: var(--mk-font, 13px);
+  letter-spacing: 0.08em;
+}
+
+/* 左右悬浮键：44px 高，避开刘海与书页 */
+.bk-stage.is-phone-landscape .bk-catalog-btn {
+  top: calc(var(--safe-top) + 58px);
+  left: calc(var(--safe-left) + 7px);
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .bk-catalog-btn.bk-shut {
+  top: calc(var(--safe-top) + 108px);
+}
+
+.bk-stage.is-phone-landscape .bk-catalog-btn__icon {
+  font-size: 12px;
+}
+
+/* 右上角账号 / AI 入口：不压书页，不压书签 */
+.bk-stage.is-phone-landscape .bk-tools {
+  top: calc(var(--safe-top) + 6px);
+  /* 给右侧书签列让出 44px，否则「目录」书签会被账号按钮盖住 */
+  right: calc(var(--safe-right) + 56px);
+  max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 16px);
+}
+
+.bk-stage.is-phone-landscape .bk-account {
+  gap: 5px;
+}
+
+.bk-stage.is-phone-landscape .bk-user-btn,
+.bk-stage.is-phone-landscape .bk-ai-btn {
+  min-height: 38px;
+  height: 38px;
+  font-size: 11px;
+  padding: 0 10px;
+}
+
+.bk-stage.is-phone-landscape .bk-user-btn {
+  padding: 0 8px 0 5px;
+}
+
+.bk-stage.is-phone-landscape .bk-ai-btn__state {
+  max-width: 82px;
+  font-size: 8px;
+}
+
+.bk-stage.is-phone-landscape .bk-user-btn__avatar {
+  width: 22px;
+  height: 22px;
+}
+
+/* 背景降低干扰，但保留多行循环 */
+.bk-stage.is-phone-landscape .bk-wall {
+  opacity: 0.46;
+  filter: saturate(0.86) brightness(1.03);
+}
+
+.bk-stage.is-phone-landscape.is-open .bk-wall {
+  opacity: 0.4;
+}
+
+.bk-stage.is-phone-landscape .bk-wall__blur {
+  -webkit-backdrop-filter: blur(2.5px) saturate(0.94);
+  backdrop-filter: blur(2.5px) saturate(0.94);
+}
+
+.bk-stage.is-phone-landscape .bk-wall__veil {
+  background: rgba(251, 246, 236, 0.14);
+}
+
+.bk-stage.is-phone-landscape .bk-wall__card {
+  border-radius: 5px;
+}
+
+.bk-stage.is-phone-landscape .bk-cover__body {
+  padding: 24px 18px;
+  gap: 6px;
+}
+
+.bk-stage.is-phone-landscape .bk-cover__title {
+  font-size: clamp(30px, 6.5vw, 48px);
+}
+
+.bk-stage.is-phone-landscape .bk-cover__hint,
+.bk-stage.is-phone-landscape .bk-cover__tap {
+  font-size: 11px;
+}
+
+/* 通用触控：正文里的按钮不重叠，主操作至少 40px */
+.bk-stage.is-phone-landscape .bk-pageface button,
+.bk-stage.is-phone-landscape .bk-pageface a[role='button'],
+.bk-stage.is-phone-landscape .bk-pageface .btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid rgba(168, 78, 54, 0.62);
+  outline-offset: 2px;
+}
+
+/* 页内滚动条不占内容宽度（Chromium 默认 overlay 在部分版本仍占位） */
+.bk-stage.is-phone-landscape .bk-pageface {
+  scrollbar-gutter: stable;
+}
+
+/* 手机横屏的「目录」书签已在右侧书签列里；左上角这个浮层会压住图鉴第一张卡的菜系标签。
+   合上按钮复用同一套 .bk-catalog-btn 皮肤，必须排除，否则书合不上。 */
+.bk-stage.is-phone-landscape .bk-catalog-btn:not(.bk-shut) {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape:not(.is-open) .bk-shut {
+  display: none;
+}
+
+/* ---------- 横屏翻页键：小屏没有键盘，给纸页外沿一个明确入口 ---------- */
+.bk-stage.is-phone-landscape:not(.is-open) .bk-mobile-turn,
+.bk-stage.is-phone-landscape:not(.is-open) .bk-marks {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn {
+  position: absolute;
+  z-index: 960;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(178, 139, 84, 0.45);
+  border-radius: 50%;
+  background: rgba(255, 251, 242, 0.9);
+  color: #7a5534;
+  font: 22px/1 Georgia, serif;
+  box-shadow: 0 4px 12px rgba(92, 61, 32, 0.14);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  opacity: 0.9;
+  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn:hover,
+.bk-stage.is-phone-landscape .bk-mobile-turn:focus-visible {
+  opacity: 1;
+  background: #fffdf7;
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn:active {
+  transform: scale(0.94);
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn[disabled] {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn--prev {
+  left: calc(max(4px, env(safe-area-inset-left)) + 2px);
+  bottom: calc(max(4px, env(safe-area-inset-bottom)) + 4px);
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn--next {
+  right: calc(max(4px, env(safe-area-inset-right)) + 2px);
+  bottom: calc(max(4px, env(safe-area-inset-bottom)) + 4px);
+}
+
+.bk-stage.is-phone-landscape .bk-mobile-turn::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+/* 网络/脚本异常时的占位，不破坏书的边框 */
+.bk-stage.is-phone-landscape .bk-error {
+  font-size: 12px;
+}
+
+/* ============================================================
+   目录页
+   ============================================================ */
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__page {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__intro {
+  height: auto;
+  overflow: visible;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__preface {
+  display: block;
+  min-height: 0;
+  padding: 10px 12px 18px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__masthead {
+  display: block;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__brand {
+  margin-top: 6px;
+  gap: 8px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__brand-cn {
+  font-size: 28px;
+  letter-spacing: 0.12em;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__brand-en {
+  font-size: 8px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__slogan {
+  margin-top: 7px;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__hero {
+  height: 132px;
+  margin-top: 8px;
+  border-radius: 4px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__hero-note,
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__hero-theme {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__hero-title {
+  font-size: 14px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__hero-name {
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__intro {
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__explore {
+  position: static;
+  margin-top: 11px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__explore-title {
+  gap: 8px;
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat {
+  gap: 2px;
+  padding: 7px 5px;
+  border: 1px solid rgba(184, 146, 92, 0.24);
+  border-radius: 5px;
+  background: rgba(255, 252, 245, 0.54);
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat
+  + .catalog__feat::before {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat-icon {
+  width: 27px;
+  height: 27px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat-name {
+  margin-top: 3px;
+  font-size: 11px;
+  white-space: normal;
+  text-align: center;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat-desc {
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__welcome {
+  position: static;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(184, 146, 92, 0.24);
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__welcome-text {
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__contents {
+  min-height: 0;
+  padding: 10px 12px 18px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__idx-cn {
+  font-size: 20px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__idx-hint {
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__groups {
+  gap: 9px;
+  margin-top: 9px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__group-cn {
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__item {
+  grid-template-columns: 22px minmax(0, 1fr) 34px;
+  gap: 6px;
+  min-height: 52px;
+  padding: 8px 3px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__name {
+  font-size: 14px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__desc {
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__chip {
+  font-size: 8px;
+  padding: 1px 5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__note {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+/* ============================================================
+   图鉴：保留 2×4，恢复卡片文字与点按面积
+   ============================================================ */
+.bk-stage.is-phone-landscape .atlas-page {
+  --tab: 30px;
+  --gap-y: 5px;
+  --gap-x: 8px;
+}
+
+.bk-stage.is-phone-landscape .atlas-head {
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.bk-stage.is-phone-landscape .atlas-head__kicker {
+  display: block;
+  font-size: 8px;
+}
+
+.bk-stage.is-phone-landscape .atlas-head__title {
+  font-size: 15px;
+}
+
+.bk-stage.is-phone-landscape .atlas-head__note,
+.bk-stage.is-phone-landscape .atlas-head__count {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .atlas-board {
+  gap: 6px;
+}
+
+.bk-stage.is-phone-landscape .atcat__box {
+  gap: 3px;
+  padding: 4px 5px;
+}
+
+.bk-stage.is-phone-landscape .atcat__tab-t {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .atcat__dish {
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .atcat__count {
+  display: block;
+  font-size: 8.5px;
+}
+
+.bk-stage.is-phone-landscape .atcat__arrow {
+  width: 30px;
+  height: 30px;
+  opacity: 0.88;
+  pointer-events: auto;
+  transform: translateY(-50%) scale(0.94);
+}
+
+.bk-stage.is-phone-landscape .atcat__arrow--prev {
+  left: 2px;
+}
+
+.bk-stage.is-phone-landscape .atcat__arrow--next {
+  right: 2px;
+}
+
+.bk-stage.is-phone-landscape .atcat__arrow svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bk-stage.is-phone-landscape .atlas-detail__bar {
+  padding: 6px 10px;
+}
+
+.bk-stage.is-phone-landscape .atlas-detail .wrap {
+  padding: 10px 12px 22px;
+}
+
+/* ============================================================
+   AI 推荐：两列表单、两列结果、30→40px 触控
+   ============================================================ */
+.bk-stage.is-phone-landscape .rec-pane {
+  padding: 10px 12px 22px;
+  overflow-x: hidden;
+}
+
+.bk-stage.is-phone-landscape .rec-form,
+.bk-stage.is-phone-landscape .rec-result-inner {
+  min-width: 0;
+}
+
+.bk-stage.is-phone-landscape .rec-section,
+.bk-stage.is-phone-landscape .rec-section--free {
+  margin-top: 12px;
+}
+
+.bk-stage.is-phone-landscape .rec-field-grid {
+  gap: 7px;
+}
+
+.bk-stage.is-phone-landscape .rec-field__label {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-select,
+.bk-stage.is-phone-landscape .rec-input {
+  height: 40px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .rec-select {
+  background-position:
+    calc(100% - 13px) 17px,
+    calc(100% - 9px) 17px;
+}
+
+.bk-stage.is-phone-landscape .rec-textarea {
+  min-height: 74px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .rec-chip,
+.bk-stage.is-phone-landscape .rec-option {
+  min-height: 40px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-chip--mood,
+.bk-stage.is-phone-landscape .rec-moods .rec-chip {
+  min-height: 40px;
+}
+
+.bk-stage.is-phone-landscape .rec-conditions {
+  gap: 6px;
+}
+
+.bk-stage.is-phone-landscape .rec-actions {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.bk-stage.is-phone-landscape .rec-action,
+.bk-stage.is-phone-landscape .rec-dislike,
+.bk-stage.is-phone-landscape .rec-submit,
+.bk-stage.is-phone-landscape .rec-clear {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .rec-clear {
+  min-height: 32px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .rec-quick {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__item {
+  min-height: 54px;
+  padding: 8px 9px;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__kicker {
+  font-size: 8.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__title {
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__desc {
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .rec-result-head {
+  gap: 10px;
+  padding-bottom: 9px;
+}
+
+.bk-stage.is-phone-landscape .rec-result-title {
+  margin-top: 5px;
+  font-size: 21px;
+}
+
+.bk-stage.is-phone-landscape .rec-result-summary {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+.bk-stage.is-phone-landscape .rec-card {
+  border-radius: 8px;
+}
+
+.bk-stage.is-phone-landscape .rec-card__body {
+  padding: 8px;
+}
+
+.bk-stage.is-phone-landscape .rec-card__name {
+  font-size: 13.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-card__line {
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .rec-card__reason {
+  margin-top: 5px;
+  padding-top: 5px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .rec-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.bk-stage.is-phone-landscape .rec-ai-detail__title {
+  font-size: 20px;
+}
+
+.bk-stage.is-phone-landscape .rec-ai-detail__desc,
+.bk-stage.is-phone-landscape .rec-ai-detail__reason {
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+.bk-stage.is-phone-landscape .rec-ai-detail__actions .rec-action {
+  min-height: 38px;
+}
+
+/* ============================================================
+   菜系 / 口味
+   ============================================================ */
+.bk-stage.is-phone-landscape .catb__page {
+  min-width: 0;
+}
+
+.bk-stage.is-phone-landscape .catb__scroll {
+  padding: 2px 2px 12px;
+}
+
+.bk-stage.is-phone-landscape .catb__head {
+  gap: 4px;
+}
+
+.bk-stage.is-phone-landscape .catb__kicker {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__title {
+  font-size: 24px;
+}
+
+.bk-stage.is-phone-landscape .catb__en {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__tagline {
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.bk-stage.is-phone-landscape .catb__desc {
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.bk-stage.is-phone-landscape .catb__hero--sm {
+  height: 140px;
+}
+
+.bk-stage.is-phone-landscape .catb__visual {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__aside .catb__desc {
+  font-size: 10.5px;
+  line-height: 1.6;
+  -webkit-line-clamp: 5;
+}
+
+.bk-stage.is-phone-landscape .catb__ai {
+  min-height: 40px;
+  padding: 6px 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__ai-t {
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .catb__ai-sub {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__facts {
+  gap: 3px 7px;
+}
+
+.bk-stage.is-phone-landscape .catb__fact dt {
+  flex-basis: 42px;
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .catb__fact dd {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .catb__picks-kicker {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__pick-row {
+  gap: 7px;
+}
+
+.bk-stage.is-phone-landscape .catb__pick-media img {
+  height: 56px;
+}
+
+.bk-stage.is-phone-landscape .catb__pick-name {
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .catb__pick-sig {
+  display: block;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.bk-stage.is-phone-landscape .catb__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bk-stage.is-phone-landscape .catb__card {
+  border-radius: 7px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-media img {
+  height: 82px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-body {
+  padding: 7px 8px 8px;
+  gap: 3px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-name {
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-cuisine {
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-line {
+  font-size: 10px;
+  line-height: 1.5;
+  -webkit-line-clamp: 2;
+}
+
+.bk-stage.is-phone-landscape .catb__card-tag {
+  font-size: 8.5px;
+  padding: 1px 5px;
+}
+
+.bk-stage.is-phone-landscape .catb__more {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .catb__more {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .catb__chips {
+  gap: 4px;
+}
+
+.bk-stage.is-phone-landscape .catb__chip {
+  min-height: 34px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+}
+
+/* ============================================================
+   菜谱
+   ============================================================ */
+.bk-stage.is-phone-landscape .bk-pageface--recipe .wrap,
+.bk-stage.is-phone-landscape .bk-pageface--recipe .page > .wrap {
+  padding: 10px 12px 24px;
+}
+
+.bk-stage.is-phone-landscape .tool-form {
+  padding: 0;
+}
+
+.bk-stage.is-phone-landscape .tool-form .field__label,
+.bk-stage.is-phone-landscape .tool-form label {
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .tool-form input,
+.bk-stage.is-phone-landscape .tool-form select,
+.bk-stage.is-phone-landscape .tool-form textarea {
+  min-height: 40px;
+  font-size: 12.5px;
+}
+
+.bk-stage.is-phone-landscape .tool-form .btn,
+.bk-stage.is-phone-landscape .tool-form button {
+  min-height: 40px;
+}
+
+.bk-stage.is-phone-landscape .recipe-form button[type='submit'],
+.bk-stage.is-phone-landscape .recipe-generate {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .recipe-starters__list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bk-stage.is-phone-landscape .recipe-card {
+  border-radius: 8px;
+}
+
+.bk-stage.is-phone-landscape .recipe-card__name {
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .recipe-card__meta,
+.bk-stage.is-phone-landscape .recipe-card__desc {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--recipe .page-head__title {
+  font-size: 17px;
+}
+
+/* ============================================================
+   厨房
+   ============================================================ */
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .bk-pageface__inner {
+  padding: 8px 10px 12px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-explore {
+  grid-template-rows: minmax(0, 56fr) minmax(0, 44fr);
+  gap: 7px;
+  overflow: hidden;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-explore > .ek-graph-card {
+  min-height: 0;
+  padding: 7px 9px 6px;
+  overflow: hidden;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-explore > .ek-catalog {
+  min-height: 0;
+  padding: 7px 9px;
+  overflow: hidden;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-card__head {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-canvas {
+  min-height: 96px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-graphbar {
+  margin-bottom: 3px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-graphfoot {
+  margin-top: 4px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-graphfoot .ek-ctx {
+  flex: 1 1 100%;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-graphfoot .ek-status {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-catrow {
+  gap: 4px;
+  margin-bottom: 3px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-catrow .ek-search {
+  min-height: 34px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-item {
+  min-height: 40px;
+  padding: 5px 6px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-item__meta {
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-craft {
+  gap: 8px;
+  padding-right: 3px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-modes {
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-mode {
+  min-height: 38px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-quickgrid {
+  gap: 5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-quick {
+  min-height: 34px;
+  padding: 4px 6px;
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-search,
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-input {
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-modes .ek-mode,
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-catalog button,
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-craft button {
+  min-height: 38px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-craft .ek-go,
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-craft button[type='submit'] {
+  min-height: 42px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-empty {
+  padding: 8px 8px 18px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-empty__title {
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-empty__desc {
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-empty__chips {
+  gap: 4px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-result {
+  padding: 8px 9px;
+}
+
+/* ============================================================
+   社区
+   ============================================================ */
+.bk-stage.is-phone-landscape .bk-content[data-chapter='community'] .page > .wrap {
+  padding: 8px 10px 20px;
+}
+
+.bk-stage.is-phone-landscape .bk-content[data-chapter='community'] .community-grid {
+  gap: 16px;
+}
+
+.bk-stage.is-phone-landscape .community-side,
+.bk-stage.is-phone-landscape .community-main {
+  padding-right: 2px;
+}
+
+.bk-stage.is-phone-landscape .community-side {
+  gap: 9px;
+  padding: 9px 10px;
+}
+
+.bk-stage.is-phone-landscape .community-stats {
+  padding: 8px 9px;
+}
+
+.bk-stage.is-phone-landscape .community-stats__title,
+.bk-stage.is-phone-landscape .community-stats__label,
+.bk-stage.is-phone-landscape .community-stats__value {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .community-stats__title {
+  margin-bottom: 5px;
+}
+
+.bk-stage.is-phone-landscape .composer-lock .btn,
+.bk-stage.is-phone-landscape .composer-lock button {
+  min-height: 38px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .composer-box {
+  gap: 8px;
+  padding: 9px;
+  border-radius: 10px;
+}
+
+.bk-stage.is-phone-landscape .composer-box__area {
+  min-height: 68px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .composer-box__kinds .chip,
+.bk-stage.is-phone-landscape .composer-box__bar button {
+  min-height: 38px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .composer-box__bar {
+  gap: 6px;
+}
+
+.bk-stage.is-phone-landscape .composer-box__actions .btn {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .feed-tabs {
+  gap: 5px;
+  margin-bottom: 9px;
+}
+
+.bk-stage.is-phone-landscape .feed-tabs__btn {
+  min-height: 38px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .post-list {
+  --post-chrome: 140px;
+  --post-media-h: 64px;
+  --post-h: 204px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 204px;
+  gap: 8px;
+}
+
+.bk-stage.is-phone-landscape .post {
+  gap: 5px;
+  padding: 8px 9px 7px;
+  border-radius: 9px;
+}
+
+.bk-stage.is-phone-landscape .post__head {
+  gap: 7px;
+}
+
+.bk-stage.is-phone-landscape .post__avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .post__who {
+  height: 28px;
+}
+
+.bk-stage.is-phone-landscape .post__who b {
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .post__who span {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .post__kind {
+  padding: 1px 6px;
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .post__title {
+  font-size: 12.5px;
+}
+
+.bk-stage.is-phone-landscape .post__text {
+  font-size: 10.5px;
+  line-height: 1.5;
+  min-height: calc(1.5em * 2);
+}
+
+.bk-stage.is-phone-landscape .post:not(:has(.post__media)) .post__text {
+  min-height: calc(1.5em * 3);
+  -webkit-line-clamp: 3;
+}
+
+.bk-stage.is-phone-landscape .post__media {
+  border-radius: 6px;
+}
+
+.bk-stage.is-phone-landscape .post__foot {
+  gap: 4px;
+  padding-top: 5px;
+}
+
+.bk-stage.is-phone-landscape .post__foot .post-act {
+  min-height: 34px;
+  padding: 4px 7px;
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .post__tag {
+  font-size: 8.5px;
+  padding: 1px 5px;
+}
+
+.bk-stage.is-phone-landscape .post-detail__title {
+  font-size: 15px;
+}
+
+.bk-stage.is-phone-landscape .com-detail__panel {
+  gap: 7px;
+  padding: 0 0 12px;
+}
+
+.bk-stage.is-phone-landscape .com-detail__bar {
+  gap: 7px;
+  padding: 3px 0 6px;
+}
+
+.bk-stage.is-phone-landscape .com-detail__back {
+  min-height: 38px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .com-detail button {
+  min-height: 38px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .com-detail .comment-form button {
+  min-height: 38px;
+}
+
+.bk-stage.is-phone-landscape .post__dish--detail .post__dish-chat {
+  min-height: 38px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .com-detail__panel .post-detail__comments {
+  gap: 7px;
+}
+
+.bk-stage.is-phone-landscape .comment-form .btn,
+.bk-stage.is-phone-landscape .comment-form button {
+  min-height: 38px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .post-detail__text {
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.bk-stage.is-phone-landscape .com-detail__panel .post-detail__text {
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .post-comment-form input {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .post-comments {
+  gap: 6px;
+}
+
+/* ============================================================
+   菜品详情 / 侧栏 / 视频
+   ============================================================ */
+.bk-stage.is-phone-landscape .dm-top {
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.bk-stage.is-phone-landscape .dm-info {
+  gap: 5px;
+}
+
+.bk-stage.is-phone-landscape .dm-title {
+  font-size: 24px;
+}
+
+.bk-stage.is-phone-landscape .dm-en {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .dm-desc {
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.bk-stage.is-phone-landscape .dm-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.bk-stage.is-phone-landscape .dm-fact {
+  padding: 5px 6px;
+}
+
+.bk-stage.is-phone-landscape .dm-fact__label {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .dm-fact__value {
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .dm-acts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.bk-stage.is-phone-landscape .dm-acts .btn,
+.bk-stage.is-phone-landscape .dm-acts button {
+  min-height: 40px;
+  font-size: 11.5px;
+  padding: 5px 7px;
+}
+
+.bk-stage.is-phone-landscape .dm-sec {
+  margin-top: 12px;
+}
+
+.bk-stage.is-phone-landscape .dm-sec__title {
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .dm-ing {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+
+.bk-stage.is-phone-landscape .dm-ing__item {
+  min-height: 34px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .dm-tech {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.bk-stage.is-phone-landscape .dm-tech__step {
+  min-height: 36px;
+  font-size: 11px;
+  padding: 5px 7px;
+}
+
+.bk-stage.is-phone-landscape .dm-hero-tabs {
+  gap: 4px;
+}
+
+.bk-stage.is-phone-landscape .dm-hero-tabs button,
+.bk-stage.is-phone-landscape .dm-top .tab {
+  min-height: 36px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .dm-comments .post-act,
+.bk-stage.is-phone-landscape .dm-comments button {
+  min-height: 34px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .dm-side__bar {
+  min-height: 44px;
+  padding: 7px 10px;
+}
+
+.bk-stage.is-phone-landscape .dm-side__title {
+  font-size: 14px;
+}
+
+.bk-stage.is-phone-landscape .dm-side__kicker {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .dm-side__close {
+  height: 38px;
+  padding: 0 11px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-detail {
+  padding: 10px 12px 20px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-detail .rec-ai-detail__grid {
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-detail .rec-ai-detail__title {
+  font-size: 20px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-detail .rec-ai-detail__media {
+  max-height: 170px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-detail .rec-ai-detail__desc,
+.bk-stage.is-phone-landscape .rec-side-detail .rec-ai-detail__reason {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.bk-stage.is-phone-landscape .rec-side-detail .rec-ai-detail__actions .rec-action {
+  min-height: 36px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__head {
+  padding: 8px 10px 6px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__title {
+  font-size: 16px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__list {
+  padding: 8px 10px 4px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__quick {
+  padding: 0 10px 6px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__form {
+  padding: 7px 10px calc(9px + env(safe-area-inset-bottom));
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__input {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__send,
+.bk-stage.is-phone-landscape .rec-side-chat .rec-ai-chat__stop {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__inner {
+  padding: 10px 12px 0;
+}
+
+.bk-stage.is-phone-landscape .dm-video__head {
+  padding-bottom: 7px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__title {
+  font-size: 17px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__en {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__meta,
+.bk-stage.is-phone-landscape .dm-video__lead {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__close {
+  height: 38px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__scroll {
+  padding: 7px 2px 16px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__card {
+  border-radius: 6px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__card-title {
+  font-size: 11px;
+}
+
+/* ============================================================
+   营养
+   ============================================================ */
+.bk-stage.is-phone-landscape .nutrition-card {
+  padding: 8px 9px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-card__title h4 {
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-card__sub {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-switch {
+  min-height: 36px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-switch__btn {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 5px 8px;
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-metric {
+  padding: 6px 5px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-metric__label {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-metric__value b {
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.bk-stage.is-phone-landscape .nutrition-hero {
+  gap: 8px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-hero__energy strong {
+  font-size: 22px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-fold__summary {
+  min-height: 36px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .nutrition-completeness,
+.bk-stage.is-phone-landscape .nutrition-badge,
+.bk-stage.is-phone-landscape .nutrition-details summary,
+.bk-stage.is-phone-landscape .nutrition-details p {
+  font-size: 10px;
+}
+
+/* 667 宽手机的纸页更窄：热量与每份/整道开关改为上下排，指标回两列 */
+@media (max-width: 720px) {
+  .bk-stage.is-phone-landscape .nutrition-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bk-stage.is-phone-landscape .nutrition-hero__side {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .bk-stage.is-phone-landscape .nutrition-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ============================================================
+   全站触控规则：横屏手机里的链接/按钮不出现 20px 级热点
+   ============================================================ */
+.bk-stage.is-phone-landscape .bk-pageface a,
+.bk-stage.is-phone-landscape .bk-pageface button {
+  touch-action: manipulation;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface input,
+.bk-stage.is-phone-landscape .bk-pageface select,
+.bk-stage.is-phone-landscape .bk-pageface textarea {
+  font-size: max(12px, 1em);
+}
+
+/* ============================================================
+   覆盖优先级修正：目录「非 flow」规则在 catalog.css 末尾，
+   需要用同等级的 :not() 前缀把绝对定位真正改回文档流。
+   ============================================================ */
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__preface {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  padding: 10px 12px 18px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__masthead {
+  position: static;
+  display: block;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__kicker {
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__brand-cn {
+  font-size: 28px;
+  letter-spacing: 0.12em;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__brand-en {
+  font-size: 8.5px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__slogan {
+  margin-top: 7px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__hero {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  height: 150px;
+  max-height: none;
+  margin-top: 8px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__intro {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  width: auto;
+  max-width: none;
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  white-space: normal;
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__intro-line {
+  display: inline;
+  white-space: normal;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__verse,
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__cloud,
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__ridge,
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__brand-seal {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__explore {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  margin-top: 11px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__welcome {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(184, 146, 92, 0.24);
+}
+
+/* 目录右侧：允许正文滚动，不再为了塞下而压到 8px */
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__page {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__contents {
+  height: auto;
+  min-height: 100%;
+}
+
+/* ============================================================
+   厨房：抵消 atlas.css 给书页卡片的固定 340px 高度
+   ============================================================ */
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-explore {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-explore > .ek-graph-card {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-explore > .ek-catalog {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-btn {
+  height: auto;
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-graph-card .ek-btn,
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-graph-card button {
+  min-height: 34px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-catalog .ek-btn,
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-catalog button {
+  min-height: 36px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-craft .ek-btn {
+  min-height: 42px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-tool--round {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-switch {
+  min-height: 38px;
+  gap: 6px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-switch input {
+  width: 18px;
+  height: 18px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-adv__toggle {
+  min-height: 38px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--kitchen .ek-catalog .ek-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 推荐表单里所有可点选项：至少 38px；清空按钮保持紧凑 */
+.bk-stage.is-phone-landscape .bk-pageface--rec .rec-pane button {
+  min-height: 38px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--rec .rec-pane .rec-clear {
+  min-width: 40px;
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--rec .rec-pane .rec-quick__title {
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--rec .rec-pane .rec-quick__desc {
+  font-size: 10px;
+}
+
+/* 菜谱表单：标签与输入控件真正放大 */
+.bk-stage.is-phone-landscape .bk-pageface--recipe label,
+.bk-stage.is-phone-landscape .bk-pageface--recipe .field-label,
+.bk-stage.is-phone-landscape .bk-pageface--recipe .form-label,
+.bk-stage.is-phone-landscape .bk-pageface--recipe .field > span {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--recipe input,
+.bk-stage.is-phone-landscape .bk-pageface--recipe select,
+.bk-stage.is-phone-landscape .bk-pageface--recipe textarea {
+  min-height: 40px;
+  font-size: 12.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--recipe button {
+  min-height: 40px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--recipe .btn--solid {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__title,
+.bk-stage.is-phone-landscape .rec-quick__title * {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__kicker,
+.bk-stage.is-phone-landscape .rec-quick__kicker * {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .rec-quick__desc,
+.bk-stage.is-phone-landscape .rec-quick__desc * {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.bk-stage.is-phone-landscape .atcat__arrow {
+  width: 38px;
+  height: 38px;
+}
+
+.bk-stage.is-phone-landscape .atcat__arrow::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
+.bk-stage.is-phone-landscape .catb__sec-kick {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-line {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat-desc {
+  font-size: 9.5px;
+}
+
+/* 菜系 / 口味「加载更多」 */
+.bk-stage.is-phone-landscape .catb__more {
+  min-height: 40px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+/* 图鉴卡片里的菜名 */
+.bk-stage.is-phone-landscape .atcat__dish {
+  font-size: 11.5px;
+}
+
+/* 详情页标题：实际类名优先，兜底也覆盖 */
+.bk-stage.is-phone-landscape .bk-pageface .dm-name,
+.bk-stage.is-phone-landscape .bk-pageface .dm-title {
+  font-size: 23px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-en,
+.bk-stage.is-phone-landscape .bk-pageface .dm-en-name {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-desc,
+.bk-stage.is-phone-landscape .bk-pageface .dm-intro {
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+/* 详情页评论 / 回复按钮 */
+.bk-stage.is-phone-landscape .bk-pageface .post-act,
+.bk-stage.is-phone-landscape .bk-pageface .dm-comment-act {
+  min-height: 38px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+/* 详情页：标题 / 动作 / 食材 / 标签 */
+.bk-stage.is-phone-landscape .bk-pageface .dm-hero__cap {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-title__en {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-line,
+.bk-stage.is-phone-landscape .bk-pageface .dm-info__texture {
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-info__label {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-tag {
+  min-height: 24px;
+  padding: 2px 7px;
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-fact__label,
+.bk-stage.is-phone-landscape .bk-pageface .dm-fact dt {
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-fact__value,
+.bk-stage.is-phone-landscape .bk-pageface .dm-fact dd {
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-act {
+  min-height: 40px;
+  height: auto;
+  padding: 6px 7px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-act__txt {
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-ing__item {
+  min-height: 34px;
+  font-size: 11px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface .dm-tech__step {
+  min-height: 36px;
+  font-size: 11.5px;
+}
+
+/* 视频面板：把卡片正文从 8.5–9.5px 提到可读字号 */
+.bk-stage.is-phone-landscape .dm-video__title {
+  font-size: 19px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__lead {
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.bk-stage.is-phone-landscape .dm-video__status,
+.bk-stage.is-phone-landscape .dm-video__count {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__card-title,
+.bk-stage.is-phone-landscape .dm-video__card b {
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.bk-stage.is-phone-landscape .dm-video__desc {
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.bk-stage.is-phone-landscape .dm-video__tag {
+  font-size: 9px;
+  padding: 1px 5px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__dur {
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__more {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__card {
+  border-radius: 7px;
+}
+
+/* 菜品聊天：输入区与常用问题达到 40px */
+.bk-stage.is-phone-landscape .dm-chat .cr-head {
+  gap: 7px;
+  padding: 7px 10px 6px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .cr-head__name {
+  font-size: 16px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .cr-head__sub {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat__close {
+  height: 38px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .quick {
+  min-height: 36px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .quick-row {
+  gap: 5px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .cr-composer {
+  padding: 7px 10px calc(8px + env(safe-area-inset-bottom));
+}
+
+.bk-stage.is-phone-landscape .dm-chat .composer textarea {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .cr-composer button[type='submit'],
+.bk-stage.is-phone-landscape .dm-chat .cr-composer .btn {
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .composer__hint {
+  display: none;
+}
+
+.bk-stage.is-phone-landscape .dm-chat .cr-panel--chat .messages {
+  padding: 8px 10px 5px;
+}
+
+/* 次要信息字号：保持层级，但不让正文/标签掉到 9px 以下 */
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__brand-en {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__group-en {
+  font-size: 8.5px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__chip-label {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .bk-pageface--catalog .catalog__pages {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape
+  .bk-pageface--catalog:not(.bk-pageface--catalog-flow)
+  .catalog__feat-desc {
+  font-size: 10.5px;
+}
+
+.bk-stage.is-phone-landscape .catb__card-src,
+.bk-stage.is-phone-landscape .catb__card-cuisine {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .catb__top-note,
+.bk-stage.is-phone-landscape .catb__top-meta {
+  font-size: 10px;
+}
+
+.bk-stage.is-phone-landscape .rec-section__no {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .rec-section__hint,
+.bk-stage.is-phone-landscape .rec-fineprint,
+.bk-stage.is-phone-landscape .rec-submit-note {
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-free__count {
+  font-size: 9.5px;
+}
+
+.bk-stage.is-phone-landscape .rec-welcome__stamp-en {
+  font-size: 8px;
+}
+
+.bk-stage.is-phone-landscape .post__tag {
+  font-size: 9px;
+}
+
+.bk-stage.is-phone-landscape .dm-video__tag {
+  font-size: 9.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-stage.is-phone-landscape .bk-mobile-turn {
+    transition: none;
+  }
+}

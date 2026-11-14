@@ -16,6 +16,7 @@ import { createPageBook } from './pages.js';
 import { createSheets, TURN_MS } from './sheets.js';
 import { createBookmarks } from './bookmarks.js';
 import { computeLayout, observeLayout } from './layout.js';
+import { initOrientationGuide } from './orientation-guide.js';
 import { mountAccount } from '../components/account.js';
 import './book.css';
 import './atlas.css';
@@ -25,6 +26,7 @@ import './catalog.css';
 import './recommendation.css';
 import './video-panel.css';
 import './side-panel.css';
+import './mobile-landscape.css';
 import { closeAllOverlays } from './overlay.js';
 import {
   RECIPE_NAV_EVENT,
@@ -72,6 +74,22 @@ export function initBook({ root, routerApi = null }) {
   document.body.classList.add('is-book');
   const shell = createShell(root);
   let lastBox = null;
+  let bookReady = false;
+
+  /* 手机横屏专用翻页键（桌面隐藏）。挂在 .bk-book 上，跟随整本书缩放/平移。 */
+  const turnPrev = h(
+    'button',
+    { class: 'bk-mobile-turn bk-mobile-turn--prev', type: 'button', 'aria-label': '上一页' },
+    '‹'
+  );
+  const turnNext = h(
+    'button',
+    { class: 'bk-mobile-turn bk-mobile-turn--next', type: 'button', 'aria-label': '下一页' },
+    '›'
+  );
+  turnPrev.addEventListener('click', () => void turn('prev'));
+  turnNext.addEventListener('click', () => void turn('next'));
+  shell.book.append(turnPrev, turnNext);
 
   /* ---------------- 环境阴影（独立层） ---------------- */
   // 阴影不是书本的子节点，所以不继承 15° 旋转。
@@ -127,12 +145,99 @@ export function initBook({ root, routerApi = null }) {
     const box = computeLayout();
     shell.el.style.setProperty('--book-w', `${box.w}px`);
     shell.el.style.setProperty('--book-h', `${box.h}px`);
+    shell.el.style.setProperty('--book-shift', `${box.bookShift || 0}px`);
+    shell.el.style.setProperty('--mark-overlap', `${box.markOverlap ?? 4}px`);
     shell.el.classList.toggle('is-single', box.mode === 'single');
+    shell.el.classList.toggle('is-phone-landscape', !!box.mobileLandscape);
     lastBox = box;
     fitShadow();
     syncMarks();
     fitMarks();
+    syncTurnButtons();
   }
+
+  function syncTurnButtons() {
+    if (!bookReady) {
+      turnPrev.hidden = true;
+      turnNext.hidden = true;
+      return;
+    }
+    const show = !!lastBox?.mobileLandscape && mode === 'open' && !inner;
+    const total = book.totalSpreads();
+    const atStart = position.single ? position.value <= 2 : position.value <= 0;
+    const atEnd = position.single ? position.value >= maxPage() : position.value >= total - 1;
+    for (const [btn, disabled] of [
+      [turnPrev, atStart],
+      [turnNext, atEnd],
+    ]) {
+      btn.hidden = !show;
+      btn.disabled = disabled;
+    }
+  }
+
+  /*
+   * 手机横屏的纸页是 3D 变换过的子树，浏览器原生「点哪滚哪」在部分模块
+   * （菜系、推荐、菜谱）不生效。这里做一个统一的手指代理：从触点向上找
+   * 最近的可滚动容器，手势超过 5px 后直接写 scrollTop；已经由
+   * enableTouchScroll 接管的容器会带 data-touch-scroll，直接跳过，避免双写。
+   */
+  function initPhoneTouchScroll() {
+    const stageEl = shell.el;
+    let host = null;
+    let startY = 0;
+    let startTop = 0;
+    let tracking = false;
+
+    const findHost = (node) => {
+      let el = node instanceof Element ? node : node?.parentElement;
+      for (; el && el !== stageEl; el = el.parentElement) {
+        if (el.dataset?.touchScroll === '1') return null;
+        const cs = getComputedStyle(el);
+        if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 2) return el;
+      }
+      return null;
+    };
+
+    stageEl.addEventListener(
+      'touchstart',
+      (e) => {
+        tracking = false;
+        host = null;
+        if (!stageEl.classList.contains('is-phone-landscape') || !stageEl.classList.contains('is-open')) return;
+        if (e.touches.length !== 1) return;
+        host = findHost(e.target);
+        if (!host) return;
+        tracking = true;
+        startY = e.touches[0].clientY;
+        startTop = host.scrollTop;
+      },
+      { passive: true }
+    );
+
+    stageEl.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!tracking || !host || e.touches.length !== 1) return;
+        const dy = startY - e.touches[0].clientY;
+        if (Math.abs(dy) < 5) return;
+        const max = host.scrollHeight - host.clientHeight;
+        const next = Math.max(0, Math.min(max, startTop + dy));
+        if (next === host.scrollTop) return;
+        host.scrollTop = next;
+        e.preventDefault();
+      },
+      { passive: false }
+    );
+
+    const end = () => {
+      tracking = false;
+      host = null;
+    };
+    stageEl.addEventListener('touchend', end, { passive: true });
+    stageEl.addEventListener('touchcancel', end, { passive: true });
+  }
+
+  initPhoneTouchScroll();
 
   fit();
   const stopObserve = observeLayout(() => {
@@ -142,6 +247,17 @@ export function initBook({ root, routerApi = null }) {
       shell.content.dataset.fitted = `${lastBox.w}x${lastBox.h}`;
       if (before.mode !== lastBox.mode) void reflow();
     }
+  });
+
+  /* 手机竖屏引导：横屏后重新量一次；如果正读到内页，由 reflow 换成双页 */
+  const orientationGuide = initOrientationGuide({
+    onEnter: () => {
+      requestAnimationFrame(() => {
+        const before = lastBox;
+        fit();
+        if (before?.mode !== lastBox.mode && mode === 'open') void reflow();
+      });
+    },
   });
 
   /* ---------------- 状态机 ---------------- */
@@ -165,6 +281,7 @@ export function initBook({ root, routerApi = null }) {
     shell.el.classList.toggle('is-reading', cls === 'bk-book--reading');
     // 合上 / 打开：只同步书签状态；位置由 .bk-book 的整体变换带动
     syncMarks();
+    syncTurnButtons();
   }
   function setPhase(next) {
     phase = next;
@@ -209,6 +326,8 @@ export function initBook({ root, routerApi = null }) {
     // 目录条目的点击：和侧边书签共用 openChapter（同一套翻页控制，同一份章节映射）
     onChapterNav: (id) => void openChapter(id),
   });
+  bookReady = true;
+  syncTurnButtons();
   const sheets = createSheets(shell.content);
 
   /* 统一导航层的状态（书签 / 返回 / 站内页共用） */
@@ -376,6 +495,7 @@ export function initBook({ root, routerApi = null }) {
     }
     syncMarks();
     syncChrome();
+    syncTurnButtons();
     return true;
   }
 
@@ -699,11 +819,30 @@ export function initBook({ root, routerApi = null }) {
     if (mode !== 'open') return;
     const single = lastBox.mode === 'single';
     if (single === position.single) return;
+    /*
+     * 手机上旋转屏幕会换排法，纸张会被重新挂回书架。
+     * 浏览器在 DOM 重排时会丢掉 scrollTop，这里先记下当前页的滚动位置，
+     * 换完纸再还原；目录页会重建，其余章节是缓存的，所以能真正回到原处。
+     */
+    const savedScroll = [];
+    for (const face of shell.el.querySelectorAll('.bk-pageface')) {
+      if (face.scrollTop > 0) savedScroll.push([face, face.scrollTop]);
+      for (const el of face.querySelectorAll('*')) {
+        if (el.scrollTop > 0) savedScroll.push([el, el.scrollTop]);
+      }
+    }
     const page = position.single ? position.value : position.value * 2 + 2;
     position = single ? { single: true, value: page } : { single: false, value: Math.floor((page - 2) / 2) };
     // 目录页在单页 / 双页下是两种排法（并页 / 分页），换模式时按新宽度重建一次
     book.disposeChapter?.('catalog');
     await render();
+    if (savedScroll.length) {
+      requestAnimationFrame(() => {
+        for (const [el, top] of savedScroll) {
+          if (el.isConnected) el.scrollTop = top;
+        }
+      });
+    }
   }
 
   /* ---------------- 翻页 ---------------- */
@@ -1510,6 +1649,7 @@ export function initBook({ root, routerApi = null }) {
     shell,
     destroy() {
       stopObserve();
+      orientationGuide.destroy();
     },
   };
 }
