@@ -545,21 +545,31 @@ export function initBook({ root, routerApi = null }) {
   }
 
   /* ---------------- 开书 ---------------- */
-  let coverBusy = false;
-  shell.cover.addEventListener('click', () => void openFirst());
+  // 封面是「打开画册」的唯一入口：无论当前地址停在哪一章，都只落到目录。
+  // 章节书签则走 openChapter(id)，由它提前把目标跨页交给同一个开书动画。
+  const openCover = () => {
+    if (phase !== 'CLOSED_TILTED' || busy) return;
+    void openFirst(book.spreadOfChapter('catalog'), { path: '/catalog' }).then(() => {
+      // 开书动画期间如果又点了书签，封面打开后立即接着去最后一个目标。
+      if (mode === 'open') flushPendingChapter();
+    });
+  };
+  shell.cover.addEventListener('click', openCover);
   shell.cover.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      void openFirst();
+      openCover();
     }
   });
 
-  async function openFirst(targetSpread) {
+  async function openFirst(targetSpread, options = {}) {
     if (phase !== 'CLOSED_TILTED' || busy) return;
     busy = true;
     try {
       const single = lastBox.mode === 'single';
-      const path = location.pathname || '/dishes';
+      // 目标路径必须由调用方明确指定：封面固定 /catalog，书签用章节 href，
+      // 只有深链接 / 浏览器返回这类「按当前地址开书」才回退到 location。
+      const path = options.path || location.pathname || '/dishes';
       const bootInfo = moduleOf(path);
       // 书签直接打开 /cuisines/yue、/tastes/qingxian：先把分类 id 交给章节，再摆纸
       if (bootInfo.key === 'cuisines' || bootInfo.key === 'tastes') {
@@ -980,9 +990,11 @@ export function initBook({ root, routerApi = null }) {
 
     if (mode === 'closed') {
       if (phase !== 'CLOSED_TILTED') return;
-      await openFirst(target);
+      // 合书状态点书签：直接把目标章节路径交给开书动画，预先把纸摆到目标跨页。
+      // 不能只传 spread；否则 openFirst 会按当前地址判断内页，可能先恢复到详情页。
+      await openFirst(target, { path: href });
       if (mode !== 'open') return;
-      history.replaceState({ chapter: id }, '', location.pathname.startsWith(href) ? location.href : href);
+      history.replaceState({ chapter: id }, '', href);
       syncChrome();
       flushPendingChapter();
       return true;
@@ -1081,7 +1093,7 @@ export function initBook({ root, routerApi = null }) {
         queueRecipeNav(payload);
         return;
       }
-      await openFirst(book.spreadOfChapter('recipe'));
+      await openFirst(book.spreadOfChapter('recipe'), { path: '/recipe' });
       if (mode !== 'open') {
         queueRecipeNav(payload);
         return;

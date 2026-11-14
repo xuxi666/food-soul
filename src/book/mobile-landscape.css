@@ -242,8 +242,9 @@
 }
 
 /* ---------- 横屏翻页键：小屏没有键盘，给纸页外沿一个明确入口 ---------- */
-.bk-stage.is-phone-landscape:not(.is-open) .bk-mobile-turn,
-.bk-stage.is-phone-landscape:not(.is-open) .bk-marks {
+/* 书签在合书状态也必须可用：它承担「打开并直达章节」的入口，
+   因此只隐藏翻页键，不再隐藏 .bk-marks。 */
+.bk-stage.is-phone-landscape:not(.is-open) .bk-mobile-turn {
   display: none;
 }
 
