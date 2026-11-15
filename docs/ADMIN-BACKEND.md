@@ -11,7 +11,7 @@
 | 登录 | 复用站点账号；管理员由环境变量 `ADMIN_EMAILS` 白名单决定，每次请求 `syncRole()` |
 | 会话 | Cookie `fs_session`（`HttpOnly; SameSite=Lax`） |
 | 拦截 | 未登录 → 401 `auth_required`；已登录非管理员 → 403 `forbidden`；`sameOrigin()` 先于权限校验 |
-| 测试账号 | 本地 `admin@foodsoul.local` / `AdminPass1234!`（见 `.env`） |
+| 测试账号 | 由本地 `.env` 的 `ADMIN_EMAILS` 与测试脚本环境变量指定；仓库不记录密码 |
 
 ## 2. 模块清单（A 可用 / B 不完整 / C 有故障 / D 缺失 / E 外部依赖不可判）
 

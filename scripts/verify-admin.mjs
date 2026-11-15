@@ -4,7 +4,8 @@ import path from 'node:path';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5180';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@foodsoul.local';
-const ADMIN_PASS = 'AdminPass1234!';
+const ADMIN_PASS = process.env.ADMIN_PASS || '';
+if (!ADMIN_PASS) { console.error('ADMIN_PASS 未设置：请用本地测试账号的环境变量运行，不要提交密码'); process.exit(1); }
 const UPLOAD_DIR = path.resolve('public/uploads');
 
 const results = [];
