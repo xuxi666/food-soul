@@ -82,7 +82,15 @@
 
 详细台账与已知边界见 [docs/ADMIN-BACKEND.md](docs/ADMIN-BACKEND.md)。
 
-## 3. 技术架构
+## 3. 界面与演示资料
+
+![管理后台概览](docs/admin-shots/pc-overview.png)
+
+- 管理后台 PC / 平板 / 手机截图：[docs/admin-shots](docs/admin-shots/)
+- 画册墙面交互演示视频：[docs/wall-demo.webm](docs/wall-demo.webm)
+- 用例、时序、状态、活动和架构图：[docs/diagrams](docs/diagrams/)
+
+## 4. 技术架构
 
 ```mermaid
 flowchart LR
@@ -112,7 +120,7 @@ flowchart LR
 | 联网检索 | 自建 SearXNG + 360 搜索 + Bing RSS，无付费检索 Key |
 | 部署 | Vite 构建 + Node 静态服务 + Nginx/PM2（生产可选） |
 
-## 4. 项目目录
+## 5. 项目目录
 
 ```text
 food-soul/
@@ -154,7 +162,7 @@ food-soul/
 
 > `HANDOFF.md` 是本机内部交接记录，不属于公开交付物，已从 Git 跟踪中移除并加入 `.gitignore`；公开项目说明以 README 和 `docs/` 为准。
 
-## 5. 本地运行
+## 6. 本地运行
 
 ### 5.1 环境要求
 
@@ -190,7 +198,7 @@ Copy-Item .env.example .env
 node --input-type=module -e "import c from 'node:crypto'; console.log(c.randomBytes(32).toString('base64'))"
 ```
 
-其他变量按需填写，完整说明见第 7 节。**不要把真实 `.env` 提交到 Git。**
+其他变量按需填写，完整说明见第 8 节。**不要把真实 `.env` 提交到 Git。**
 
 ### 5.4 启动开发环境
 
@@ -209,7 +217,7 @@ npm run dev
 
 `AI_CONFIG_SECRET` 缺失时浏览和普通页面仍可打开，但保存 AI 配置会明确失败；这是有意的安全行为。
 
-## 6. 生产构建与部署
+## 7. 生产构建与部署
 
 ```bash
 npm run build       # 生成 dist/
@@ -241,7 +249,7 @@ pm2 restart food-soul
 
 当前项目还提供了 `npm run ship` 部署脚本：它从本机 `.deploy.env` 读取服务器信息，构建并重启远程 PM2，再由服务器同步 GitHub。该脚本需要自行配置 SSH 和服务器权限；不会把 `.deploy.env`、`.env`、数据库或上传文件带入仓库。详细步骤、故障排查和安全约定见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
-## 7. 环境变量
+## 8. 环境变量
 
 下表以源码实际读取为准。`必填` 表示缺少后核心功能不可用；其余为可选或可降级配置。
 
@@ -278,7 +286,7 @@ pm2 restart food-soul
 | `ADMIN_EMAIL` | 本地测试管理员邮箱 |
 | `ADMIN_PASS` | 本地测试管理员密码；必须由环境变量提供，仓库不记录 |
 
-## 8. 依赖说明
+## 9. 依赖说明
 
 ### 生产依赖
 
@@ -305,7 +313,7 @@ pm2 restart food-soul
 - 可选自建 SearXNG；
 - 生产可用 Nginx + PM2（非强制）。
 
-## 9. 测试与验收
+## 10. 测试与验收
 
 仓库目前**没有 unit test runner**，也没有把未执行的测试写成“全部通过”。现有可执行检查包括：
 
@@ -326,7 +334,7 @@ node scripts/verify-epicure.mjs
 - `node --check`：对本次修改的脚本执行语法检查；
 - 仓库不伪造测试数量、覆盖率或外部服务调用结果。
 
-## 10. 安全说明
+## 11. 安全说明
 
 - `.env`、`.env.*`、`.deploy.env`、数据库、日志和上传文件均不进入仓库；根目录 `.env.example` 只包含占位值。
 - 用户 AI Key 以 AES-256-GCM 密文存储，接口响应不回传明文 Key。
@@ -335,7 +343,7 @@ node scripts/verify-epicure.mjs
 - 如发现安全问题，请通过 GitHub 仓库的 **Security → Report a vulnerability** 私密报告，不要在公开 Issue 中粘贴真实密钥。
 - 公开文档不记录服务器 SSH 私钥、数据库密码或真实 API Key。
 
-## 11. 团队信息
+## 12. 团队信息
 
 > 以下为需要项目负责人补充的真实信息占位，仓库不虚构成员、学校或联系方式。
 
@@ -348,7 +356,7 @@ node scripts/verify-epicure.mjs
 | 学校 / 组织 | `<待填写>` |
 | 联系方式 | `<待填写>` |
 
-## 12. 已知限制
+## 13. 已知限制
 
 - 仅支持 OpenAI 兼容接口；Anthropic / Gemini 原生协议需要兼容网关。
 - 配置了聊天模型不等于具备联网能力，联网检索走独立链路。
@@ -358,11 +366,11 @@ node scripts/verify-epicure.mjs
 - Epicure 的 `analyze / pair / create` 目前主要通过服务端接口提供，后台只做状态探测。
 - 背景音乐、外部 AI、Epicure 和 SearXNG 均依赖运行环境；外部服务不可用时会有降级或明确提示。
 
-## 13. 许可证
+## 14. 许可证
 
 仓库当前**没有添加 LICENSE 文件，也没有正式声明开源许可证**。在项目负责人确认许可证类型并添加 LICENSE 之前，请不要默认本项目采用 MIT 或其他许可证。若计划以 MIT、Apache-2.0 等方式开源，应由负责人确认后补充正式许可证文本。
 
-## 14. 相关文档
+## 15. 相关文档
 
 - [部署与同步](docs/DEPLOY.md)
 - [管理后台模块台账](docs/ADMIN-BACKEND.md)
