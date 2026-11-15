@@ -17,7 +17,14 @@ body.is-book {
   display: flex;
   align-items: center;
   justify-content: center;
+  /*
+   * 画册外壳只负责裁切，不能成为可滚动容器。
+   * overflow:hidden 仍允许 scrollIntoView / 浏览器锚定改写 scrollTop，
+   * 一旦被滚动画册就会整体上移、底部露出白边；clip 直接取消滚动能力。
+   * 保留 hidden 作为旧浏览器的回退。
+   */
   overflow: hidden;
+  overflow: clip;
   perspective: 2200px;
   perspective-origin: center 46%;
   user-select: none;

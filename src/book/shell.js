@@ -150,6 +150,20 @@ export function createShell(root) {
     shutBtn
   );
 
+  /*
+   * 固定画册外壳绝不能成为一个被滚动的容器。
+   * overflow:clip 已经禁止了它；这里再兜底旧浏览器：只要有内容试图
+   * scrollIntoView 到壳上，立刻把 scrollTop/Left 归零，画册几何不会漂移。
+   */
+  stage.addEventListener(
+    'scroll',
+    () => {
+      if (stage.scrollTop) stage.scrollTop = 0;
+      if (stage.scrollLeft) stage.scrollLeft = 0;
+    },
+    { passive: true }
+  );
+
   root.append(stage);
 
   return {

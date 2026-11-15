@@ -1027,7 +1027,18 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
           result = data;
           renderResult(data);
           resultMeta.textContent = `${data.provider || ''} ${data.model || ''} · ${Math.round((data.ms || 0) / 1000)} 秒`;
-          requestAnimationFrame(() => resultHost.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+          // 只滚右页内部的 .ek-craft，绝不 scrollIntoView。
+          // scrollIntoView 会连带滚动 .bk-stage（overflow:hidden 仍是可编程滚动容器），
+          // 导致整本画册上移、底部露出白边。
+          requestAnimationFrame(() => {
+            const scroller = resultHost.closest('.ek-craft');
+            if (!scroller) return;
+            const top =
+              scroller.scrollTop +
+              resultHost.getBoundingClientRect().top -
+              scroller.getBoundingClientRect().top;
+            scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+          });
         }
       } catch (err) {
         genError = `请求失败：${String(err.message || err).slice(0, 60)}`;
