@@ -1,88 +1,222 @@
 # 食有灵 · FOOD SOUL
 
-> 中国美食 × 用户自接入 AI 大模型。画册式的中华美食站点：封面 → 序 → 目录 → 章节，菜系 / 味型双页聊天、菜品人格对话、结构化菜谱生成、真实来源检索、美食社区与后台管理。
+> 一个以中国美食文化为主题，融合画册式交互、AI 美食对话、Epicure 风味分析、AI 创意厨房、智能菜谱和个性化推荐能力的沉浸式数字美食画册。
 
-[![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933)](https://nodejs.org/)
-[![Vite](https://img.shields.io/badge/vite-5-646CFF)](https://vitejs.dev/)
-[![License](https://img.shields.io/badge/license-MIT-blue)](#许可)
+[GitHub 仓库](https://github.com/xuxi666/food-soul) · [线上演示](http://47.93.33.108/) · [部署说明](docs/DEPLOY.md) · [后台模块记录](docs/ADMIN-BACKEND.md)
 
-## 这是什么
+## 1. 项目简介
 
-一个以「中国菜」为主题的互动站点：整站是一本可以翻阅的画册，封面翻开是序言与目录，目录之后依次是八大菜系、八种味型、图鉴、菜谱、厨房、社区、视频等章节；菜系与味型章节用「左档案 / 中书脊 / 右聊天」的双页布局，每个菜品、菜系、味型都有自己的 AI 人格。
+食有灵不是普通的菜谱查询网站。它把整个站点做成一本可翻阅的中国美食画册：
 
-**关键设计：站点本身不内置任何模型密钥。** 每个用户登录后，在右上角「接入 AI」里填入自己的模型服务（任意 OpenAI 兼容接口），密钥经 AES-256-GCM 加密后存进服务端数据库，每次请求按当前登录用户解密使用。
+- 封面翻开后进入序言、目录和章节；
+- 主内容使用左右双页、纸张层、书脊、章节书签和翻页动画；
+- 菜品、菜系、味型都有可对话的 AI 人格；
+- 厨房用 Epicure MCP 做食材关系分析和 AI 配方设计；
+- 菜谱、推荐和社区内容都尽量标注真实来源，不把演示数据伪装成真实结果。
 
-## 功能
+站点的 AI 模型由用户在「接入 AI」中自行配置为任意 OpenAI 兼容接口。**仓库不内置模型 API Key**；服务端只保存经 AES-256-GCM 加密后的用户 Key。
 
-| 模块 | 说明 |
+## 2. 已实现功能
+
+### 2.1 画册式交互
+
+- 数字画册封面、序言、目录；
+- 左右双页与单页响应式布局；
+- 章节书签、页码、翻页叶片；
+- 开书、合书、翻页和圆形转场动画；
+- 桌面、平板、手机视口适配。
+
+### 2.2 美食图鉴
+
+- 菜品浏览、搜索和分类筛选；
+- 八大菜系与八种味型两条探索线；
+- 菜品详情、食材与风味信息；
+- 菜品图片覆盖与真实数据回读。
+
+### 2.3 AI 美食对话
+
+- 每个菜品、菜系、味型有独立人格提示词；
+- SSE 流式输出，多轮上下文；
+- 回答后可生成 1–3 条可点击的延伸问题；
+- 支持复制回答、重新生成等交互。
+
+### 2.4 Epicure AI 厨房
+
+- 食材库与食材搜索；
+- 食材风味图谱和关系分析；
+- 外部 Epicure MCP 的配方设计能力；
+- 菜谱营养信息（由本地营养数据服务计算，来源会在界面标注）；
+- Epicure 不可用时明确降级，不伪造风味结果。
+
+### 2.5 AI 寻味推荐
+
+- 按心情、口味、预算、用餐场景和补充需求生成推荐；
+- AI 独立构思菜品，而不是只从固定菜谱中挑选；
+- 支持候选来源合并、预算单选和配图；
+- 推荐失败时给出明确错误，不展示假数据。
+
+### 2.6 智能菜谱
+
+- 菜名查询、图鉴优先匹配；
+- 图鉴没有时执行真实联网检索并展示来源；
+- 结构化菜谱生成，展示食材、步骤、份量和营养信息；
+- 支持再生成、复制和分享到社区。
+
+### 2.7 背景音乐与社区
+
+- 全站背景音乐播放、暂停和会话内记忆；
+- 邮箱注册 / 登录、HttpOnly Cookie 会话；
+- 社区发帖、回复、点赞、举报、删除自己的内容；
+- 社区图片上传和内容管理后台。
+
+### 2.8 管理后台
+
+访问 `/admin`。管理员由服务端 `ADMIN_EMAILS` 白名单决定，前端无法伪造角色。
+
+- 真实数据库计数概览；
+- 社区内容筛选、编辑、隐藏、恢复和删除；
+- 菜品图片覆盖；
+- 举报处理和审计记录；
+- 内置 AI 多套配置、全站开关和连接测试；
+- Epicure 服务状态真实探测。
+
+详细台账与已知边界见 [docs/ADMIN-BACKEND.md](docs/ADMIN-BACKEND.md)。
+
+## 3. 技术架构
+
+```mermaid
+flowchart LR
+  U[浏览器<br/>原生 ES Modules] -->|HTTP / SSE| N[Nginx<br/>可选反向代理]
+  N --> S[Node.js HTTP Server<br/>server/index.mjs]
+  S --> A[API 路由<br/>server/api.mjs]
+  A --> DB[(SQLite<br/>node:sqlite)]
+  A --> AI[用户配置的<br/>OpenAI 兼容模型]
+  A --> E[Epicure MCP<br/>Streamable HTTP]
+  A --> W[联网检索<br/>SearXNG / 360 / Bing RSS]
+  V[Vite 5<br/>开发与构建] --> U
+  S --> D[dist 静态资源]
+  PM[PM2] -.进程管理.-> S
+```
+
+### 技术栈
+
+| 层 | 实际实现 |
 |---|---|
-| 画册外壳 | 封面 / 序 / 目录 / 章节；双页纸面、书脊、侧边书签、页码，地址与书页顺序一致 |
-| 翻页与返回 | 页脚翻页、章节书签、返回与「合上画册」分离，浏览器前进后退可用 |
-| 双模式探索 | 八大菜系 / 八种味型各成一章，两套独立数据，切换不残留 |
-| 菜品人格对话 | 每个菜品有独立人格提示词，SSE 流式输出，支持多轮上下文 |
-| 对话延伸建议 | 每条回答结束后生成 1–3 条可点击的后续建议（不阻塞主回答） |
-| 菜谱工作台 | 手动输入菜名 → 图鉴优先匹配 → 图鉴没有则**真实联网检索**并展示来源 |
-| Epicure 厨房 | 外部 Epicure MCP 的风味图谱 / 食材库 / 配方设计；服务不可用时整块降级，不伪造结果 |
-| 流体转场 | 菜品详情与页内跳转沿用圆形扩散转场，支持 `prefers-reduced-motion` |
-| 响应式 | PC 双页、平板压缩导航、手机单页，功能不裁剪 |
-| 美食社区 | 发帖、回复、点赞、图片上传、举报、删除自己的内容 |
-| 管理后台 | `/admin` 内页：真实计数概览、内置 AI 与 Epicure 双服务状态、社区内容、图鉴、举报处理 |
-| 账号体系 | 邮箱 + 密码，scrypt 哈希，HttpOnly Cookie 会话 |
-| 用户级 AI 配置 | 服务商预设 / 自定义 Base URL / 模型 ID / 连接测试 / 密钥加密存储 |
+| 前端 | Vite 5 + 原生 JavaScript ES Modules，无 React/Vue 框架 |
+| 样式 | 原生 CSS、CSS 变量、媒体查询、3D transform 纸页效果 |
+| 后端 | Node.js 原生 `http`，无 Express |
+| 数据库 | Node 内置 `node:sqlite`，单文件 SQLite |
+| 安全 | `node:crypto`：scrypt 密码哈希、AES-256-GCM Key 加密、HttpOnly Cookie |
+| AI | OpenAI 兼容 `/chat/completions`，SSE 流式输出 |
+| 外部风味服务 | Epicure MCP（Streamable HTTP + JSON-RPC），可关闭、可降级 |
+| 联网检索 | 自建 SearXNG + 360 搜索 + Bing RSS，无付费检索 Key |
+| 部署 | Vite 构建 + Node 静态服务 + Nginx/PM2（生产可选） |
 
-### 最近更新
+## 4. 项目目录
 
-**2026-11-11 · 管理后台修复与功能恢复**
+```text
+food-soul/
+├── src/
+│   ├── book/                画册外壳、章节、纸张、翻页、书签
+│   ├── components/          音乐、评论、小精灵等通用组件
+│   ├── data/                菜品、菜系、味型、人格和音乐数据
+│   ├── lib/                 API、DOM、转场、剪贴板等工具
+│   ├── views/               各章节页面（含后台 admin.js）
+│   ├── styles/              主题和模块样式
+│   └── main.js              应用入口
+├── server/
+│   ├── index.mjs            生产静态服务入口
+│   ├── api.mjs              HTTP API 统一路由
+│   ├── admin-routes.mjs     后台接口
+│   ├── auth.mjs             会话与管理员权限
+│   ├── db.mjs               SQLite 数据访问
+│   ├── security.mjs         密码、会话、Key 加解密
+│   ├── ai-adapter.mjs       OpenAI 兼容适配
+│   ├── ai-config.mjs        用户级 AI 配置
+│   ├── site-ai.mjs          全站内置 AI 配置
+│   ├── epicure-client.mjs   Epicure MCP 客户端
+│   ├── epicure-service.mjs  厨房风味编排
+│   ├── web-search.mjs       联网检索
+│   ├── recipe-lookup.mjs    菜名匹配与来源检索
+│   ├── nutrition-*.mjs      营养数据与计算
+│   └── community.mjs        社区、评论、举报
+├── public/                  背景图、菜品图、音乐、字体等静态资源
+├── data/                    Epicure 目录、营养库等可跟踪数据
+├── docs/                    部署、后台、推荐、营养等专题文档
+├── scripts/                 构建辅助、QA 验收和部署脚本
+├── .env.example             环境变量模板（无真实密钥）
+├── .gitignore
+├── package.json
+├── package-lock.json
+├── vite.config.js
+└── README.md
+```
 
-- 右页空白根因修复：入场动画误用全局 `.is-swapping`（`opacity:0`）且从不移除，改为 `is-entering` 并在动画结束后摘除
-- 概览换掉壳子数据：真实库计数（注册用户 / 帖子 / 举报 / 图鉴菜品）+ 内置 AI / Epicure 两个独立状态区 + 最近审计
-- 新增 `service_health` 表与 `diagnoseEpicure()`：服务端真实握手并调用 `list_targets`，错误按 DNS / 隧道 / 超时 / 鉴权等分类
-- 帖子补齐编辑正文与分类、隐藏、恢复、按状态/分类/时间/被举报筛选；举报处理支持处理说明写库
-- 单页 / 平板 / 手机：纸面恢复滚动、导航与统计重排，`退出登录` 可达
-- 移除「首页图片」模块：页签、`/api/admin/cards` 接口、卡图覆盖读写与 `src/data/wheel.js` 一并下线（该功能唯一消费方是已删除的 3D 转盘），`card_images` 历史数据保留
-- 验收记录与截图：[`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md)、[`docs/admin-shots/`](docs/admin-shots/)
+> `HANDOFF.md` 是本机内部交接记录，不属于公开交付物，已从 Git 跟踪中移除并加入 `.gitignore`；公开项目说明以 README 和 `docs/` 为准。
 
-## 技术栈
+## 5. 本地运行
 
-- **前端**：Vite 5 + 原生 ES Modules（无框架）
-- **后端**：Node.js 原生 `http`，无 Express
-- **数据库**：`node:sqlite`（Node ≥ 22.5 内置），单文件 `data/foodsoul.db`
-- **加密**：`node:crypto` —— scrypt 密码哈希、AES-256-GCM 密钥加密
-- **AI**：OpenAI 兼容 `/chat/completions`，SSE 流式
-- **检索**：自建 SearXNG + Bing RSS 兜底（不依赖付费检索 API）
-- **外部风味服务**：Epicure MCP（Streamable HTTP，JSON-RPC），可开关、可降级
+### 5.1 环境要求
 
-## 快速开始
+- Node.js **≥ 22.5**（使用内置 `node:sqlite`）；本机验证版本为 Node `v24.21.0`。
+- npm（随 Node 安装）。
+- 操作系统：Windows、macOS、Linux 均可；本文命令以通用 shell 为主。
+- 浏览器：建议最新版 Chrome、Edge、Firefox 或 Safari。
+- 外部 AI、Epicure MCP、SearXNG 均为可选依赖；未配置时对应功能会明确提示或降级。
+
+### 5.2 克隆与安装
 
 ```bash
-# 需要 Node >= 22.5（用了内置 node:sqlite）
-node -v
+git clone https://github.com/xuxi666/food-soul.git
+cd food-soul
+npm ci
+```
 
-npm install
+仓库包含 `package-lock.json`，优先使用 `npm ci` 获得可复现安装；需要更新依赖时再使用 `npm install`。
 
-# 生成配置
+### 5.3 配置环境变量
+
+```bash
+# macOS / Linux
 cp .env.example .env
-node -e "console.log('AI_CONFIG_SECRET=' + require('crypto').randomBytes(32).toString('base64'))"
-# 把输出的这一行写进 .env
 
-npm run dev          # 开发：http://127.0.0.1:5180
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
 
-打开页面后：
-
-1. 右上角「登录 / 注册」建一个账号
-2. 点「接入 AI」，选服务商（或自定义），填 Base URL、API Key、模型 ID
-3. 点「测试连接」——**必须真实请求成功才能保存**
-4. 保存后状态变成「已接入：模型名」，聊天/菜谱/推荐即可使用
-
-### 生产运行
+至少生成一个 32 字节的 `AI_CONFIG_SECRET` 并写入 `.env`：
 
 ```bash
-npm run build        # 产物在 dist/
-npm start            # 静态托管 dist + /api，默认 127.0.0.1:5190
+node --input-type=module -e "import c from 'node:crypto'; console.log(c.randomBytes(32).toString('base64'))"
 ```
 
-建议前面挂 Nginx 反代。SSE 需要关掉缓冲：
+其他变量按需填写，完整说明见第 7 节。**不要把真实 `.env` 提交到 Git。**
+
+### 5.4 启动开发环境
+
+```bash
+npm run dev
+```
+
+打开 <http://127.0.0.1:5180>。Vite 会把 `/api/*` 请求交给 `server/api.mjs`，本地不需要单独启动后端。
+
+首次使用：
+
+1. 右上角「登录 / 注册」创建账号；
+2. 点击「接入 AI」，填写服务商、Base URL、模型 ID 和 API Key；
+3. 点击「测试连接」，真实请求成功后才能保存；
+4. 保存后即可使用聊天、菜谱和推荐。
+
+`AI_CONFIG_SECRET` 缺失时浏览和普通页面仍可打开，但保存 AI 配置会明确失败；这是有意的安全行为。
+
+## 6. 生产构建与部署
+
+```bash
+npm run build       # 生成 dist/
+npm start            # 静态托管 dist/ 和 /api，默认 127.0.0.1:5190
+```
+
+生产建议由 Nginx 反向代理到 `127.0.0.1:5190`，SSE 必须关闭代理缓冲：
 
 ```nginx
 location / {
@@ -90,255 +224,149 @@ location / {
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_buffering off;      # 关键：否则流式输出会被攒着一起发
+    proxy_buffering off;
     proxy_read_timeout 300s;
-    client_max_body_size 12m; # 社区图片上传
+    client_max_body_size 12m;
 }
 ```
 
-### 发布与同步（本地 → 服务器 → GitHub）
-
-日常改完代码，一条命令完成「提交 + 部署 + GitHub 同步」：
+使用 PM2 的常见启动方式：
 
 ```bash
-npm run ship -- -m "feat: 这次改了什么"
+pm2 start npm --name food-soul -- start
+pm2 status
+pm2 logs food-soul
+pm2 restart food-soul
 ```
 
-- 服务器 `/opt/food-soul` 是仓库工作区，收到更新后自动 `npm ci`（按需）→ `npm run build` → `pm2 restart food-soul` → 健康检查
-- 部署成功后服务器自动 `git push` 回 GitHub，保证线上与仓库一致
-- `.env`、`data/`、`public/uploads/` 等运行时文件不会被覆盖
+当前项目还提供了 `npm run ship` 部署脚本：它从本机 `.deploy.env` 读取服务器信息，构建并重启远程 PM2，再由服务器同步 GitHub。该脚本需要自行配置 SSH 和服务器权限；不会把 `.deploy.env`、`.env`、数据库或上传文件带入仓库。详细步骤、故障排查和安全约定见 [docs/DEPLOY.md](docs/DEPLOY.md)。
 
-| 命令 | 作用 |
-| --- | --- |
-| `npm run ship -- -m "msg"` | 提交并发布 |
-| `npm run deploy` | 发布当前 HEAD |
-| `npm run deploy:status` | 查看服务器部署状态 |
-| `npm run deploy:setup` | 首次接管服务器（幂等） |
+## 7. 环境变量
 
-首次配置（服务器信息、SSH 私钥、GitHub 部署密钥）与故障排查见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
+下表以源码实际读取为准。`必填` 表示缺少后核心功能不可用；其余为可选或可降级配置。
 
+| 变量 | 必填 | 默认值 | 说明 |
+|---|---:|---|---|
+| `AI_CONFIG_SECRET` | 是 | 无 | 32 字节 base64/hex，用于 AES-256-GCM 加密用户 API Key；丢失后旧 Key 无法解密 |
+| `AI_CONFIG_SECRET_PREVIOUS` | 否 | 空 | 密钥轮换期间解密旧密文 |
+| `AI_CONFIG_KEY_VERSION` | 否 | `1` | 当前密钥版本号 |
+| `PORT` | 否 | `5190` | `npm start` 监听端口；只绑定 `127.0.0.1` |
+| `NODE_ENV` | 否 | 空 | 设为 `production` 时 Cookie 强制 Secure；HTTPS 由 Nginx 终止 |
+| `DB_PATH` | 否 | `data/foodsoul.db` | SQLite 数据库路径 |
+| `SESSION_TTL_DAYS` | 否 | `7` | 登录会话有效期，服务端限制 1–30 天 |
+| `ADMIN_EMAILS` | 否 | 空 | 管理员邮箱白名单，逗号分隔；登录后按白名单同步角色 |
+| `SEARXNG_URL` | 否 | 空 | 自建 SearXNG 地址；未设置时跳过该来源，继续尝试 360 / Bing |
+| `BING_RSS_URL` | 否 | `https://cn.bing.com/search` | Bing RSS 检索端点；空串可关闭 |
+| `SO360_URL` | 否 | `https://www.so.com/s` | 360 搜索结果页端点；空串可关闭 |
+| `SEARCH_PROVIDER` | 否 | `zhipu` | 旧版兼容字段；当前检索链路固定按自建来源执行 |
+| `SEARCH_API_KEY` | 否 | 空 | 旧版检索字段；当前检索不读取，可留空 |
+| `SEARCH_BASE_URL` | 否 | `https://open.bigmodel.cn/api/paas/v4` | 旧版兼容字段；当前检索不读取 |
+| `EPICURE_ENABLED` | 否 | `true` | Epicure 总开关；`false` 时厨房相关功能整体降级 |
+| `EPICURE_MCP_URL` | 否 | `https://epicure-mcp.kaikaku.ai/mcp` | Epicure MCP 端点 |
+| `EPICURE_TIMEOUT_MS` | 否 | `10000` | 单次 MCP 调用超时 |
+| `EPICURE_CACHE_TTL_MS` | 否 | `300000` | 工具列表缓存时间 |
+| `EPICURE_MAX_CONCURRENCY` | 否 | `3` | Epicure 并发上限 |
+| `EPICURE_CATALOG_URL` | 否 | Epicure 官方食材目录 | 食材目录同步地址 |
 
-## 管理后台
+### 验证脚本专用变量
 
-访问 `/admin`。入口按钮只对管理员显示，权限完全由服务端判定。
+以下变量只供 `scripts/verify-*.mjs` 本地验收使用，不是服务端运行配置：
 
-**授权方式**：在服务端 `.env` 配置白名单，命中邮箱的账号登录后自动成为管理员：
-
-```bash
-ADMIN_EMAILS=you@example.com,another@example.com
-```
-
-- 角色存在 `users.role`，由服务端按白名单同步；前端传入的任何 `role` / `userId` 都不被信任
-- 移出白名单后，该账号下次请求即降级为普通用户
-- 未登录访问管理接口返回 `401`，普通用户返回 `403`
-
-**功能模块**（截至 2026-11-11，逐项状态见 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md)）：
-
-| 模块 | 说明 |
+| 变量 | 说明 |
 |---|---|
-| 后台概览 | 五项**真实库计数**（注册用户 / 帖子 / 待处理举报 / 已处理·驳回 / 图鉴菜品），另含启用模型与最近测试；内置 AI 与 Epicure 两个独立状态区；最近 12 条管理操作 |
-| 社区内容 | 关键词、分类、时间、状态（正常 / 已隐藏）、只看被举报筛选；分页；详情；编辑正文与分类；隐藏、恢复、删除（均确认后写入并记审计） |
-| 美食图鉴 | 按菜名搜索、按菜系筛选、详情（口味 / 难度 / 份量 / 主料 / 简介）、换图与恢复 |
-| 内置 AI | 内置模型开关、当前配置、Key 掩码状态、真实连接测试入口 |
-| 举报处理 | 待处理 / 处理中 / 已处理 / 驳回筛选；处理说明写库；「确认违规并删除内容」会同时结案同类待处理举报 |
+| `BASE` | 被测地址，默认 `http://127.0.0.1:5180` 或脚本内对应端口 |
+| `ADMIN_EMAIL` | 本地测试管理员邮箱 |
+| `ADMIN_PASS` | 本地测试管理员密码；必须由环境变量提供，仓库不记录 |
 
-**服务状态是探测出来的，不是猜的**：`GET /api/admin/service-health?probe=1` 会真实连接 Epicure（`listTools` + 调用 `list_targets`，整体 8 秒上限），结果写入 `service_health` 表，成功只更新上次成功时间、失败只更新上次失败时间。错误按 `dns / refused / timeout / tunnel / auth / rate-limit / http-5xx / http-4xx / network` 分类，Cloudflare 1033 一类归为「外部隧道异常」，不会被误报成 AI Key 问题。
+## 8. 依赖说明
 
-**明确没有做的**（页面会直接说明，不放无效按钮）：
+### 生产依赖
 
-- 待审核帖子队列：帖子发布即公开，数据模型只有软删除，没有 pending 状态
-- 菜品新建 / 删除 / 改分类：菜品来自静态数据源，后台只做图片覆盖
-- 用户与角色管理、站点设置、独立审计日志页：尚未实现
+- `@modelcontextprotocol/sdk`：Epicure MCP Streamable HTTP 客户端；
+- `zod`：菜谱和请求结构校验。
 
-**移动端**：单页模式下整页可滚动，导航改竖列、统计三列，`退出登录` 与全部功能都可达（1440 / 834 / 390 三档均有回归测试）。
+### 开发依赖
 
-菜品图片替换写入 `dish_images` 表，前端启动时通过 `GET /api/assets/overrides` 拉取并覆盖本地数据源，在菜系页与菜品详情页真实可见。
+- `vite`：开发服务器和生产前端构建；
+- `playwright-core`：本地浏览器验收脚本，使用本机 Chrome。
 
-后台的「首页图片」模块（`card_images`，16 个菜系 / 口味卡位）已随旧首页转盘一起移除：现在没有前台消费面，继续保留入口只会产生无效操作，因此页签、接口与读取逻辑一并下线，数据库历史记录保留不删。
+### Node 内置能力
 
+项目不依赖 Express、SQLite 原生扩展或 ORM：
 
-### 内置 AI（全站统一模型）
+- `node:http`：HTTP 服务；
+- `node:sqlite`：数据库；
+- `node:crypto`：密码哈希、会话令牌和 Key 加密。
 
-管理员可在「后台 → 内置 AI」管理**最多 3 套**服务配置（DeepSeek / 智谱 / 火山引擎 / 自定义 OpenAI 兼容），并一键控制全站开关。
+### 外部系统
 
-| 状态 | 行为 |
+- 用户自己的 OpenAI 兼容 AI 服务；
+- Epicure MCP（可关闭）；
+- 可选自建 SearXNG；
+- 生产可用 Nginx + PM2（非强制）。
+
+## 9. 测试与验收
+
+仓库目前**没有 unit test runner**，也没有把未执行的测试写成“全部通过”。现有可执行检查包括：
+
+```bash
+npm run build
+node --check server/index.mjs
+node scripts/verify-ai-config.mjs
+node scripts/verify-admin.mjs
+node scripts/verify-community-auth.mjs
+node scripts/verify-epicure.mjs
+```
+
+`verify-*.mjs` 是会访问真实本地服务、数据库或外部服务的集成验收脚本，不等于单元测试；部分脚本还需要先启动 `npm run dev`、准备本地账号或配置模型。运行前请先阅读脚本顶部的前置条件。
+
+### 本次交付的构建记录
+
+- `npm run build`：通过（Vite 5.4.21，产物输出到 `dist/`）；
+- `node --check`：对本次修改的脚本执行语法检查；
+- 仓库不伪造测试数量、覆盖率或外部服务调用结果。
+
+## 10. 安全说明
+
+- `.env`、`.env.*`、`.deploy.env`、数据库、日志和上传文件均不进入仓库；根目录 `.env.example` 只包含占位值。
+- 用户 AI Key 以 AES-256-GCM 密文存储，接口响应不回传明文 Key。
+- 管理员权限只由服务端 `ADMIN_EMAILS` 决定，前端角色字段不可信。
+- 生产环境建议使用 HTTPS、限制 SSH 来源、禁用密码登录并定期轮换部署密钥。
+- 如发现安全问题，请通过 GitHub 仓库的 **Security → Report a vulnerability** 私密报告，不要在公开 Issue 中粘贴真实密钥。
+- 公开文档不记录服务器 SSH 私钥、数据库密码或真实 API Key。
+
+## 11. 团队信息
+
+> 以下为需要项目负责人补充的真实信息占位，仓库不虚构成员、学校或联系方式。
+
+| 项 | 内容 |
 |---|---|
-| 总开关开启 + 有启用且已验证的配置 | 所有用户都用这套内置模型，无需自备 Key |
-| 总开关关闭 | 用户各自使用「接入 AI」里的模型；没有个人配置则收到明确提示 |
+| 项目团队名称 | `<待填写>` |
+| 项目负责人 | `<待填写>` |
+| 团队成员 | `<待填写>` |
+| 团队分工 | `<待填写：前端 / 后端 / AI / 设计 / 测试 / 文档>` |
+| 学校 / 组织 | `<待填写>` |
+| 联系方式 | `<待填写>` |
 
-**约束（全部由后端强制）**
+## 12. 已知限制
 
-- 最多 3 套：新增接口在事务内校验数量，超出返回 400
-- 同一时刻最多 1 套启用：`site_ai_profiles` 上有部分唯一索引 + 切换走事务
-- 启用前必须通过连接测试；改动 provider / Base URL / 模型 / Key 会作废旧验证状态
-- Key 留空保存 = 保留原密钥；只有显式填写新 Key 才会替换
-- 删除当前启用项：先停用，若总开关开着则一并关闭，避免「已开启但无可用服务」
-- 全站开关与配置存 SQLite（`site_ai` 总开关 + `site_ai_profiles` 配置），刷新/重启后仍有效
-- 每次 AI 请求实时读库，不做跨请求缓存，切换后下一个请求立即生效
+- 仅支持 OpenAI 兼容接口；Anthropic / Gemini 原生协议需要兼容网关。
+- 配置了聊天模型不等于具备联网能力，联网检索走独立链路。
+- SQLite 与内存限流适合单实例；多实例部署需要替换为共享数据库和共享限流。
+- 未实现邮箱验证、找回密码和双因素登录。
+- 管理后台只覆盖已有数据模型；没有待审核队列、用户管理、菜品增删改和独立审计页。
+- Epicure 的 `analyze / pair / create` 目前主要通过服务端接口提供，后台只做状态探测。
+- 背景音乐、外部 AI、Epicure 和 SearXNG 均依赖运行环境；外部服务不可用时会有降级或明确提示。
 
-**Key 安全**：AES-256-GCM 加密（密钥来自 `AI_CONFIG_SECRET`，与密文分开存放），列表接口只返回「已保存」状态，任何响应都不含密钥。
+## 13. 许可证
 
-**接口**：`GET /api/admin/site-ai`、`POST /site-ai/master`、`POST /site-ai/profiles`、`POST|DELETE /site-ai/profiles/:id`、`POST /site-ai/profiles/:id/test`、`POST /site-ai/profiles/:id/enable`
+仓库当前**没有添加 LICENSE 文件，也没有正式声明开源许可证**。在项目负责人确认许可证类型并添加 LICENSE 之前，请不要默认本项目采用 MIT 或其他许可证。若计划以 MIT、Apache-2.0 等方式开源，应由负责人确认后补充正式许可证文本。
 
-**迁移**：旧版单套配置（`site_ai` 单行）在启动时自动转成第一套配置，保留原密文与验证状态。
+## 14. 相关文档
 
-### 联网检索（自建，零成本）
-
-图鉴外的菜品会联网检索，**不依赖任何付费检索 API**。两路并行、结果合并去重：
-
-| 来源 | 说明 |
-|---|---|
-| 自建 SearXNG | `SEARXNG_URL`，聚合国内搜索引擎 |
-| Bing RSS | 内置兜底，`https://cn.bing.com/search?...&format=rss`，无需 Key |
-
-任何一路有结果就能用；两路都空才判定「无资料」。日志会标出来源：
-
-```
-[web-search] provider=searxng endpoint=127.0.0.1:8080 stage=response status=200 results=4 engines=360search down=quark duration=1177ms
-[web-search] provider=searxng endpoint=cn.bing.com stage=bing-rss status=200 results=6 duration=310ms
-```
-
-**SearXNG 部署**
-
-```bash
-docker run -d --name searxng --restart unless-stopped \
-  -p 127.0.0.1:8080:8080 \
-  -v /opt/searxng:/etc/searxng \
-  -e SEARXNG_BASE_URL=http://127.0.0.1:8080/ \
-  ghcr.io/searxng/searxng:latest
-```
-
-- 只监听 `127.0.0.1`，不对外暴露
-- `settings.yml` 必须开 `search.formats: [html, json]`，`server.limiter: false`
-- 机房 IP 会被搜索引擎限流，`baidu`（CAPTCHA）、`google`/`duckduckgo`（不通）建议禁用；`360search`/`sogou`/`quark` 可用但会周期性冷却
-- 自带健康检查：`/opt/searxng/healthcheck.sh` 每 5 分钟探测一次，连续两次 0 结果就重启容器
-
-**配置**
-
-```bash
-SEARCH_PROVIDER=searxng      # 保留字段，检索已固定走自建 + Bing RSS
-SEARXNG_URL=http://127.0.0.1:8080
-# SEARCH_API_KEY 已不再用于检索（智谱检索已下线）
-```
-
-**诊断**
-
-```bash
-node scripts/diagnose-search.mjs
-```
-
-输出实例地址、HTTP 状态、结果数、命中/不可用引擎、耗时与建议。
-
-检索失败不影响菜谱生成：降级为「基于模型已有知识」，页面标注未联网核实。
-
-## Epicure 风味服务（外部 MCP）
-
-厨房页的风味图谱、食材库与配方设计，用的是**外部 Epicure MCP**，不是本站自建的风味引擎。本站只做客户端与降级：
-
-| 项 | 说明 |
-|---|---|
-| 协议 | Streamable HTTP + JSON-RPC；超时、并发、缓存都可配 |
-| 端点 | `EPICURE_MCP_URL`，默认 `https://epicure-mcp.kaikaku.ai/mcp` |
-| 关闭 | `EPICURE_ENABLED=false` 后整块功能降级，聊天 / 菜谱 / 推荐照常工作 |
-| 降级 | 外部不可用时用本地食材目录与缓存数据，界面标注来源，不伪造风味图形 |
-| 状态 | 后台「后台概览 → Epicure 外部服务状态」可一键真实探测，或 `GET /api/admin/service-health?probe=1` |
-
-服务端接口：`GET /api/epicure/status|tools|ingredients`、`POST /api/epicure/network|autoadd|analyze|create|pair`。其中 `network` 需要 `{ids, depth, topK, expand}` 结构；`autoadd` 新增的食材会进入本地食材库。
-
-> 边界：`analyze / pair / create` 目前只有服务端接口，后台没有做调用入口；后台只展示真实探测结果，不做「配置了 URL 就算在线」的判断。
-
-## 环境变量
-
-| 变量 | 必填 | 说明 |
-|---|---|---|
-| `AI_CONFIG_SECRET` | ✅ | 32 字节 base64/hex，用于加密用户 API Key。**丢失后已存的 Key 无法解密** |
-| `AI_CONFIG_KEY_VERSION` | | 密钥版本号，配合轮换使用，默认 `1` |
-| `AI_CONFIG_SECRET_PREVIOUS` | | 轮换期间解密旧密文用 |
-| `ADMIN_EMAILS` | | 管理员白名单，逗号分隔；命中者登录即同步为 `admin`，移出后下次请求降级 |
-| `EPICURE_ENABLED` | | 外部 Epicure MCP 总开关，默认 `true`；`false` 时相关功能整体降级 |
-| `EPICURE_MCP_URL` | | Epicure 端点，默认 `https://epicure-mcp.kaikaku.ai/mcp` |
-| `EPICURE_TIMEOUT_MS` | | 单次调用超时，默认 `10000` |
-| `EPICURE_CACHE_TTL_MS` | | 工具列表缓存，默认 `300000`（5 分钟） |
-| `EPICURE_MAX_CONCURRENCY` | | 并发上限，默认 `3` |
-| `SEARXNG_URL` | | 自建 SearXNG 地址，默认 `http://127.0.0.1:8080` |
-| `SEARCH_PROVIDER` | | 保留字段；检索已固定走自建 SearXNG + Bing RSS |
-| `SEARCH_API_KEY` | | 旧版检索用；当前检索链路不再使用，留空即可 |
-| `SESSION_TTL_DAYS` | | 登录有效期，默认 7 |
-| `PORT` | | 生产端口，默认 5190 |
-
-> `.env` 已在 `.gitignore` 中。请不要把真实密钥提交到仓库。
-
-## 目录结构
-
-```
-├── index.html            入口 HTML（导航骨架）
-├── vite.config.js        dev 服务器 + API 中间件
-├── server/
-│   ├── index.mjs         生产入口：静态托管 + /api
-│   ├── api.mjs           全部路由
-│   ├── admin-routes.mjs  后台接口（概览 / 服务状态 / 帖子 / 图鉴 / 举报 / AI）
-│   ├── auth.mjs          Cookie 会话、管理员白名单与角色同步
-│   ├── service-health.mjs 服务健康表（上次成功 / 上次失败分开记）
-│   ├── epicure-client.mjs 外部 MCP 客户端、错误分类、真实探测
-│   ├── epicure-service.mjs 厨房的风味图谱与配方编排（含降级）
-│   ├── site-ai.mjs       全站内置模型（多套配置 + 总开关）
-│   ├── ai-adapter.mjs    OpenAI 兼容适配层（流式/JSON/连接测试）
-│   ├── ai-config.mjs     用户级 AI 配置读写与验证
-│   ├── db.mjs            SQLite（users / sessions / ai_configs / site_ai / 图片覆盖 / 举报 / 审计）
-│   ├── security.mjs      scrypt / AES-256-GCM
-│   ├── recipe-lookup.mjs 菜名规范化、图鉴匹配、真实检索
-│   ├── web-search.mjs    SearXNG + Bing RSS 检索封装
-│   ├── prompt.mjs        各类系统提示词
-│   └── community.mjs     社区（帖子 / 评论 / 举报计数 / 软删除）
-├── src/
-│   ├── main.js           启动、路由、账号组件挂载
-│   ├── book/             画册外壳：章节、纸张、翻页、书签、双页拆分
-│   ├── lib/              转场、剪贴板、图片覆盖层、DOM 工具
-│   ├── views/            各页面（含 admin.js 后台）
-│   ├── data/             菜品、菜系、味型、人格数据
-│   └── styles/           主题与各模块样式（admin.css 后台）
-├── docs/
-│   ├── DEPLOY.md         发布与同步（本地 → 服务器 → GitHub）
-│   └── ADMIN-BACKEND.md  后台模块台账与验收记录
-└── scripts/              校验脚本（Playwright）、部署与同步脚本
-```
-
-## 数据说明
-
-- 图鉴内置 97 道菜（`src/data/dishes.js` + `library-dishes.js`），含菜系、味型、食材、技法、风味、知识点
-- 社区与评论的种子数据在 `data/*.json`，首次启动自动写入
-- 用户、会话、AI 配置存 `data/foodsoul.db`（不入库）
-
-## 已知限制
-
-- **仅支持 OpenAI 兼容接口**。Anthropic / Gemini 原生协议需要走兼容网关。
-- **配置了模型 ≠ 具备联网能力**。联网检索走自建 SearXNG + Bing RSS，不需要付费 Key。
-- **单实例部署**。SQLite 适合单机；多实例需要换 Postgres/MySQL，并把限流改成共享存储。
-- 限流基于单进程内存，重启后重置。
-- 未实现邮箱验证、找回密码、双因素登录。
-- HTTP 环境下 `crypto.randomUUID` 与 `navigator.clipboard` 不可用，已在 `src/lib/clipboard.js` 做回退。
-- 后台只覆盖「已经存在的数据模型」：没有待审核队列、菜品增删改、用户管理、独立审计页——这些在页面上会明确说明，而不是放无效按钮。
-- 「首页图片」功能已移除：旧 3D 转盘是唯一消费方，转盘删除后该功能没有可见效果；`card_images` 表与历史数据保留，但后台与前端都不再读写。
-- 后台写接口统一用 `readJson(req).catch(() => ({}))`，非法 JSON / 413 会被当成空对象，存在静默失败风险（待单独修）。
-- Epicure 的 `analyze / pair / create` 只有服务端接口，尚未接入后台。
-
-## 校验脚本
-
-```bash
-node scripts/verify-ai-config.mjs          # 账号隔离 / 密钥加密 / 越权
-node scripts/verify-ai-ui.mjs              # 注册→接入→聊天→退出→重登
-node scripts/verify-recipe-search.mjs      # 菜谱两阶段查询与来源
-node scripts/verify-chat-suggestions.mjs   # 对话延伸建议
-node scripts/check-chat-responsive.mjs     # 聊天页多视口自适应
-node scripts/verify-admin.mjs              # 后台权限：未登录 401 / 普通用户 403
-node scripts/verify-admin-ui.mjs           # 后台各页加载与关键控件
-node scripts/verify-epicure.mjs            # Epicure 连接与工具调用
-```
-
-需要先启动 dev server（`npm run dev`，端口 5180）。
-
-后台逐模块的真实读写记录（帖子编辑/隐藏/恢复、举报状态流转、图鉴换图回读、审计落库）与 PC / 平板 / 手机截图见 [`docs/ADMIN-BACKEND.md`](docs/ADMIN-BACKEND.md) 与 [`docs/admin-shots/`](docs/admin-shots/)。
-
-## 许可
-
-MIT
+- [部署与同步](docs/DEPLOY.md)
+- [管理后台模块台账](docs/ADMIN-BACKEND.md)
+- [推荐模块说明](docs/RECOMMENDATIONS.md)
+- [营养数据说明](docs/NUTRITION.md)
+- [社区双页说明](docs/COMMUNITY-DUAL-PAGE.md)
+- [项目历史交接](docs/PROJECT-HANDOVER.md)
