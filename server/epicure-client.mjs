@@ -147,6 +147,9 @@ let client = null;
 let connecting = null;
 let toolsCache = null; // { at, tools }
 const resultCache = new Map(); // key -> { at, value }
+let sessionRecoveries = 0; // 会话失效后成功/尝试重建的次数，用于后台诊断
+
+const RECONNECT_DELAY_MS = 120;
 
 let active = 0;
 const waiters = [];
@@ -186,6 +189,7 @@ async function ensureClient(force = false) {
   if (!ENABLED) throw Object.assign(new Error('epicure-disabled'), { code: 'disabled' });
   if (!force && client) return client;
   if (connecting) return connecting;
+  if (force) dropClient();
 
   connecting = (async () => {
     const transport = new StreamableHTTPClientTransport(new URL(URL_RAW), {
@@ -205,20 +209,81 @@ async function ensureClient(force = false) {
   }
 }
 
-function dropClient() {
+function closeClient(target) {
+  if (!target) return;
   try {
-    client?.close?.();
+    const p = target.close?.();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
   } catch {
     /* 忽略关闭异常 */
   }
+}
+
+/**
+ * 丢掉当前连接。MCP Streamable HTTP 的 session 由服务端维护，服务端重启后
+ * 旧 session 会返回 404 "Session not found"；必须重建 Client，不能继续复用。
+ */
+function dropClient() {
+  const target = client;
   client = null;
+  toolsCache = null;
+  closeClient(target);
+}
+
+/** 只让仍然指向同一个 Client 的引用失效，避免并发重建时误关刚建立的新连接 */
+function invalidateClient(target) {
+  if (!target) {
+    dropClient();
+    return;
+  }
+  toolsCache = null;
+  sessionRecoveries += 1;
+  if (target === client) client = null;
+  closeClient(target);
+}
+
+/** 服务端 session 失效：404 Session not found / 400 Missing session ID */
+function isSessionError(err) {
+  const code = String(err?.code ?? '');
+  const msg = `${err?.message || err || ''} ${lastHttp.text || ''}`;
+  if (code === '404') return /session|missing session id/i.test(msg);
+  if (code === '400') return /session/i.test(msg);
+  return /session\s*(?:id)?\s*(?:not found|expired|invalid)|missing session id|invalid session/i.test(msg);
+}
+
+function isRecoverableError(err) {
+  if (isSessionError(err)) return true;
+  const code = String(err?.code ?? '');
+  const msg = String(err?.message || err || '');
+  return (
+    ['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET', 'ABORT_ERR'].includes(
+      code
+    ) || /closed|abort|timeout|fetch failed|socket hang up|network error|other side closed/i.test(msg)
+  );
+}
+
+/** 连接级失败时丢会话并只重试一次；工具参数错误不重试 */
+async function runWithReconnect(fn) {
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let c = null;
+    try {
+      c = await ensureClient();
+      return await fn(c);
+    } catch (err) {
+      lastErr = err;
+      if (!isRecoverableError(err)) throw err;
+      invalidateClient(c);
+      if (attempt === 0) await sleep(RECONNECT_DELAY_MS);
+    }
+  }
+  throw lastErr;
 }
 
 /* ---------------- 工具清单 ---------------- */
 export async function listTools({ force = false } = {}) {
   if (!force && toolsCache && Date.now() - toolsCache.at < CACHE_TTL) return toolsCache.tools;
-  const c = await ensureClient();
-  const res = await c.listTools();
+  const res = await runWithReconnect((c) => c.listTools());
   const tools = Array.isArray(res?.tools) ? res.tools : [];
   toolsCache = { at: Date.now(), tools };
   return tools;
@@ -266,44 +331,35 @@ export async function callTool(name, args = {}, opts = {}) {
 
   await acquire();
   try {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        const c = await ensureClient(attempt > 0);
-        const res = await c.callTool({ name, arguments: args }, undefined, { timeout });
-        const parts = Array.isArray(res?.content) ? res.content : [];
-        const text = parts
-          .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
-          .map((p) => p.text)
-          .join('\n');
-        const value = {
-          ok: !res?.isError,
-          text,
-          data: parseMaybeJson(text),
-          error: res?.isError ? text.slice(0, 240) : null,
-          ms: Date.now() - started,
-        };
-        if (value.ok) {
-          if (resultCache.size > 400) resultCache.delete(resultCache.keys().next().value);
-          resultCache.set(key, { at: Date.now(), value });
-        }
-        return value;
-      } catch (err) {
-        const code = err?.code || '';
-        const retryable =
-          code === 'ECONNRESET' || code === 'EPIPE' || /closed|abort|timeout/i.test(String(err?.message || ''));
-        if (attempt === 0 && retryable) {
-          dropClient();
-          await sleep(150);
-          continue;
-        }
-        return {
-          ok: false,
-          error: `${code || 'error'}: ${String(err?.message || err).slice(0, 140)}`,
-          ms: Date.now() - started,
-        };
+    try {
+      const res = await runWithReconnect((c) => c.callTool({ name, arguments: args }, undefined, { timeout }));
+      const parts = Array.isArray(res?.content) ? res.content : [];
+      const text = parts
+        .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
+        .map((p) => p.text)
+        .join('\n');
+      const value = {
+        ok: !res?.isError,
+        text,
+        data: parseMaybeJson(text),
+        error: res?.isError ? text.slice(0, 240) : null,
+        ms: Date.now() - started,
+      };
+      if (value.ok) {
+        if (resultCache.size > 400) resultCache.delete(resultCache.keys().next().value);
+        resultCache.set(key, { at: Date.now(), value });
       }
+      return value;
+    } catch (err) {
+      const hit = classifyEpicureError(err);
+      return {
+        ok: false,
+        error: `${err?.code || 'error'}: ${String(err?.message || err).slice(0, 180)}`,
+        category: hit.category,
+        httpStatus: hit.status || lastHttp.status || 0,
+        ms: Date.now() - started,
+      };
     }
-    return { ok: false, error: 'unreachable', ms: Date.now() - started };
   } finally {
     release();
   }
@@ -325,24 +381,44 @@ export async function epicureStatus() {
   if (!ENABLED) return { enabled: false, ok: false, error: 'epicure-disabled' };
   const started = Date.now();
   try {
-    const tools = await listTools();
+    // 状态接口必须有硬上限：外部服务不可达时不能把页面请求一直挂着
+    const live = await withDeadline(
+      (async () => {
+        let tools = await listTools();
+        const cachedAt = toolsCache?.at;
+        // 工具清单有 5 分钟缓存，但 MCP session 可能在服务端重启后随时失效；
+        // 用 ping 验证当前 session，失效时 runWithReconnect 会重建连接。
+        await runWithReconnect((c) => c.ping({ timeout: Math.min(6000, CALL_TIMEOUT) }));
+        if (!toolsCache || toolsCache.at !== cachedAt) tools = await listTools();
+        return tools;
+      })(),
+      Math.max(5000, CALL_TIMEOUT * 2),
+      dropClient
+    );
     return {
       enabled: true,
       ok: true,
       url: URL_RAW,
-      toolCount: tools.length,
-      tools: tools.map((t) => t.name),
+      toolCount: live.length,
+      tools: live.map((t) => t.name),
       ms: Date.now() - started,
+      httpStatus: lastHttp.status || 0,
+      reconnects: sessionRecoveries,
       cacheTtlMs: CACHE_TTL,
       timeoutMs: CALL_TIMEOUT,
       maxConcurrency: MAX_CONCURRENCY,
     };
   } catch (err) {
+    const hit = classifyEpicureError(err);
     return {
       enabled: true,
       ok: false,
       url: URL_RAW,
-      error: String(err?.code || err?.message || err).slice(0, 160),
+      error: hit.label,
+      detail: String(err?.message || err).replace(/\s+/g, ' ').slice(0, 180),
+      category: hit.category,
+      httpStatus: hit.status || lastHttp.status || 0,
+      reconnects: sessionRecoveries,
       ms: Date.now() - started,
     };
   }
@@ -366,6 +442,12 @@ export function classifyEpicureError(err, http = lastHttp) {
   if (/ECONNREFUSED/i.test(all)) return { category: 'refused', label: '端口拒绝连接（服务未监听）' };
   if (/ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|connect timeout|ABORT_ERR|aborted|诊断超时/i.test(all))
     return { category: 'timeout', label: '连接超时（外部服务无响应）' };
+  if (isSessionError(err))
+    return {
+      category: 'session',
+      label: status === 404 || code === '404' ? 'MCP 会话失效（404 Session not found）' : 'MCP 会话失效（需要重新初始化）',
+      status: status || Number(code) || 0,
+    };
   if (/cloudflare|cf-ray|cf-mitigated|error 10\d\d\tunnel|\btunnel\b|1033|522|523|530/i.test(`${all} ${page}`))
     return { category: 'tunnel', label: 'Cloudflare 隧道/网关异常', status };
   if (status === 401 || status === 403 || /\b401\b|\b403\b|unauthor|forbidden/i.test(all))
@@ -395,7 +477,7 @@ function withDeadline(promise, ms, onTimeout) {
  * 真实诊断：重置连接 → 重新握手 + tools/list → 再真调一次工具。
  * 与 epicureStatus() 的区别：
  *  - 不吃 toolsCache（否则会把 5 分钟内的旧结果当成「现在还在线」）
- *  - 整个握手阶段有硬超时（epicureStatus 没有，可能一直挂着）
+ *  - 会额外真调一次工具，验证工具层也能工作
  *  - 区分 DNS / 隧道 / 超时 / 鉴权 / 网关 / 工具错误
  * 永不抛异常。
  */

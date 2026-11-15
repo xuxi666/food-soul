@@ -225,6 +225,8 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
       if (!e) return '连接失败';
       if (/neighbors-no-sim/i.test(e)) return 'Epicure 返回的邻居数据缺少相似度字段';
       if (/neighbors-empty-payload/i.test(e)) return 'Epicure 返回的邻居数据格式异常';
+      if (/Session not found|Missing session ID|MCP 会话失效|Streamable HTTP error[^]*404/i.test(e))
+        return 'Epicure 会话已失效，自动重连未成功，请点重试';
       if (/1033|53[0-9]/.test(e)) return '上游 Cloudflare 隧道不可达 530/1033';
       if (/ECONN|timeout/i.test(e)) return '连接超时或被重置';
       return e.slice(0, 80);

@@ -204,6 +204,7 @@ export default {
       dns: '域名解析失败（DNS）',
       refused: '端口拒绝连接',
       timeout: '连接超时',
+      session: 'MCP 会话失效',
       tunnel: 'Cloudflare 隧道 / 网关异常',
       auth: '外部服务鉴权失败',
       'rate-limit': '外部服务限流',
