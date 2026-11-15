@@ -129,5 +129,5 @@
 
 - `node --check` 通过：dish-merges.js、dishes.js、library-dishes.js、server/dish-search.mjs、server/recipe-lookup.mjs、src/views/dishes.js。
 - `vite build` 通过；仅有项目原有的 CSS 压缩告警和动态 import 提示，与本次菜品数据清理无关。
-- 本地 `/api/health` 返回 `dishes:83, generated:39`；线上 `http://47.93.33.108/api/health` 返回 `dishes:83, generated:36`（线上数据不含被合并 id）。旧 id 查询和“白斩鸡 / 麻辣豆腐 / 清蒸石斑鱼”等别名查询均可解析到标准菜。
+- 本地 `/api/health` 返回 `dishes:83, generated:39`；线上 `http://<SERVER_HOST>/api/health` 返回 `dishes:83, generated:36`（线上数据不含被合并 id）。旧 id 查询和“白斩鸡 / 麻辣豆腐 / 清蒸石斑鱼”等别名查询均可解析到标准菜。
 - 未提交 Git、未推送、未部署。

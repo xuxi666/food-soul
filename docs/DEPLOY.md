@@ -13,15 +13,15 @@ npm run ship -- -m "feat: 这次改了什么"
 
 | 项目 | 值 |
 | --- | --- |
-| 线上地址 | <http://47.93.33.108/> |
+| 线上地址 | 由部署环境决定；公开演示地址见 README，本文档不记录 SSH 连接信息 |
 | 代码仓库 | <https://github.com/xuxi666/food-soul.git>（分支 `main`） |
-| 服务器 | `root@47.93.33.108:22`，应用目录 `/opt/food-soul` |
+| 服务器 | `root@<DEPLOY_HOST>:<DEPLOY_PORT>`，应用目录 `/opt/food-soul` |
 | 进程 | pm2 名称 `food-soul`，Node 监听 `127.0.0.1:5190`，nginx 反代 80 端口 |
-| 部署私钥 | 本机 `~/.ssh/food_soul_deploy`（由 `.deploy.env` 的 `DEPLOY_KEY` 指定） |
+| 部署私钥 | 本机 `<DEPLOY_KEY>`（由 `.deploy.env` 的 `DEPLOY_KEY` 指定） |
 | 配置来源 | 本机 `.deploy.env`（不入库）是服务器地址的唯一事实来源 |
 | 最近校验 | 2026-11-11 20:03：`cae908f` 已上线（后台右页空白修复 + 概览真实计数 + Epicure 外部服务状态探测），构建 ✓、重启 ✓、健康检查 200、GitHub 已同步、线上 `/` 引用 `assets/index-BrvD3oIL.js` |
 
-> 旧版本文档里出现过的 `39.106.251.146` 已不是本项目服务器：该地址 80 端口无响应、SSH 用部署密钥被拒。**一切以 `.deploy.env` 的 `DEPLOY_HOST` 为准**，换服务器只改这一行。
+> 旧版本文档里出现过的 `<OLD_SERVER_HOST>` 已不是本项目服务器：该地址 80 端口无响应、SSH 用部署密钥被拒。**一切以 `.deploy.env` 的 `DEPLOY_HOST` 为准**，换服务器只改这一行。
 
 ## 1. 三段式结构
 
@@ -29,7 +29,7 @@ npm run ship -- -m "feat: 这次改了什么"
 本机工作区 (F:\AIweb\美食1.0\aimeishi2.0)
    │  ① git commit + bundle 传输（SSH）
    ▼
-线上服务器 /opt/food-soul   47.93.33.108
+线上服务器 /opt/food-soul   <DEPLOY_HOST>
    │  ② 部署钩子：构建 → pm2 重启 → 健康检查
    │  ③ git push origin main（部署密钥）
    ▼
@@ -76,11 +76,11 @@ ship.cmd -m "feat: xxx"
 `.deploy.env`（**不入库**，`.gitignore` 已忽略）：
 
 ```ini
-DEPLOY_HOST=47.93.33.108
+DEPLOY_HOST=<DEPLOY_HOST>
 DEPLOY_USER=root
 DEPLOY_PORT=22
 DEPLOY_APP=/opt/food-soul
-DEPLOY_KEY=$HOME/.ssh/food_soul_deploy
+DEPLOY_KEY=$HOME/.ssh/your_deploy_key
 ```
 
 `DEPLOY_KEY` 指向服务器免密登录私钥。`ship.mjs` 会自动把 `deploy` 远程写成
@@ -117,7 +117,7 @@ node scripts/ship.mjs --github-setup
 验证：
 
 ```bash
-ssh -i ~/.ssh/food_soul_deploy root@47.93.33.108 \
+ssh -i <DEPLOY_KEY> root@<DEPLOY_HOST> \
   "cd /opt/food-soul && GIT_SSH_COMMAND='ssh -o BatchMode=yes' git ls-remote origin main"
 ```
 
@@ -146,4 +146,4 @@ ssh -i ~/.ssh/food_soul_deploy root@47.93.33.108 \
 
 - `.env`、`.deploy.env`、`data/`、`public/uploads/` 永远不入库。
 - GitHub 写权限只通过**服务器上的部署密钥**提供，本机不需要保存 GitHub Token。
-- 部署私钥 `~/.ssh/food_soul_deploy` 只用于这台服务器，泄露后重生成并替换 `authorized_keys`。
+- 部署私钥 `<DEPLOY_KEY>` 只用于这台服务器，泄露后重生成并替换 `authorized_keys`。

@@ -1,7 +1,9 @@
-node_modules
+﻿node_modules
 dist
 .env
-.env.local
+.env.*
+!.env.example
+.deploy.env
 data/comments.json
 data/community.json
 data/generated-dishes.json
@@ -10,19 +12,20 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/nutrition-cache.json
+data/backups/
 public/uploads
 public/dishes/generated
 public/dishes/recommendations
+public/dishes/recipe
 shots
+tmp-final-shots/
 .tmp
 .workbuddy-ai
-.deploy.env
+HANDOFF.md
 *.log
 *.bak
 .DS_Store
-public/dishes/recipe
+
 # 参赛技术文档（大体积二进制，单独交付，不随代码发布）
 FOOD_SOUL项目技术文档.docx
 FOOD_SOUL项目技术文档.pdf
-
-data/backups/
