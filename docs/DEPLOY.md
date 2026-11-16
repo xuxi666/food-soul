@@ -16,10 +16,12 @@ npm run ship -- -m "feat: 这次改了什么"
 | 线上地址 | 由部署环境决定；公开演示地址见 README，本文档不记录 SSH 连接信息 |
 | 代码仓库 | <https://github.com/xuxi666/food-soul.git>（分支 `main`） |
 | 服务器 | `root@<DEPLOY_HOST>:<DEPLOY_PORT>`，应用目录 `/opt/food-soul` |
-| 进程 | pm2 名称 `food-soul`，Node 监听 `127.0.0.1:5190`，nginx 反代 80 端口 |
+| 进程 | systemd 单元 `food-soul.service`（`User=foodsoul`，`ExecStart=/usr/bin/node server/index.mjs`），Node 监听 `127.0.0.1:5190`，nginx 反代 80 端口。服务器上当前**没有** pm2 |
 | 部署私钥 | 本机 `<DEPLOY_KEY>`（由 `.deploy.env` 的 `DEPLOY_KEY` 指定） |
 | 配置来源 | 本机 `.deploy.env`（不入库）是服务器地址的唯一事实来源 |
-| 最近校验 | 2026-11-11 20:03：`cae908f` 已上线（后台右页空白修复 + 概览真实计数 + Epicure 外部服务状态探测），构建 ✓、重启 ✓、健康检查 200、GitHub 已同步、线上 `/` 引用 `assets/index-BrvD3oIL.js` |
+| 最近校验 | 2026-11-16 22:44：`090ef96` 已上线（口味探索按主味型唯一归属，消除跨味型重复展示），服务器构建 ✓、`systemctl restart food-soul` ✓、健康检查 200、线上 `/` 引用 `assets/index-7wXH743b.js`（sha256 `f9f83ee5…`，与本机构建产物一致）。本次 GitHub 未同步（本机无法访问 github.com:443，服务器 `/opt/food-soul` 当前不是 git 仓库） |
+
+> **当前环境与下方「三段式 git 发布」不一致（2026-11-16 核查）**：`/opt/food-soul` 没有 `.git`，服务器也没装 pm2，因此 `npm run ship` / `npm run deploy` 的 bundle 推送与 `post-update` 钩子（末尾 `pm2 restart`）在这台机器上跑不通。当前可用的发布方式是「scp 改动文件 → 服务器 `npm run build` → `systemctl restart food-soul` → `/api/health` 校验」，本次 `090ef96` 即按此方式上线；如需恢复一键发布，要先在服务器 `git init` 并把钩子的重启步骤改成 `systemctl restart food-soul`。
 
 > 旧版本文档里出现过的 `<OLD_SERVER_HOST>` 已不是本项目服务器：该地址 80 端口无响应、SSH 用部署密钥被拒。**一切以 `.deploy.env` 的 `DEPLOY_HOST` 为准**，换服务器只改这一行。
 
