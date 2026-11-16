@@ -15,6 +15,9 @@ const KINDS = ['讨论', '菜谱分享', '提问', '角色话题'];
 const MAX_IMAGES = 3;
 const MAX_IMAGE = 3 * 1024 * 1024;
 
+/** 厨房分享成功后暂存的新帖；社区页挂载时消费（翻页事件早到时的兜底） */
+const PENDING_COMMUNITY_POST = 'foodsoul.community.pendingPost.v1';
+
 export default {
   async mount(root) {
     const me = guest();
@@ -954,12 +957,41 @@ export default {
       paintStats();
     }
 
+    /** 厨房分享的新帖：翻页事件到了就插进当前列表 */
+    function onCommunityPost(e) {
+      const post = e.detail?.post;
+      if (!post?.id) return;
+      try {
+        sessionStorage.removeItem(PENDING_COMMUNITY_POST);
+      } catch {
+        /* noop */
+      }
+      insertPost(post);
+    }
+
+    /** 事件早于社区挂载时的兜底：消费 kitchen 留下的一次性帖子 */
+    function takePendingPost() {
+      try {
+        const raw = sessionStorage.getItem(PENDING_COMMUNITY_POST);
+        if (!raw) return null;
+        sessionStorage.removeItem(PENDING_COMMUNITY_POST);
+        const post = JSON.parse(raw);
+        return post?.id ? post : null;
+      } catch {
+        return null;
+      }
+    }
+
     await fetchPage(1);
+    const pendingPost = takePendingPost();
+    if (pendingPost) insertPost(pendingPost);
+    window.addEventListener('foodsoul:community-post', onCommunityPost);
     startObserver();
 
     return {
       destroy() {
         destroyed = true;
+        window.removeEventListener('foodsoul:community-post', onCommunityPost);
         stopObserver();
         closeDetail();
         closeLightbox();

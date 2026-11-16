@@ -46,6 +46,9 @@ const COMPLEXITY = [
 
 const FLAVORS = ['咸鲜', '甜润'];
 
+/** 分享成功后交给社区页的一次性帖子（sessionStorage 兜底：翻页事件可能早于社区挂载） */
+const PENDING_COMMUNITY_POST = 'foodsoul.community.pendingPost.v1';
+
 /** 空状态随机起点：每次从中国常用食材池里抽一批 */
 const STARTER_COUNT = 10;
 
@@ -1212,6 +1215,46 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
     }
 
     /* ---------------- 分享 ---------------- */
+    /**
+     * 发布成功后去社区章节。
+     *
+     * 必须走画册自己的章节导航（goModule → goBookmark → openChapter），
+     * 让纸页一张张翻过去；不能 location.href / reload —— 那会把整本书重建成
+     * 合上的初始态，用户会以为分享把画册关掉了。
+     *
+     * 新帖通过自定义事件交给社区页插入；同时留一份 sessionStorage，
+     * 防止画册正忙、社区页还没挂载时事件先到而丢失。
+     */
+    async function goToCommunityChapter(post) {
+      const book = window.__book;
+      if (!book?.goModule) {
+        toast('画册导航暂不可用，请稍后重试', 'err');
+        return false;
+      }
+      if (post?.id) {
+        try {
+          sessionStorage.setItem(PENDING_COMMUNITY_POST, JSON.stringify(post));
+        } catch {
+          /* 隐私模式等场景：事件仍会尝试直接交给社区页 */
+        }
+      }
+      try {
+        await book.goModule('community');
+        // openChapter 在翻页途中会排队；等真正落到社区页再派发新帖。
+        for (let i = 0; i < 60; i += 1) {
+          if (book.chapter === 'community' && !book.busy?.()) break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        if (post?.id) {
+          window.dispatchEvent(new CustomEvent('foodsoul:community-post', { detail: { post } }));
+        }
+        return book.chapter === 'community';
+      } catch {
+        toast('跳转社区失败，请稍后重试', 'err');
+        return false;
+      }
+    }
+
     function openShare(recipe, data) {
       const ingText = recipe.ingredients.map((i) => `${i.name} ${i.amount}${i.unit}`).join('\n');
       const stepText = recipe.steps.map((s) => s.action).join('\n');
@@ -1392,9 +1435,7 @@ let netSeq = 0; // 并发请求序号：只让最新一次响应落到图谱上
           if (!res.ok) throw new Error(out.error || '发布失败');
           close();
           toast('已发布到美食社区');
-          setTimeout(() => {
-            location.href = '/community';
-          }, 500);
+          await goToCommunityChapter(out.post);
         } catch (err) {
           toast(String(err.message || err).slice(0, 40), 'err');
         } finally {
