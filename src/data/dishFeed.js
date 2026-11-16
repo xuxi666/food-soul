@@ -16,7 +16,7 @@
  * 去重三重：真实 id（图鉴 id / 服务端生成的 ai-xxxx）、规范化菜名、图片 URL。
  */
 
-import { DISHES } from './dishes.js';
+import { DISHES, inTaste } from './dishes.js';
 import { api } from '../lib/api.js';
 
 export const ATLAS_BATCH = 4; // 图鉴每批 4 道（两列两行）
@@ -35,10 +35,10 @@ export function normalizeName(name) {
     .slice(0, 12);
 }
 
-/** 该分类下的图鉴菜品：必须有图，按名字与图片去重（同一道菜的重复条目只留一条） */
+/** 该分类下的图鉴菜品：必须有图，按名字与图片去重（同一道菜的重复条目只留一条）；口味按主味型唯一归属 */
 export function listCategoryDishes(kind, id) {
   if (!id) return [];
-  const list = DISHES.filter((d) => (kind === 'taste' ? (d.tastes || []).includes(id) : d.cuisine === id));
+  const list = DISHES.filter((d) => (kind === 'taste' ? inTaste(d, id) : d.cuisine === id));
   const seenName = new Set();
   const seenImage = new Set();
   return list.filter((d) => {

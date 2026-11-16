@@ -14,7 +14,7 @@
  * 所以轮播位置、图片缓存、纸面滚动都不会被重置。
  */
 import { h, html, clear } from '../lib/dom.js';
-import { DISHES } from '../data/dishes.js';
+import { DISHES, inTaste } from '../data/dishes.js';
 import { CUISINES, CUISINE_BY_ID, TASTES, TASTE_BY_ID } from '../data/cuisines.js';
 import { guardImage } from '../lib/placeholder.js';
 import { openDishOverlay, closeAllOverlays, overlayCount } from './overlay.js';
@@ -46,9 +46,9 @@ const REDUCED = () =>
 
 /* ---------------- 数据 ---------------- */
 
-/** 某分类下的真实菜品：只取带图的，按图 / 菜名去重（库里同名同图有多条） */
+/** 某分类下的真实菜品：只取带图的，按图 / 菜名去重（库里同名同图有多条）；口味按主味型唯一归属 */
 function dishesOf(kind, id) {
-  const list = DISHES.filter((d) => (kind === 'cuisine' ? d.cuisine === id : (d.tastes || []).includes(id)));
+  const list = DISHES.filter((d) => (kind === 'cuisine' ? d.cuisine === id : inTaste(d, id)));
   const names = new Set();
   const images = new Set();
   const out = [];

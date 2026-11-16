@@ -53,7 +53,9 @@ export const DISH_ALIASES = Object.freeze({
 
 /**
  * 口味关联修正：只去掉与该菜实际风味不符或重复的次要标签。
- * 每道菜仍保留第一项为主味型；未列出的菜保持原样。
+ * 约定：tastes[0] 就是这道菜的**主味型**，也是它在口味分类里的唯一归属；
+ * 后面的项只是标签，不参与分类归属，所以顺序必须按真实主味型排，不能随手调换。
+ * 未列出的菜保持原样。
  */
 export const TASTE_OVERRIDES = Object.freeze({
   // 糖醋菜不是“酸辣”，而是“鲜甜柔和”（xiantian）
@@ -70,11 +72,19 @@ export const TASTE_OVERRIDES = Object.freeze({
   'haili-jian': ['xianxian', 'xiantian'],
   'huotui-dunjiayu': ['qingxian', 'chunhou'],
   suancaiyu: ['suanla', 'xiangla'],
+
+  // 主味型排序纠正：原记录把次要味型放在首位，会把菜送到错误的口味分类
+  'suancai-fen': ['suanla', 'mala'], // 酸辣粉以酸辣为主，麻只是配料带的一点回味
+  'hongdou-shayong': ['xiantian', 'jiangxiang'], // 红豆沙是甜豆沙，不是酱香
+  'xiangxi-waipocai': ['suanla', 'xianxian'], // 外婆菜的酸香在前，咸鲜在后
 });
 
 /** 主味型改变时同步人格，避免详情页人格与口味标签不一致 */
 export const PERSONALITY_OVERRIDES = Object.freeze({
   'xi-hu-cu-yu': 'xiantian',
+  'suancai-fen': 'suanla',
+  'hongdou-shayong': 'xiantian',
+  'xiangxi-waipocai': 'suanla',
 });
 
 export const mergedDishId = (id) => MERGED_DISHES[id]?.into || id;

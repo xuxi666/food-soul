@@ -1,4 +1,4 @@
-import { DISHES } from '../data/dishes.js';
+import { DISHES, inTaste } from '../data/dishes.js';
 import { h, clear } from './dom.js';
 import { api } from './api.js';
 
@@ -23,8 +23,9 @@ export const catalogKey = (kind, id) => `${kind}:${id || 'all'}`;
 
 export function staticPool(kind, id) {
   if (!id) return DISHES;
+  /* 口味池按主味型唯一归属取，一道菜不会同时进两个口味页（次要味型不参与分类） */
   return kind === 'taste'
-    ? DISHES.filter((d) => (d.tastes || []).includes(id))
+    ? DISHES.filter((d) => inTaste(d, id))
     : DISHES.filter((d) => d.cuisine === id);
 }
 

@@ -1,5 +1,5 @@
 import { CUISINE_BY_ID, TASTE_BY_ID } from './cuisines.js';
-import { DISHES } from './dishes.js';
+import { DISHES, inTaste } from './dishes.js';
 import { PERSONALITY_BY_ID } from './personalities.js';
 
 /**
@@ -16,7 +16,8 @@ export function categoryMeta(kind, id) {
 }
 
 export function dishesForCategory(kind, id) {
-  if (kind === 'taste') return DISHES.filter((d) => (d.tastes || []).includes(id));
+  /* 口味分类只认主味型（tastes[0]）：一道菜只属于一个口味页，不重复出现在多个味型下 */
+  if (kind === 'taste') return DISHES.filter((d) => inTaste(d, id));
   if (kind === 'cuisine') return DISHES.filter((d) => d.cuisine === id);
   return [];
 }

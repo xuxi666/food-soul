@@ -1,5 +1,5 @@
 import { h, clear } from '../lib/dom.js';
-import { DISHES, DISH_BY_ID, DIFFICULTY_LABEL } from '../data/dishes.js';
+import { DISHES, DISH_BY_ID, DIFFICULTY_LABEL, inTaste } from '../data/dishes.js';
 import { CUISINE_BY_ID, TASTE_BY_ID } from '../data/cuisines.js';
 import { PERSONALITY_BY_ID } from '../data/personalities.js';
 import { getVisualTheme, themeIdFor, applyTheme } from '../data/visualThemes.js';
@@ -73,7 +73,7 @@ export function buildCategoryPage({ kind, id }) {
   if (!meta) return null;
 
   const dishes = isTaste
-    ? DISHES.filter((d) => d.tastes.includes(id))
+    ? DISHES.filter((d) => inTaste(d, id))
     : DISHES.filter((d) => d.cuisine === id);
   const persona = isTaste ? PERSONALITY_BY_ID[id] : PERSONALITY_BY_ID[dishes[0]?.personality];
   const theme = getVisualTheme(themeIdFor({ kind, id }));

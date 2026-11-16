@@ -628,10 +628,26 @@ export function dishesByCuisine(cuisineId) {
   return DISHES.filter((d) => d.cuisine === cuisineId);
 }
 
-export function dishesByTaste(tasteId) {
-  return DISHES.filter((d) => d.tastes.includes(tasteId));
+/**
+ * 主味型 = tastes[0]。
+ * 口味分类的归属只认这一项：一道菜只进一个口味页，其余味型只作为标签展示。
+ * 多标签（tastes 的其余项）保留给详情页标签、菜系人格统计和 AI 推荐匹配，不参与分类归属。
+ */
+export function primaryTaste(dish) {
+  return (dish.tastes || [])[0] || '';
 }
 
-export function primaryTaste(dish) {
-  return dish.tastes[0];
+/** 这道菜是否属于该口味分类（唯一归属，不是「带这个标签」） */
+export function inTaste(dish, tasteId) {
+  return Boolean(tasteId) && primaryTaste(dish) === tasteId;
+}
+
+/** 该口味分类下的菜品：按主味型唯一归属，任何菜不会出现在第二个口味分类里 */
+export function dishesByTaste(tasteId) {
+  return DISHES.filter((d) => inTaste(d, tasteId));
+}
+
+/** 带该味型标签的全部菜品（含多标签的次要味型），仅供标签/推荐等场景使用 */
+export function dishesWithTasteTag(tasteId) {
+  return DISHES.filter((d) => (d.tastes || []).includes(tasteId));
 }
