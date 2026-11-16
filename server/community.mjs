@@ -157,11 +157,12 @@ function cleanRecipe(raw) {
   };
 }
 
-export function addPost({ content, image, images, kind, dishId, cuisineId, tasteId, author, recipe }) {
+export function addPost({ title, content, image, images, kind, dishId, cuisineId, tasteId, author, recipe }) {
   const state = read();
   const post = {
     id: crypto.randomUUID(),
     author,
+    title: String(title || '').trim().slice(0, 80),
     content: content.trim().slice(0, 800),
     kind: KINDS.includes(kind) ? kind : '讨论',
     image: image || '',

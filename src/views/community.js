@@ -541,10 +541,10 @@ export default {
             h('span', { text: fmtTime(post.createdAt) })
           )
         ),
-        // 标题行固定占位：菜谱标题优先，其次用帖子分类，保证每张卡片的图片区一样高
+        // 标题行固定占位：帖子标题/菜谱标题优先，其次用帖子分类，保证每张卡片的图片区一样高
         h('h3', {
-          class: post.recipe?.title ? 'post__title' : 'post__title post__title--kind',
-          text: post.recipe?.title || post.kind || '食客分享',
+          class: post.title || post.recipe?.title ? 'post__title' : 'post__title post__title--kind',
+          text: post.title || post.recipe?.title || post.kind || '食客分享',
         }),
         h('p', { class: 'post__text', text: post.content }),
         imgs.length
@@ -728,7 +728,9 @@ export default {
             h('span', { text: fmtTime(post.createdAt) })
           )
         ),
-        post.recipe?.title ? h('h2', { class: 'post-detail__title', text: post.recipe.title }) : null,
+        post.title || post.recipe?.title
+          ? h('h2', { class: 'post-detail__title', text: post.title || post.recipe.title })
+          : null,
         h('p', { class: 'post-detail__text', text: post.content }),
         imgs.length
           ? h('div', { class: `post__images post__images--${Math.min(imgs.length, 3)}` },

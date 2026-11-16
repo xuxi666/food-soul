@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server/index.mjs",
+    "seed:community": "node scripts/seed-community-examples.mjs",
     "ship": "node scripts/ship.mjs",
     "deploy": "node scripts/ship.mjs --push-only",
     "deploy:status": "node scripts/ship.mjs --status",

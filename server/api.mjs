@@ -1404,6 +1404,7 @@ async function handlePosts(req, res, url) {
       }
     }
     const post = addPost({
+      title: body.title,
       content,
       image,
       images: imageList,
