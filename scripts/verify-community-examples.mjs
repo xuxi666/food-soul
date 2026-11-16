@@ -66,12 +66,21 @@ check('未登录发布锁层仍在', await page.locator('.composer-lock').isVisi
 check('首屏第一张是示例帖', (await page.locator('.post').first().locator('.post__title').innerText()) === titles[0]);
 
 // 滚到底触发现有自动加载，直到了 10 条示例全部出现在 DOM 中。
-for (let i = 0; i < 6; i += 1) {
+for (let i = 0; i < 10; i += 1) {
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(900);
-  const count = await page.locator('.post').count();
-  if (count >= 12) break;
+  const nowTitles = await page.locator('.post__title').allInnerTexts();
+  if (titles.every((title) => nowTitles.includes(title))) break;
 }
+// 逐张滚过，确保懒加载图片都已实际请求。
+await page.evaluate(async () => {
+  for (const card of document.querySelectorAll('.post')) {
+    card.scrollIntoView();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }
+  window.scrollTo(0, 0);
+});
+await page.waitForTimeout(800);
 const loadedCount = await page.locator('.post').count();
 check('自动加载后能看到更多帖子', loadedCount >= 10, `${loadedCount} 张卡片`);
 
