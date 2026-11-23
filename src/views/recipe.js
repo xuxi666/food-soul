@@ -77,14 +77,14 @@ function statusPanel(text, tone = '') {
 /** 把后端返回的检索失败类型翻成一句人话（用于状态条与失败卡片标题） */
 function searchIssueText(payload) {
   const kind = payload?.errorKind || '';
-  if (kind === 'quota') return '联网检索额度不足';
+  if (kind === 'quota') return '联网检索来源暂时不可用';
   if (kind === 'auth') return '联网检索认证失败';
   if (kind === 'not_found') return '检索接口地址异常';
   if (kind === 'rate_limit') return '联网检索被限流';
   if (kind === 'server') return '联网检索暂时不可用';
   if (kind === 'not_configured') return '未配置联网检索';
   if (payload?.status === 'timeout') return '联网检索超时';
-  if (payload?.status === 'unavailable') return '未配置联网检索';
+  if (payload?.status === 'unavailable') return '未配置联网检索来源';
   if (payload?.status === 'insufficient' || payload?.status === 'empty') return '未检索到可靠资料';
   return '联网检索失败';
 }
@@ -92,11 +92,11 @@ function searchIssueText(payload) {
 /** 不可通过重试解决的检索问题，给出明确解决方向 */
 function searchHint(payload) {
   const kind = payload?.errorKind || '';
-  if (kind === 'quota') return '这是服务器上的联网检索服务（智谱 Web Search）额度用尽，需要管理员充值或更换 SEARCH_API_KEY。它与你「接入 AI」里填的模型（DeepSeek / OpenAI 等）额度无关，不影响模型调用。';
-  if (kind === 'auth') return '服务器上的检索 Key 无效、过期或未开通 Web Search 接口权限，请管理员检查 .env 中的 SEARCH_API_KEY。这与你的模型 Key 无关。';
-  if (kind === 'not_found') return '检索接口地址返回 404，请检查 SEARCH_BASE_URL 是否正确。';
-  if (kind === 'not_configured') return '服务器未配置 SEARCH_API_KEY，图鉴外的菜品只能按模型已有知识生成。';
-  if (kind === 'rate_limit') return '检索服务限流，稍后重试通常可以恢复。';
+  if (kind === 'quota') return '服务器上的联网检索来源暂时不可用；当前检索链路是自建 SearXNG、360 与 Bing RSS，不依赖付费检索 Key。请管理员检查服务器网络与检索来源状态。';
+  if (kind === 'auth') return '自建 SearXNG 拒绝了请求，请管理员检查 SEARXNG_URL、实例 limiter/反向代理配置；通常也可以继续使用 360 / Bing 兜底。';
+  if (kind === 'not_found') return '检索接口地址返回 404，请检查 .env 中的 SEARXNG_URL、SO360_URL、BING_RSS_URL 是否正确。';
+  if (kind === 'not_configured') return '服务器未配置联网检索：SEARXNG_URL、SO360_URL、BING_RSS_URL 均为空。站内图鉴仍可正常使用，图鉴外内容会明确提示，不会伪造来源。';
+  if (kind === 'rate_limit') return '检索来源限流，稍后重试通常可以恢复；也可以配置自建 SearXNG 提高稳定性。';
   return '';
 }
 
@@ -478,7 +478,7 @@ export default {
         unavailable: '无法联网检索',
         empty: '没有检索到相关资料',
         invalid: '菜名无效',
-      }[payload.status] || (search.errorKind === 'quota' ? '检索服务额度不足' : '暂时无法生成菜谱');
+      }[payload.status] || (search.errorKind === 'quota' ? '检索来源暂时不可用' : '暂时无法生成菜谱');
       const hint = searchHint(search);
 
       clear(result);

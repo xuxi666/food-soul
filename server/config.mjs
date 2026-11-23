@@ -27,21 +27,45 @@ loadEnv();
 /**
  * 联网检索服务（与用户自己的大模型分开）
  * ------------------------------------------------------------
- * 菜谱的「真实来源检索」与图鉴的「AI 补全菜品」依赖独立的 Web Search API，
- * 不能把用户配置的聊天模型误当成具备联网搜索能力。
- * 可用 SEARCH_API_KEY 单独配置；未配置时相关功能会明确提示，不伪造来源。
+ * 当前源码实际使用的检索链路是：自建 SearXNG → 360 搜索 → Bing RSS。
+ * 不再读取旧版的 SEARCH_PROVIDER / SEARCH_API_KEY / SEARCH_BASE_URL；
+ * 这三个字段仅保留在旧 .env 中也不会影响运行。
+ *
+ * 三个来源都允许用空串显式关闭；360 / Bing 有公开默认地址，
+ * 因此通常不需要额外配置就能工作。isSearchConfigured() 必须与
+ * web-search.mjs 的真实链路保持一致，不能再用旧版的 API Key 判定。
  */
-export const SEARCH_CONFIG = {
-  /** zhipu（智谱 Web Search）| searxng（自建元搜索） */
-  provider: (process.env.SEARCH_PROVIDER || 'zhipu').toLowerCase(),
-  apiKey: process.env.SEARCH_API_KEY || '',
-  baseUrl: (process.env.SEARCH_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4').replace(/\/$/, ''),
-  /** 自建 SearXNG 的地址，例如 http://127.0.0.1:8080 */
-  searxngUrl: (process.env.SEARXNG_URL || '').replace(/\/$/, ''),
+const envUrl = (name, fallback = '') => {
+  const raw = process.env[name] === undefined ? fallback : process.env[name];
+  return String(raw || '').trim().replace(/\/+$/, '');
 };
 
-export const isSearchConfigured = () =>
-  SEARCH_CONFIG.provider === 'searxng' ? Boolean(SEARCH_CONFIG.searxngUrl) : Boolean(SEARCH_CONFIG.apiKey);
+/** 每次调用时读取，便于测试和运行时诊断与本进程环境保持一致。 */
+export function getSearchConfig() {
+  return {
+    searxngUrl: envUrl('SEARXNG_URL', ''),
+    so360Url: envUrl('SO360_URL', 'https://www.so.com/s'),
+    bingRssUrl: envUrl('BING_RSS_URL', 'https://cn.bing.com/search'),
+  };
+}
+
+/** 兼容旧引用；实际判定请使用 getSearchConfig() / isSearchConfigured()。 */
+export const SEARCH_CONFIG = getSearchConfig();
+
+export const isSearchConfigured = () => {
+  const cfg = getSearchConfig();
+  return Boolean(cfg.searxngUrl || cfg.so360Url || cfg.bingRssUrl);
+};
+
+/** 未配置时给前端/日志的准确环境变量名。 */
+export const searchConfigNeeded = () => {
+  const cfg = getSearchConfig();
+  return [
+    !cfg.searxngUrl ? 'SEARXNG_URL' : '',
+    !cfg.so360Url ? 'SO360_URL' : '',
+    !cfg.bingRssUrl ? 'BING_RSS_URL' : '',
+  ].filter(Boolean);
+};
 
 export const SERVER_CONFIG = {
   port: Number(process.env.PORT) || 5190,

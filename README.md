@@ -266,9 +266,6 @@ pm2 restart food-soul
 | `SEARXNG_URL` | 否 | 空 | 自建 SearXNG 地址；未设置时跳过该来源，继续尝试 360 / Bing |
 | `BING_RSS_URL` | 否 | `https://cn.bing.com/search` | Bing RSS 检索端点；空串可关闭 |
 | `SO360_URL` | 否 | `https://www.so.com/s` | 360 搜索结果页端点；空串可关闭 |
-| `SEARCH_PROVIDER` | 否 | `zhipu` | 旧版兼容字段；当前检索链路固定按自建来源执行 |
-| `SEARCH_API_KEY` | 否 | 空 | 旧版检索字段；当前检索不读取，可留空 |
-| `SEARCH_BASE_URL` | 否 | `https://open.bigmodel.cn/api/paas/v4` | 旧版兼容字段；当前检索不读取 |
 | `EPICURE_ENABLED` | 否 | `true` | Epicure 总开关；`false` 时厨房相关功能整体降级 |
 | `EPICURE_MCP_URL` | 否 | `https://epicure-mcp.kaikaku.ai/mcp` | Epicure MCP 端点 |
 | `EPICURE_TIMEOUT_MS` | 否 | `10000` | 单次 MCP 调用超时 |

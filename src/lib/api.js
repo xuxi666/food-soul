@@ -178,11 +178,16 @@ export const api = {
   /** 菜品详情：站内静态库 + AI 检索补全的菜品 */
   dish: (id) => jsonFetch(`/api/dishes/${encodeURIComponent(id)}`),
 
-  /** 已持久化的 AI 补全菜品（可按分类过滤），用于分类页复用缓存、避免重复检索 */
-  dishes: ({ kind = '', id = '' } = {}) => {
+  /** 已持久化的 AI 补全菜品（可按分类分页/排除），用于分类页先加载本地、避免重复检索 */
+  dishes: ({ kind = '', id = '', offset = 0, limit = 20, excludeIds = [] } = {}) => {
     const qs = new URLSearchParams();
     if (kind) qs.set('kind', kind);
     if (id) qs.set('id', id);
+    if (offset) qs.set('offset', String(offset));
+    if (limit) qs.set('limit', String(limit));
+    if (Array.isArray(excludeIds) && excludeIds.length) {
+      qs.set('excludeIds', excludeIds.map(String).filter(Boolean).slice(0, 300).join(','));
+    }
     const tail = qs.toString();
     return jsonFetch(`/api/dishes${tail ? `?${tail}` : ''}`);
   },

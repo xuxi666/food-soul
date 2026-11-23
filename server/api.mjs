@@ -18,7 +18,7 @@ import { demoGreeting, demoCategoryGreeting } from './demo.mjs';
 import { listComments, addComment, toggleLike, reportComment, deleteComment, commentCountByDish } from './store.mjs';
 import { listPosts, addPost, toggleLike as togglePostLike, addComment as addPostComment, reportPost, removePost, saveImage, postStats, findPost, aiReplyStats, KINDS } from './community.mjs';
 import { searchDishVideos, searchVideos } from './videos.mjs';
-import { searchDishes, findDish, generatedDishes } from './dish-search.mjs';
+import { searchDishes, findDish, generatedDishes, localDishesPage } from './dish-search.mjs';
 import { recommend, normalizeConditions, normalizeFeedbackPayload } from './recommendations.mjs';
 import { lookupDish, lookupLibrary, rememberLookup, takeLookup, attachSourceSupport } from './recipe-lookup.mjs';
 import { personaForCategory, dishesForCategory } from '../src/data/categories.js';
@@ -786,7 +786,7 @@ async function handleRecommendationImage(req, res) {
 function searchReasonShort(search) {
   const kind = search?.errorKind || '';
   const map = {
-    quota: '联网检索额度不足',
+    quota: '联网检索来源暂时不可用',
     auth: '联网检索认证失败',
     not_found: '检索接口地址异常',
     rate_limit: '检索服务限流',
@@ -1830,12 +1830,22 @@ export async function handleApi(req, res) {
     if (req.method === 'GET' && path === '/api/dishes') {
       const kind = url.searchParams.get('kind') === 'taste' ? 'taste' : url.searchParams.get('kind') === 'cuisine' ? 'cuisine' : '';
       const id = String(url.searchParams.get('id') || '').slice(0, 40);
-      const items = generatedDishes().filter((d) => {
-        if (!kind || !id) return true;
-        // 只有「为这个分类检索出来」的 AI 菜才进入该分类列表，避免早期粗略归类把别的菜系混进来
-        return d.source?.requestedKind === kind && d.source?.categoryId === id;
+      const excludeIds = String(url.searchParams.get('excludeIds') || '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .slice(0, 300);
+      const page = localDishesPage({
+        kind,
+        id,
+        offset: url.searchParams.get('offset') || 0,
+        limit: url.searchParams.get('limit') || 120,
+        excludeIds,
       });
-      return send(res, 200, { items: items.slice(0, 120), total: items.length });
+      // 本地菜品（打包图鉴 + 已保存的 AI 补全）分页；不访问外部检索，
+      // 供图鉴「加载更多」在外部服务不可用时继续分页。只返回已有记录，
+      // 不在这里生成或猜测菜品。
+      return send(res, 200, page);
     }
     if (req.method === 'GET' && path.startsWith('/api/dishes/')) {
       const id = decodeURIComponent(path.slice('/api/dishes/'.length));

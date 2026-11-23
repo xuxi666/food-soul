@@ -15,7 +15,7 @@
  * 日志全程脱敏：只输出 provider / endpoint / 阶段 / HTTP 状态 / 结果数 /
  * 命中引擎 / 不可用引擎 / 耗时，不含任何密钥。
  */
-import { SEARCH_CONFIG } from './config.mjs';
+import { getSearchConfig } from './config.mjs';
 
 const CACHE = new Map();
 const CACHE_TTL = 10 * 60 * 1000;
@@ -24,12 +24,11 @@ const MAX_CACHE = 80;
 const MAX_ATTEMPTS = 2;
 
 function providerId() {
-  return 'searxng';
+  return 'searxng+360+bing';
 }
 
 function searxngBase() {
-  const raw = process.env.SEARXNG_URL !== undefined ? process.env.SEARXNG_URL : SEARCH_CONFIG.searxngUrl;
-  return String(raw || '').replace(/\/$/, '');
+  return getSearchConfig().searxngUrl;
 }
 
 function endpointHost() {
@@ -167,12 +166,9 @@ async function requestOnce(q, { count, timeout }) {
 
 /* ---------------- Bing RSS（官方 RSS 端点，无 Key、无验证码） ---------------- */
 
-const BING_RSS = 'https://cn.bing.com/search';
-
 /** 测试或私有部署可覆盖；显式设为空串表示关闭 Bing 兜底 */
 function bingBase() {
-  const raw = process.env.BING_RSS_URL !== undefined ? process.env.BING_RSS_URL : BING_RSS;
-  return String(raw || '');
+  return getSearchConfig().bingRssUrl;
 }
 
 function decodeXml(v) {
@@ -253,12 +249,9 @@ async function bingRssSearch(q, { timeout }) {
 
 /* ---------------- 360 搜索（公开结果页；中文菜品名命中率最高） ---------------- */
 
-const SO360 = 'https://www.so.com/s';
-
 /** 测试或私有部署可覆盖；显式设为空串表示关闭 360 */
 function so360Base() {
-  const raw = process.env.SO360_URL !== undefined ? process.env.SO360_URL : SO360;
-  return String(raw || '');
+  return getSearchConfig().so360Url;
 }
 
 function htmlToText(v) {
@@ -373,7 +366,7 @@ export async function webSearch(query, opts = {}) {
       httpStatus: 0,
       retryable: false,
       sources: [],
-      message: '未配置联网检索：SEARXNG_URL 为空，且 Bing 兜底被关闭。',
+      message: '未配置联网检索：SEARXNG_URL、SO360_URL、BING_RSS_URL 均为空。',
     };
   }
   if (!hasSearxng) logSearch({ stage: 'config', kind: 'searxng_not_configured' });

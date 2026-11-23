@@ -226,7 +226,7 @@ export function catalogMoreBar({ state, onLoad, note }) {
       const started = performance.now();
       const noteEl = h('p', {
         class: 'catalog-more__note',
-        text: '正在联网检索同分类新菜，并校验分类、字段与图片，通常需要 30–60 秒。',
+        text: '正在加载同分类菜品：先读站内图鉴与已保存结果，必要时再联网检索。',
       });
       const tick = window.setInterval(() => {
         if (!noteEl.isConnected) {
@@ -234,10 +234,10 @@ export function catalogMoreBar({ state, onLoad, note }) {
           return;
         }
         const sec = Math.round((performance.now() - started) / 1000);
-        noteEl.textContent = `正在联网检索…已 ${sec} 秒（通常需要 30–60 秒，请稍候）`;
+        noteEl.textContent = `正在加载更多菜品…已 ${sec} 秒（本地优先，必要时联网检索）`;
       }, 1000);
       bar.append(
-        h('button', { class: 'btn btn--solid catalog-more__btn', type: 'button', disabled: true }, 'AI 正在寻找更多美食…'),
+        h('button', { class: 'btn btn--solid catalog-more__btn', type: 'button', disabled: true }, '正在寻找更多美食…'),
         noteEl
       );
       return;
@@ -275,7 +275,7 @@ export function catalogMoreBar({ state, onLoad, note }) {
         ),
         h('p', {
           class: 'catalog-more__note',
-          text: '连续两轮没有新菜时会停止继续检索，避免反复消耗联网额度。',
+          text: '连续两轮没有新菜时会停止继续请求，避免反复消耗外部检索。',
         })
       );
       return;

@@ -105,6 +105,20 @@ DEPLOY_KEY=$HOME/.ssh/your_deploy_key
 
 日志：`/opt/food-soul/.deploy/deploy.log`、`build.log`、`npm.log`、`github.log`。
 
+### 4.1.1 联网检索配置（可选）
+
+服务端检索链路是 **自建 SearXNG → 360 搜索 → Bing RSS**，**不需要 `SEARCH_API_KEY`**。旧版 `.env` 中的 `SEARCH_PROVIDER`、`SEARCH_API_KEY`、`SEARCH_BASE_URL` 已不再读取，可以删除。
+
+```ini
+# 自建 SearXNG 可选；没配置时跳过该来源
+SEARXNG_URL=http://127.0.0.1:8080
+# 360 / Bing 默认地址；显式设为空串可关闭对应兜底
+SO360_URL=https://www.so.com/s
+BING_RSS_URL=https://cn.bing.com/search
+```
+
+图鉴「加载更多」先读取打包图鉴和服务端 `data/generated-dishes.json`，只有两层本地数据都耗尽才调用外部检索；因此检索未配置或暂时不可用时，已有菜品不会停止加载。
+
 ### 4.2 GitHub 部署密钥（一次性）
 
 在服务器生成，私钥不出服务器：
@@ -127,7 +141,7 @@ ssh -i <DEPLOY_KEY> root@<DEPLOY_HOST> \
 
 | 路径 | 说明 |
 | --- | --- |
-| `/opt/food-soul/.env` | 服务端密钥（AI_CONFIG_SECRET、SEARCH_*、ADMIN_EMAILS 等），**不要提交** |
+| `/opt/food-soul/.env` | 服务端密钥（AI_CONFIG_SECRET、ADMIN_EMAILS 等），**不要提交** |
 | `/opt/food-soul/data/` | SQLite 与社区/评论 JSON |
 | `/opt/food-soul/public/uploads/` | 用户上传图片 |
 | `/opt/food-soul/dist/` | 构建产物（每次部署重建） |

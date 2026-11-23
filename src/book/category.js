@@ -82,7 +82,7 @@ export function mountCategory(el, kind, id) {
     kind,
     id,
     loading: false,
-    phase: '', // 'atlas' | 'discover'
+    phase: '', // 'atlas' | 'local' | 'discover'
     notice: '',
     error: false,
     requestId: 0, // 切换菜系后作废旧请求
@@ -459,6 +459,9 @@ export function mountCategory(el, kind, id) {
       if (state.phase === 'atlas') {
         rightMoreLabel.textContent = '正在加载图鉴菜品……';
         rightMoreText.textContent = `图鉴还有 ${rest} 道未展示`;
+      } else if (state.phase === 'local') {
+        rightMoreLabel.textContent = '正在加载本地菜品……';
+        rightMoreText.textContent = '优先读取站内图鉴与已保存的发现结果，不依赖外部检索';
       } else {
         rightMoreLabel.textContent = '正在发现更多相关菜品……';
         rightMoreText.textContent = '联网检索并逐条验证菜名、菜系与图片，通常需要 10–40 秒';
@@ -471,21 +474,21 @@ export function mountCategory(el, kind, id) {
     if (state.error) {
       // 检索服务不可用 / 超时：明确说清楚，不能伪装成「没有更多」
       rightMoreLabel.textContent = '重新搜索';
-      rightMoreText.textContent = state.error.slice(0, 60) || '暂时无法连接美食检索服务，请稍后重试。';
+      rightMoreText.textContent = state.error.slice(0, 90) || '暂时无法连接美食检索服务，请稍后重试。';
       rightMore.classList.add('is-error');
       return;
     }
     rightMore.classList.remove('is-error');
     if (f.done) {
       rightMoreLabel.textContent = '重新搜索';
-      rightMoreText.textContent = (state.notice || '本次没有发现新的可靠菜品，可以尝试再次探索。').slice(0, 60);
+      rightMoreText.textContent = (state.notice || '本次没有发现新的可靠菜品，可以尝试再次探索。').slice(0, 90);
       return;
     }
     rightMoreLabel.textContent = '加载更多';
     if (rest > 0) {
       rightMoreText.textContent = `还有 ${rest} 道图鉴菜品 · 继续往下翻`;
     } else if (state.notice) {
-      rightMoreText.textContent = state.notice.slice(0, 60);
+      rightMoreText.textContent = state.notice.slice(0, 90);
     } else {
       rightMoreText.textContent = '继续探索图鉴之外的美食';
     }
@@ -504,7 +507,9 @@ export function mountCategory(el, kind, id) {
     state.error = '';
     state.notice = '';
     state.clicks = (state.clicks || 0) + 1;
-    state.phase = atlasRemaining(f) > 0 ? 'atlas' : 'discover';
+    // 图鉴 → 服务端本地缓存 → 外部检索；本地缓存没读完之前，界面不显示
+    // “正在联网检索”，也不会因为外部检索不可用而中断本地分页。
+    state.phase = atlasRemaining(f) > 0 ? 'atlas' : f.localDone || f.localError ? 'discover' : 'local';
     if (state.phase === 'discover' && f.done) retryDiscovery(f);
     const keepScroll = rightScroll ? rightScroll.scrollTop : 0;
     logCat('click', {
@@ -533,12 +538,13 @@ export function mountCategory(el, kind, id) {
         const res = await discoverBatch(f, DISCOVER_BATCH);
         if (token !== state.requestId) return; // 期间换了菜系：这批不进界面
         for (const d of res.items) rightGrid.append(dishCard(d, { source: 'discovered' }));
-        // 界面只说结论，为什么没找到（候选数、被谁跳过）留在控制台与后端日志里
+        // 界面只说结论；具体为什么没找到留在控制台与后端日志里。
+        // 本地缓存命中和外部检索命中的文案要区分，避免把站内旧数据说成“新检索”。
         state.notice = res.items.length
-          ? `发现了 ${res.items.length} 道新菜品`
-          : res.status === 'failed'
-            ? '暂时无法连接美食检索服务，请稍后重试。'
-            : '本次没有发现新的可靠菜品，可以尝试再次探索。';
+          ? res.source === 'local'
+            ? `已补充 ${res.items.length} 道站内菜品`
+            : `发现了 ${res.items.length} 道新菜品`
+          : res.note || '本次没有发现新的可靠菜品，可以尝试再次探索。';
         if (!res.items.length) logCat('discover:empty', { reason: res.reason, note: res.note });
         logCat('discover', {
           status: res.status,
@@ -554,11 +560,13 @@ export function mountCategory(el, kind, id) {
       if (token === state.requestId) {
         // 服务端会回「请先登录 / 检索超时 / 服务不可用」这类可直接展示的说明
         const raw = String(err?.message || '');
-        state.error =
+        const why =
           !raw || /^请求失败|Failed to fetch|NetworkError|^debug:/.test(raw)
             ? '暂时无法连接美食检索服务，请稍后重试。'
-            : raw.slice(0, 60);
-        logCat('error', { message: raw.slice(0, 160) });
+            : raw;
+        const localNote = f.localError ? `本地历史结果读取失败：${f.localError}` : '';
+        state.error = [localNote, why].filter(Boolean).join('；').slice(0, 90);
+        logCat('error', { message: raw.slice(0, 160), local: f.localError });
       }
     } finally {
       if (token === state.requestId) {
@@ -746,6 +754,8 @@ export function mountCategory(el, kind, id) {
           discovered: discoveredCount(feed),
           backlog: feed.backlog.length,
           hydrated: feed.hydrated,
+          localDone: feed.localDone,
+          localError: feed.localError,
           dryRounds: feed.dryRounds,
           done: feed.done,
           ids: feed.items.map((d) => d.id),

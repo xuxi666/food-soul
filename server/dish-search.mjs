@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DISHES, DISH_BY_ID } from '../src/data/dishes.js';
+import { DISHES, DISH_BY_ID, inTaste } from '../src/data/dishes.js';
 import { MERGED_DISHES, mergedDishId } from '../src/data/dish-merges.js';
 import { CUISINE_BY_ID, CUISINES, TASTE_BY_ID, TASTES } from '../src/data/cuisines.js';
-import { isSearchConfigured } from './config.mjs';
+import { isSearchConfigured, searchConfigNeeded } from './config.mjs';
 import { extractJSON } from './json-utils.mjs';
 import { complete } from './ai-adapter.mjs';
 import { webSearch } from './web-search.mjs';
@@ -296,6 +296,91 @@ export function generatedDishes() {
   return readGenerated();
 }
 
+/** 与前端 dishFeed 的规范化口径保持一致，避免同一道菜因标点/后缀重复。 */
+function dishNameKey(raw) {
+  return String(raw || '')
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .replace(/(的做法|做法|菜谱|食谱|怎么做|如何做|家常版|家常)$/g, '')
+    .replace(/[\s\u3000·・,，.。;；:：!！?？'"“”‘’()（）【】\[\]《》<>、/\\|_\-—–~～]+/g, '')
+    .toLowerCase()
+    .slice(0, 40);
+}
+
+/**
+ * 本地菜品分页：打包图鉴 DISHES + 已持久化的 AI 补全菜品。
+ * 不访问任何外部检索服务；即使联网检索未配置，图鉴加载更多仍应能使用这里的数据。
+ * 前端首屏仍直接用打包图鉴；服务端这一层负责「图鉴之后」的本地分页与去重。
+ */
+export function localDishesPage(input = {}) {
+  const targetKind = input.kind === 'cuisine' || input.kind === 'taste' ? input.kind : '';
+  const targetId = String(input.id || '').trim();
+  const excludeIds = new Set(
+    (Array.isArray(input.excludeIds) ? input.excludeIds : [])
+      .map((x) => String(x || '').trim())
+      .filter(Boolean)
+  );
+  const limit = Math.max(1, Math.min(120, Number(input.limit) || 20));
+  const offset = Math.max(0, Number(input.offset) || 0);
+  const seenIds = new Set();
+  const seenNames = new Set();
+  const seenImages = new Set();
+  const all = [];
+
+  const add = (d) => {
+    if (!d || !d.id || !d.name) return;
+    const nameKey = dishNameKey(d.name);
+    if (!nameKey) return;
+    const imageKey = String(d.image || '').trim();
+    if (excludeIds.has(d.id) || excludeIds.has(d.name) || excludeIds.has(nameKey)) return;
+    if (imageKey && excludeIds.has(imageKey)) return;
+    if (seenIds.has(d.id) || seenNames.has(nameKey)) return;
+    if (imageKey && seenImages.has(imageKey)) return;
+    seenIds.add(d.id);
+    seenNames.add(nameKey);
+    if (imageKey) seenImages.add(imageKey);
+    all.push(d);
+  };
+
+  // 只在指定分类时混入图鉴；无分类的旧调用仍只返回已保存的 AI 补全，
+  // 避免 /api/dishes 的旧语义突然返回全部 87 道菜。
+  if (targetKind || targetId) {
+    for (const d of DISHES) {
+      if (targetKind === 'cuisine' && String(d.cuisine) !== targetId) continue;
+      if (targetKind === 'taste' && !inTaste(d, targetId)) continue;
+      if (!targetKind && targetId && String(d.cuisine) !== targetId && !inTaste(d, targetId)) continue;
+      add(d);
+    }
+  }
+
+  for (const d of readGenerated()) {
+    if (!d || !d.id || !d.name) continue;
+    const source = d.source || {};
+    if (targetKind && targetId) {
+      if (source.requestedKind !== targetKind || String(source.categoryId || '') !== targetId) continue;
+    } else if (targetKind) {
+      if (source.requestedKind !== targetKind) continue;
+    } else if (targetId) {
+      if (String(source.categoryId || '') !== targetId) continue;
+    }
+    add(d);
+  }
+
+  const items = all.slice(offset, offset + limit);
+  const nextOffset = offset + items.length;
+  return {
+    items,
+    total: all.length,
+    offset,
+    limit,
+    hasMore: nextOffset < all.length,
+    nextOffset,
+    source: 'local',
+  };
+}
+
+/** 兼容旧命名；行为已扩展为「图鉴 + 本地补全」。 */
+export const generatedDishesPage = localDishesPage;
+
 export function findDish(id) {
   if (!id) return null;
   // 旧链接、旧收藏或旧菜谱可能仍引用已合并的 id，统一解析到标准菜。
@@ -489,11 +574,13 @@ export async function searchDishes(input = {}) {
     };
   }
   if (!isSearchConfigured()) {
+    // 只拦「外部联网检索」；站内图鉴与 data/generated-dishes.json 的本地补全
+    // 由 /api/dishes 独立提供，不能因为这里未配置就一并失败。
     return {
       status: 'failed',
       items: [],
-      note: '联网检索服务未配置，无法验证菜品真实性。',
-      configNeeded: ['SEARCH_API_KEY'],
+      note: '外部联网检索未配置，无法验证新菜品真实性；站内已有菜品仍可继续加载。',
+      configNeeded: searchConfigNeeded(),
       reason: 'search_not_configured',
     };
   }

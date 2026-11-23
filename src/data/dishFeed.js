@@ -1,13 +1,13 @@
 /**
  * 菜系页右页的数据层：图鉴分页 + 图鉴外发现
  * ------------------------------------------------------------
- * 两段式，和页面上的「加载更多」一一对应：
- *   1. 图鉴批次：随包发布的菜品清单（src/data/dishes.js，97 道），按分类过滤后切片；
- *   2. 图鉴外发现：复用已有的服务端能力，不在前端另造一套 ——
- *      · GET  /api/dishes?kind=&id=     已持久化的「AI 联网补全」菜（读缓存，不重复检索）
- *      · POST /api/dishes/search        服务端 searchDishes()：GLM 联网检索 → 搜索验证菜名
- *                                       → 真实图片检索与哈希去重 → 落盘 public/dishes/generated
- *      两处都由服务端做真实性校验和去重，密钥只在服务端（server/config.mjs），前端拿不到。
+ * 三段式，和页面上的「加载更多」一一对应：
+ *   1. 图鉴批次：随包发布的菜品清单（src/data/dishes.js），按分类过滤后切片；
+ *   2. 服务端本地缓存：GET /api/dishes?kind=&id=&offset=&limit=&excludeIds=
+ *      读取已持久化的「AI 补全」菜品，分页/按已展示项去重，不访问外部检索；
+ *   3. 外部发现：POST /api/dishes/search，服务端 searchDishes() 用真实检索验证候选，
+ *      再检索真实图片并哈希去重，落盘 public/dishes/generated。
+ *      只有前两层都耗尽才调用；密钥只在服务端（server/config.mjs），前端拿不到。
  *
  * 每个分类（`cuisine:chuan` / `taste:mala`）一份独立状态并缓存：
  * 切走再切回来恢复已加载的卡片（与 src/lib/catalog.js 的缓存策略一致），
@@ -21,6 +21,7 @@ import { api } from '../lib/api.js';
 
 export const ATLAS_BATCH = 4; // 图鉴每批 4 道（两列两行）
 export const DISCOVER_BATCH = 3; // 图鉴外每批 3 道，和服务端单轮预算匹配
+const LOCAL_PAGE = 20; // 服务端本地缓存每页条数（不触发外部检索）
 const DRY_ROUNDS_DONE = 2; // 连续两轮没有新菜就停止自动检索，避免空耗额度
 
 const feeds = new Map();
@@ -89,6 +90,8 @@ export function getFeed(kind, id) {
     usedImages: new Set(),
     hydrated: false,
     hydrating: false,
+    localDone: false,
+    localError: '',
     atlasDone: false,
     dryRounds: 0,
     done: false,
@@ -133,16 +136,47 @@ export function takeAtlasBatch(feed, limit = ATLAS_BATCH) {
   return items;
 }
 
+/**
+ * 从服务端本地缓存取一页「尚未展示」的发现结果。
+ * 这只是分页读取打包图鉴与 data/generated-dishes.json，不调用任何外部检索。
+ */
+async function fetchLocalPage(feed) {
+  const excludeIds = [
+    ...feed.usedIds,
+    ...feed.usedNames,
+    ...feed.usedImages,
+    ...feed.backlog.flatMap((d) => [d.id, normalizeName(d.name), d.image]),
+  ].filter(Boolean);
+  const res = await api.dishes({
+    kind: feed.kind,
+    id: feed.id,
+    offset: 0,
+    limit: LOCAL_PAGE,
+    excludeIds,
+  });
+  const list = Array.isArray(res?.items) ? res.items : [];
+  let fresh = 0;
+  for (const d of list) {
+    if (!isFresh(feed, d)) continue;
+    if (feed.backlog.some((x) => x.id && x.id === d.id)) continue;
+    feed.backlog.push(d);
+    fresh += 1;
+  }
+  // 服务端已经明确没有下一页，或本页全是重复项（避免同一页反复请求）时结束本地阶段。
+  feed.localDone = res?.hasMore === false || list.length === 0 || fresh === 0;
+  feed.localError = '';
+  return fresh;
+}
+
 /** 读服务端已经落盘的发现结果（免费，不触发检索） */
 export async function hydrateFeed(feed) {
   if (feed.hydrated || feed.hydrating) return feed;
   feed.hydrating = true;
   try {
-    const res = await api.dishes({ kind: feed.kind, id: feed.id });
-    const list = (res?.items || []).filter((d) => isFresh(feed, d));
-    feed.backlog = list;
-  } catch {
-    feed.backlog = [];
+    await fetchLocalPage(feed);
+  } catch (err) {
+    // 本地接口失败不应该阻止后续外部检索；记录原因，用户重试时可再次尝试本地。
+    feed.localError = String(err?.message || err || '本地菜品读取失败').slice(0, 120);
   } finally {
     feed.hydrated = true;
     feed.hydrating = false;
@@ -152,22 +186,37 @@ export async function hydrateFeed(feed) {
 
 /**
  * 取下一批图鉴外菜品。
- * 先花缓存（服务端已持久化的结果），没有再触发一次联网检索。
- * @returns {Promise<{items:Array, source:'cache'|'search'|'none', status:string, note:string}>}
+ * 严格按「本地图鉴 → 服务端本地缓存 → 外部联网检索」顺序，前一层有数据时
+ * 绝不请求下一层；外部未配置/失败也不会把已加载的本地卡片一起打回。
+ * @returns {Promise<{items:Array, source:'local'|'search'|'none', status:string, note:string}>}
  */
 export async function discoverBatch(feed, limit = DISCOVER_BATCH) {
   if (!feed.hydrated) await hydrateFeed(feed);
 
-  const cached = [];
-  while (feed.backlog.length && cached.length < limit) {
-    const d = feed.backlog.shift();
-    if (isFresh(feed, d)) cached.push(d);
+  const takeBacklog = () => {
+    const out = [];
+    while (feed.backlog.length && out.length < limit) {
+      const d = feed.backlog.shift();
+      if (isFresh(feed, d)) out.push(d);
+    }
+    return out;
+  };
+
+  let cached = takeBacklog();
+  if (!cached.length && !feed.localDone && !feed.localError) {
+    try {
+      await fetchLocalPage(feed);
+      cached = takeBacklog();
+    } catch (err) {
+      feed.localError = String(err?.message || err || '本地菜品读取失败').slice(0, 120);
+    }
   }
   if (cached.length) {
     cached.forEach((d) => track(feed, d, 'discovered'));
     feed.items = [...feed.items, ...cached];
     feed.dryRounds = 0;
-    return { items: cached, source: 'cache', status: 'ok', note: '' };
+    feed.lastNotice = '';
+    return { items: cached, source: 'local', status: 'ok', note: '' };
   }
 
   const excludeIds = [...feed.usedIds, ...feed.usedNames];
@@ -187,9 +236,13 @@ export async function discoverBatch(feed, limit = DISCOVER_BATCH) {
     return { items, source: 'search', status: 'ok', note: res?.note || '', reason: res?.reason || 'ok', stats: res?.stats || null };
   }
 
-  // 一条都没拿到：如实记下服务端给的说明，不做「假装还有更多」
+  // 一条都没拿到：如实记下服务端给的说明，不做「假装还有更多」。
+  // 本地接口失败时把原因一并带上，避免只显示外部检索错误而掩盖本地问题。
   feed.dryRounds += 1;
-  feed.lastNotice = res?.note || '本次没有发现新的可靠菜品，可以尝试再次探索。';
+  const localNote = feed.localError ? `本地历史结果读取失败：${feed.localError}` : '';
+  feed.lastNotice = [res?.note || '本次没有发现新的可靠菜品，可以尝试再次探索。', localNote]
+    .filter(Boolean)
+    .join('；');
   if (feed.dryRounds >= DRY_ROUNDS_DONE) feed.done = true;
   return {
     items: [],
@@ -201,11 +254,12 @@ export async function discoverBatch(feed, limit = DISCOVER_BATCH) {
   };
 }
 
-/** 用户点「再试一次」：清掉「已到底」的判断，允许重新检索一轮 */
+/** 用户点「再试一次」：清掉「已到底」的判断，允许重新尝试本地分页和外部检索 */
 export function retryDiscovery(feed) {
   feed.dryRounds = 0;
   feed.done = false;
   feed.lastNotice = '';
+  feed.localError = '';
 }
 
 /** 测试/调试用：清空所有分类缓存 */

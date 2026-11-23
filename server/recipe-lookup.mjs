@@ -9,7 +9,7 @@ import { webSearchMany } from './web-search.mjs';
  * 菜谱工作台的两阶段菜品查询
  * ------------------------------------------------------------
  * 1) 先在站内图鉴（DISHES + AI 补全库）里按规范化名称/别名匹配；
- * 2) 图鉴没有，才调用真实联网检索（智谱 Web Search API），并返回可追溯来源。
+ * 2) 图鉴没有，才调用真实联网检索（自建 SearXNG / 360 / Bing RSS），并返回可追溯来源。
  * 不把模型自身知识伪装成检索结果；来源不足时明确返回 insufficient。
  */
 
@@ -175,7 +175,7 @@ export async function lookupDish({ dishName, dishId } = {}) {
         : status === 'failed'
           ? found.message || '联网检索失败。'
           : status === 'unavailable'
-            ? '未配置联网检索服务（SEARCH_API_KEY），无法联网检索。'
+            ? '未配置联网检索服务（SEARXNG_URL、SO360_URL、BING_RSS_URL 均为空），无法联网检索。'
             : `暂未找到足够可靠的资料（检索到 ${found.sources.length} 条，直接相关 ${relevant.length} 条）。`;
 
   return {
