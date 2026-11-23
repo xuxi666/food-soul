@@ -2,7 +2,7 @@
 
 > 一个以中国美食文化为主题，融合画册式交互、AI 美食对话、Epicure 风味分析、AI 创意厨房、智能菜谱和个性化推荐能力的沉浸式数字美食画册。
 
-[GitHub 仓库](https://github.com/xuxi666/food-soul) · [线上演示](http://47.93.33.108/) · [部署说明](docs/DEPLOY.md) · [后台模块记录](docs/ADMIN-BACKEND.md)
+[GitHub 仓库](https://github.com/xuxi666/food-soul) · [线上演示](http://115.29.162.117/) · [部署说明](docs/DEPLOY.md) · [后台模块记录](docs/ADMIN-BACKEND.md)
 
 ## 1. 项目简介
 
